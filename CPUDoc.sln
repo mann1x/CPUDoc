@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.32413.511
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CPUDoc", "CPUDoc.csproj", "{32B0968D-F255-4BFC-B06E-7CF5110BF093}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{32B0968D-F255-4BFC-B06E-7CF5110BF093}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{32B0968D-F255-4BFC-B06E-7CF5110BF093}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{32B0968D-F255-4BFC-B06E-7CF5110BF093}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{32B0968D-F255-4BFC-B06E-7CF5110BF093}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {83EAF613-6E07-4AA1-80A8-D16A3743870D}
+	EndGlobalSection
+EndGlobal
