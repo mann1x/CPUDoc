@@ -11,10 +11,21 @@ You can test with 7-Zip benchmark using half or less the total CPU threads.
 The results is similar to disabling SMT/HyperThreading in BIOS but you can still enjoy almost full performances when needed.
 More cores are available on the CPU and more benefits can be expected running it.
 
+In general all the benchmarks are scoring very slightly lower.
 The drawback is a little lag when a very high workload needs all the cores; all synthetic MT benchmarks will score a little lower due to that.
-It's probably going to be sub-optimal in some specific scenarios but it's also a massive improvement in others.
+It's probably going to be sub-optimal in some specific scenarios but it can be also a massive improvement in others.
 
 From my experience gaming with a huge amount of background applications, while developing it, went from a complete mess of massive stuttering to silk smooth.
+
+Benching on a clean install the results are almost identical, especially in gaming.
+7-Zip compression/decompression benchmark scores increased from 139.3/127.1 to 142.3/131 GIPS.
+A modest increase cause there are not many background processes spread by the Windows scheduler all around.
+On my main bloated Windows install where I have the world and beyond running in background the picture is different.
+The benchmark scores increased from 129.6/122.9 to 137.3/130 GIPS.
+
+SOTR shows a small improvement of 10-20 fps in the CPU Renderer.
+
+Testing on your setup is the only way to know if it helps or not.
 
 Later I will add an AMD Ryzen WHEA Fixer for Win10/11 and an E-Cores software disable switch for Alder Lake.
 
