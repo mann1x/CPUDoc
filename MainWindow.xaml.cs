@@ -529,7 +529,7 @@ namespace CPUDoc
 
                 LogonTrigger lTrigger = (LogonTrigger)td.Triggers.Add(new LogonTrigger());
 
-                td.Actions.Add(new ExecAction(System.IO.Path.GetFileName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName), AppDomain.CurrentDomain.BaseDirectory, null));
+                td.Actions.Add(new ExecAction(System.IO.Path.GetFileName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName), null, AppDomain.CurrentDomain.BaseDirectory));
 
                 // Register the task in the root folder
                 const string taskName = "CPUDoc AutoStart";
