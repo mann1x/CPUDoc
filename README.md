@@ -27,7 +27,7 @@ SOTR shows a small improvement of 10-20 fps in the CPU Renderer.
 
 Testing on your setup is the only way to know if it helps or not.
 
-Later I will add an AMD Ryzen WHEA Fixer for Win10/11 and an E-Cores software disable switch for Alder Lake.
+Later I will add an AMD Ryzen WHEA suppressor (not fixer bacause is misleading lol) for Win10/11 and an E-Cores software disable switch for Alder Lake.
 
 CPU usage is very low, 0.01/0.02% on my 5950X with just over 100MB of memory.
 
