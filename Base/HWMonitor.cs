@@ -112,7 +112,7 @@ namespace CPUDoc
 
             MonitoringPause = true;
 
-            cpuLoad = new CpuLoad(App.systemInfo.CPULogicalProcessors);
+            cpuLoad = new CpuLoad();
             cpuLoad.Update();
 
         }

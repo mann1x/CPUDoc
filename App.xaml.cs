@@ -26,6 +26,7 @@ using System.Text;
 using NLog.Config;
 using System.Threading.Tasks;
 using Hardcodet.Wpf.TaskbarNotification;
+using System.Windows.Threading;
 
 namespace CPUDoc
 {
@@ -36,6 +37,11 @@ namespace CPUDoc
 
     public partial class App : Application
     {
+        public static readonly string AutoUpdaterUrl = "https://raw.githubusercontent.com/mann1x/CPUDoc/master/CPUDoc/AutoUpdaterCPUDoc.json";
+
+        //public static readonly string AutoUpdaterUrl = "https://raw.githubusercontent.com/mann1x/CPUDoc/master/CPUDoc/AutoUpdaterCPUDocTest.json";
+        //public static readonly string AutoUpdaterUrl = "https://raw.githubusercontent.com/mann1x/BenchMaestro/master/BenchMaestro/AutoUpdaterBenchMaestroTest.json";
+
         public static Logger logger = LogManager.GetCurrentClassLogger();
 
         private static LoggingRule logtraceRule;
@@ -46,27 +52,26 @@ namespace CPUDoc
         internal static Mutex instanceMutex;
         internal bool bMutex;
 
-        public static int InterlockBench = 0;
         public static int InterlockHWM = 0;
+        public static int InterlockTB = 0;
+        public static int InterlockUI = 0;
 
         public static CancellationTokenSource hwmcts = new CancellationTokenSource();
-        public static CancellationTokenSource benchcts = new CancellationTokenSource();
+        public static CancellationTokenSource tbcts = new CancellationTokenSource();
 
-        public static ManualResetEventSlim mresbench = new ManualResetEventSlim(false);
         public static ManualResetEventSlim mreshwm = new ManualResetEventSlim(false);
+        public static ManualResetEventSlim mrestb = new ManualResetEventSlim(false);
 
         public static System.Timers.Timer hwmtimer = new System.Timers.Timer();
+        public static System.Timers.Timer tbtimer = new System.Timers.Timer();
+        public static System.Timers.Timer uitimer = new System.Timers.Timer();
 
         public static Thread thrMonitor;
         public static int thridMonitor;
-        public static Thread thrBench;
-        public static int thridBench;
-
-        public static Process BenchProc = new Process();
-        public static int RunningProcess = -1;
-
-        public static bool TaskRunning;
-        public static bool MultiRunning;
+        public static Thread thrThreadBooster;
+        public static int thridThreadBooster;
+        public static Thread thrUpdateUI;
+        public static int thridUpdateUI;
 
         public static SystemInfo systemInfo;
         public static string version;
@@ -75,20 +80,6 @@ namespace CPUDoc
 
         public static string ZenPTSubject = "";
         public static string ZenPTBody = "";
-
-        public static DateTime TSRunStart = DateTime.Now;
-        public static bool benchrunning = false;
-        public static bool benchclosed = true;
-        public static double scoreMinWidth = 0;
-        public static List<int> TieredLogicals = new();
-        public static int BenchIterations = 1;
-        public static string BenchScoreUnit;
-        public static int IterationPretime = 20;
-        public static int IterationRuntime = 100;
-        public static int IterationPostime = 5;
-        public static DateTime IterationPretimeTS = DateTime.MinValue;
-        public static DateTime IterationRuntimeTS = DateTime.MinValue;
-        public static DateTime IterationPostimeTS = DateTime.MinValue;
 
         public static List<HWSensorItem> hwsensors;
 
@@ -112,7 +103,13 @@ namespace CPUDoc
 
         public static TaskbarIcon tbIcon;
 
-        [DllImport("kernel32", SetLastError = true)]
+        public static List<int> logicalsT0;
+        public static List<int> logicalsT1;
+
+        [DllImport(@"cputools.dll")]
+        private static extern int SetSystemCpuSet(uint bitMask);
+
+        [DllImport(@"kernel32.dll", SetLastError = true)]
         static extern bool FreeLibrary(IntPtr hModule);
         public static void UnloadModule(string moduleName)
         {
@@ -125,7 +122,7 @@ namespace CPUDoc
             }
         }
         // Sleep Control
-        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        [DllImport(@"kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         static extern EXECUTION_STATE SetThreadExecutionState(EXECUTION_STATE esFlags);
 
         [FlagsAttribute]
@@ -155,6 +152,13 @@ namespace CPUDoc
                 Source = CPUDoc.Properties.Settings.Default;
                 Mode = BindingMode.TwoWay;
             }
+        }
+
+        public static int SetSysCpuSet(uint BitMask = 0)
+        {
+            SetSystemCpuSet(BitMask);
+            int _ret = SetSystemCpuSet(BitMask);
+            return _ret;
         }
 
         public static int GetLastThread(int _base = 1)
@@ -239,6 +243,94 @@ namespace CPUDoc
             }
             return (_runlogicals, _runcores);
         }
+
+        public static (List<int>, List<int>) GetTieredListsThreads()
+        {
+            List<int> _runt0 = new();
+            List<int> _runt1 = new();
+
+            try
+            {
+                int tcore = 0;
+                int[] CPPC = App.systemInfo.CPPCActiveOrder;
+
+                //TIER 1 - No E-Core if Hybrid, First Thread
+                for (int j = 0; j < CPPC.Length; ++j)
+                {
+                    tcore = CPPC[j];
+                    //App.LogDebug($"t1 tcore {tcore} isecore={systemInfo.Ecores.Contains(tcore)} tcoreloglen={ProcessorInfo.HardwareCores[tcore].LogicalCores.Length}");
+                    if (!systemInfo.IntelHybrid || (systemInfo.IntelHybrid && !systemInfo.Ecores.Contains(tcore)))
+                    {
+                        //App.LogDebug($"t1 add {tcore} logical={ProcessorInfo.HardwareCores[tcore].LogicalCores[0]}");
+                        _runt0.Add(ProcessorInfo.HardwareCores[tcore].LogicalCores[0]);
+                    }
+                }
+
+                //TIER 2 No E-Core if Hybrid, Second Thread
+                for (int j = 0; j < CPPC.Length; ++j)
+                {
+                    tcore = CPPC[j];
+                    //App.LogDebug($"t2 tcore {tcore} isecore={systemInfo.Ecores.Contains(tcore)} tcoreloglen={ProcessorInfo.HardwareCores[tcore].LogicalCores.Length}");
+                    if ((!systemInfo.IntelHybrid || (systemInfo.IntelHybrid && !systemInfo.Ecores.Contains(tcore))) && ProcessorInfo.HardwareCores[tcore].LogicalCores.Length > 1)
+                    {
+                        //App.LogDebug($"t2 add {tcore} logical={ProcessorInfo.HardwareCores[tcore].LogicalCores[1]}");
+                        if (ProcessorInfo.HardwareCores[tcore].LogicalCores[1] == 1)
+                        {
+                            _runt0.Add(ProcessorInfo.HardwareCores[tcore].LogicalCores[1]);
+
+                        }
+                        else
+                        {
+                            _runt1.Add(ProcessorInfo.HardwareCores[tcore].LogicalCores[1]);
+                        }
+                    }
+                }
+
+                //TIER 3 E-Core if Hybrid, First Thread
+                for (int j = 0; j < CPPC.Length; ++j)
+                {
+                    tcore = CPPC[j];
+                    if (systemInfo.IntelHybrid && systemInfo.Ecores.Contains(tcore))
+                    {
+                        if (systemInfo.bECoresLast)
+                        {
+                            _runt1.Add(ProcessorInfo.HardwareCores[tcore].LogicalCores[0]);
+                        }
+                        else
+                        {
+                            _runt0.Add(ProcessorInfo.HardwareCores[tcore].LogicalCores[0]);
+                        }
+                    }
+                }
+
+                //TIER 4 E-Core if Hybrid, Second Thread
+                for (int j = 0; j < CPPC.Length; ++j)
+                {
+                    tcore = CPPC[j];
+                    if (systemInfo.IntelHybrid && systemInfo.Ecores.Contains(tcore) && ProcessorInfo.HardwareCores[tcore].LogicalCores.Length > 1)
+                    {
+                        if (systemInfo.bECoresLast)
+                        {
+                            _runt1.Add(ProcessorInfo.HardwareCores[tcore].LogicalCores[1]);
+                        }
+                        else
+                        {
+                            _runt0.Add(ProcessorInfo.HardwareCores[tcore].LogicalCores[1]);
+                        }
+                    }
+                }
+
+                LogInfo($"E-Cores Last: {systemInfo.bECoresLast}");
+                LogInfo($"Tiered T0: {String.Join(", ", _runt0.ToArray())}");
+                LogInfo($"Tiered T1: {String.Join(", ", _runt1.ToArray())}");
+            }
+            catch (Exception ex)
+            {
+                LogExError($"GetTieredListsThreads exception: {ex.Message}", ex);
+            }
+            return (_runt0, _runt1);
+        }
+
 
         public static string GetCustomLabel()
         {
@@ -333,6 +425,7 @@ namespace CPUDoc
                     logconfig.LoggingRules.Add(logtraceRule);
 
                 }
+
                 LogManager.Configuration = logconfig;
                 //LogManager.ReconfigExistingLoggers();
                 logger = LogManager.GetCurrentClassLogger();
@@ -416,19 +509,45 @@ namespace CPUDoc
 
                 systemInfo.AppVersion = version;
 
-
                 SettingsInit();
 
                 InitColors();
 
-                HWMStart();
+                TBStart();
+                //UIStart();
 
-                //App.LogDebug($"OnStartup App End");
-
+                if (App.systemInfo.TBAutoStart)
+                {
+                    tbtimer.Enabled = true;
+                }
+                else
+                {
+                    tbtimer.Enabled = false;
+                }
+                    
                 tbIcon = (TaskbarIcon)FindResource("tbIcon");
 
                 tbIcon.ToolTip = $"CPUDoc {App.version}";
                 tbIcon.Icon = new Icon(Application.GetResourceStream(new Uri("pack://application:,,,/images/cpudoc.ico")).Stream);
+
+                Set0T1Affinity();
+
+                AutoUpdater.ReportErrors = false;
+                AutoUpdater.InstalledVersion = new Version(App._versionInfo);
+                AutoUpdater.DownloadPath = System.IO.Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
+                AutoUpdater.RunUpdateAsAdmin = false;
+                AutoUpdater.Synchronous = false;
+                AutoUpdater.ParseUpdateInfoEvent += AutoUpdaterOnParseUpdateInfoEvent;
+
+                var autimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+                autimer.Start();
+                autimer.Tick += (sender, args) =>
+                {
+                    autimer.Interval = TimeSpan.FromSeconds(3600);
+                    AutoUpdater.Start(AutoUpdaterUrl);
+                };
+
+                //App.LogDebug($"OnStartup App End");
 
             }
             catch (Exception ex)
@@ -436,12 +555,36 @@ namespace CPUDoc
                 LogExError($"OnStartup exception: {ex.Message}", ex);
             }
         }
+        private void AutoUpdaterOnParseUpdateInfoEvent(ParseUpdateInfoEventArgs args)
+        {
+            dynamic json = JsonConvert.DeserializeObject(args.RemoteData);
+            args.UpdateInfo = new UpdateInfoEventArgs
+            {
+                CurrentVersion = json.version,
+                ChangelogURL = json.changelog,
+                DownloadURL = json.url,
+                Mandatory = new Mandatory
+                {
+                    Value = json.mandatory.value,
+                    UpdateMode = json.mandatory.mode,
+                    MinimumVersion = json.mandatory.minVersion
+                },
+                CheckSum = new CheckSum
+                {
+                    Value = json.checksum.value,
+                    HashingAlgorithm = json.checksum.hashingAlgorithm
+                }
+            };
+            App.systemInfo.SetLastVersionOnServer($"{args.UpdateInfo.CurrentVersion} @ {DateTime.Now:dddd, dd MMMM yyyy HH:mm:ss}");
+
+        }
+
         public static void HWMStart()
         {
             thrMonitor = new Thread(RunHWM);
             thridMonitor = thrMonitor.ManagedThreadId;
-            thrMonitor.Priority = ThreadPriority.Highest;
-
+            thrMonitor.Priority = ThreadPriority.AboveNormal;
+            
             hwmtimer.Enabled = true;
 
             thrMonitor.Start();
@@ -450,22 +593,53 @@ namespace CPUDoc
             //App.LogDebug($"HWMonitor Started PID={thridMonitor} ALIVE={thrMonitor.IsAlive}");
 
         }
-
-        public static int RunTask()
+        public static void TBStart()
         {
-            if (MultiRunning)
-            {
-                return 2;
-            }
-            if (TaskRunning || InterlockBench != 0)
-            {
-                return 1;
-            }
-            return 0;
-            //thrBench = new Thread(BenchRun.RunBench);
-            //thridBench = thrBench.ManagedThreadId;
+            thrThreadBooster = new Thread(RunTB);
+            thridThreadBooster = thrThreadBooster.ManagedThreadId;
+            thrThreadBooster.Priority = ThreadPriority.AboveNormal;
+
+            tbtimer.Enabled = false;
+
+            thrThreadBooster.Start();
+            //tbtimer.Start();
+
+            //App.LogDebug($"ThreadBooster Started PID={thridMonitor} ALIVE={thrMonitor.IsAlive}");
 
         }
+
+        public static void TbSetStart(bool enable = true)
+        {
+            
+            if (enable)
+            {
+                tbtimer.Enabled = true;
+            }
+            else
+            {
+                tbtimer.Enabled = false;
+                Thread.Sleep(500);
+                SetSysCpuSet();
+            }
+
+            //App.LogDebug($"ThreadBooster Started PID={thridMonitor} ALIVE={thrMonitor.IsAlive}");
+
+        }
+
+        public static void UIStart()
+        {
+            thrUpdateUI = new Thread(RunUI);
+            thridUpdateUI = thrUpdateUI.ManagedThreadId;
+
+            uitimer.Enabled = false;
+
+            thrUpdateUI.Start();
+            uitimer.Start();
+
+            //App.LogDebug($"ThreadBooster Started PID={thridMonitor} ALIVE={thrMonitor.IsAlive}");
+
+        }
+
         public static void SettingsInit()
         {
             try
@@ -474,16 +648,24 @@ namespace CPUDoc
                 systemInfo.CPPCActiveLabel = systemInfo.CPPCLabel;
 
                 systemInfo.bECores = CPUDoc.Properties.Settings.Default.ECores;
+                systemInfo.bECoresLast = CPUDoc.Properties.Settings.Default.ECoresLast;
 
                 List<int> _runlogicals = new();
                 List<int> _runcores = new();
 
                 (_runlogicals, _runcores) = GetTieredLists();
 
-                SetLastTieredThreadAffinity(_runlogicals);
+                logicalsT0 = new();
+                logicalsT1 = new();
+
+                (logicalsT0, logicalsT1) = GetTieredListsThreads();
+
+                //SetLastTieredThreadAffinity(_runlogicals);
 
                 _runlogicals = null;
                 _runcores = null;
+
+                systemInfo.TBAutoStart = CPUDoc.Properties.Settings.Default.ThreadBooster;
 
             }
             catch (Exception ex)
@@ -502,6 +684,43 @@ namespace CPUDoc
                 //App.LogDebug("HWM ELAPSED ON");
             }
         }
+        private static void ThreadBooster_ElapsedEventHandler(object sender, ElapsedEventArgs e)
+        {
+            //App.LogDebug("TB ELAPSED");
+            int sync = Interlocked.CompareExchange(ref InterlockTB, 1, 0);
+            if (sync == 0)
+            {
+                ThreadBooster.OnThreadBooster(sender, e);
+                InterlockTB = 0;
+                //App.LogDebug("TB ELAPSED ON");
+            }
+        }
+        private static void UpdateUI_ElapsedEventHandler(object sender, ElapsedEventArgs e)
+        {
+            //App.LogDebug("UI ELAPSED");
+            int sync = Interlocked.CompareExchange(ref InterlockUI, 1, 0);
+            if (sync == 0)
+            {
+                OnUpdateUI(sender, e);
+                InterlockUI = 0;
+                //App.LogDebug("UI ELAPSED ON");
+            }
+        }
+        private static void OnUpdateUI(object sender, ElapsedEventArgs e)
+        {
+            if (tbtimer.Enabled) {
+                if (thrThreadBooster.ThreadState == System.Threading.ThreadState.Running || thrThreadBooster.ThreadState == System.Threading.ThreadState.Background)
+                {
+                    App.systemInfo.SetThreadBoosterStatus("Running");
+                }
+                else
+                {
+                    App.systemInfo.SetThreadBoosterStatus("Stopped");
+                }
+
+            }
+        }
+
         public static void RunHWM()
         {
 
@@ -515,14 +734,41 @@ namespace CPUDoc
             }
 
         }
+        public static void RunTB()
+        {
+
+            //App.LogDebug("RUN TB");
+            tbtimer.Interval = ThreadBooster.PoolingInterval;
+            tbtimer.Elapsed += new ElapsedEventHandler(ThreadBooster_ElapsedEventHandler);
+            if (tbtimer.Enabled)
+            {
+                //App.LogDebug("START TB");
+                tbtimer.Start();
+            }
+
+        }
+        public static void RunUI()
+        {
+
+            App.LogDebug("RUN TUIB");
+            uitimer.Interval = 1000;
+            uitimer.Elapsed += new ElapsedEventHandler(UpdateUI_ElapsedEventHandler);
+            if (uitimer.Enabled)
+            {
+                App.LogDebug("START UI");
+                uitimer.Start();
+            }
+
+        }
 
         private void Application_Exit(object sender, ExitEventArgs e)
         {
             try
             {
                 HWMonitor.Close();
+                ThreadBooster.Close();
                 hwmcts?.Dispose();
-                benchcts?.Dispose();
+                tbcts?.Dispose();
                 tbIcon.Dispose();
             }
             catch (Exception ex)
@@ -564,7 +810,9 @@ namespace CPUDoc
             }
             try
             {
+                SetSystemCpuSet(0);
                 UnloadModule("CPUDoc.sys");
+                UnloadModule("CPUTools.dll");
             }
             catch (Exception ex)
             {
@@ -653,6 +901,22 @@ namespace CPUDoc
             catch (Exception ex)
             {
                 LogExWarn($"SetLastThreadAffinity exception: {ex.Message}", ex);
+            }
+        }
+        public static void Set0T1Affinity()
+        {
+            try
+            {
+                using (Process thisprocess = Process.GetCurrentProcess())
+                {
+                    if (thisprocess.ProcessorAffinity != (IntPtr)(1L << 1))
+                        thisprocess.ProcessorAffinity = (IntPtr)(1L << 1);
+                    Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.AboveNormal;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogExWarn($"Set0T1Affinity exception: {ex.Message}", ex);
             }
         }
         public static void SetLastTieredThreadAffinity(List<int> tieredlist)

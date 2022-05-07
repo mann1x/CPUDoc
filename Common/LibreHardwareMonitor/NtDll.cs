@@ -14,12 +14,27 @@ namespace CPUDoc.Interop
     {
         public const string DllName = "ntdll";
 
+        [StructLayout(LayoutKind.Explicit, Size = 8)]
+        public struct LARGE_INTEGER
+        {
+            [FieldOffset(0)] public long QuadPart;
+
+            [FieldOffset(0)] public uint LowPart;
+            [FieldOffset(4)] public int HighPart;
+
+            [FieldOffset(0)] public int LowPartAsInt;
+            [FieldOffset(0)] public uint LowPartAsUInt;
+
+            [FieldOffset(4)] public int HighPartAsInt;
+            [FieldOffset(4)] public uint HighPartAsUInt;
+        }
+
         [StructLayout(LayoutKind.Sequential)]
         public struct SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION
         {
-            public long IdleTime;
-            public long KernelTime;
-            public long UserTime;
+            public LARGE_INTEGER IdleTime;
+            public LARGE_INTEGER KernelTime;
+            public LARGE_INTEGER UserTime;
             public long Reserved0;
             public long Reserved1;
             public ulong Reserved2;

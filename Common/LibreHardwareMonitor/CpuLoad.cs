@@ -18,9 +18,9 @@ namespace CPUDoc
         private float _totalLoad;
         private long[] _totalTimes;
 
-        public CpuLoad(int cpuCount)
+        public CpuLoad()
         {
-            _cpuCount = cpuCount;
+            _cpuCount = Environment.ProcessorCount;
             _cpuLoads = new float[_cpuCount];
             _totalLoad = 0;
             try
@@ -60,8 +60,8 @@ namespace CPUDoc
 
             for (int i = 0; i < idle.Length; i++)
             {
-                idle[i] = information[i].IdleTime;
-                total[i] = information[i].KernelTime + information[i].UserTime;
+                idle[i] = information[i].IdleTime.QuadPart;
+                total[i] = information[i].KernelTime.QuadPart + information[i].UserTime.QuadPart;
             }
 
             return true;
@@ -115,10 +115,8 @@ namespace CPUDoc
 
                 value = 1.0f - value;
                 value = value < 0 ? 0 : value;
-                _cpuLoads[index] = value * 100;
-                //Trace.Write($"#{index} {_cpuLoads[index]}%\t");
+                _cpuLoads[index] = value * 100.0f;
             }
-            //Trace.Write("\n");
 
             if (count > 0)
             {

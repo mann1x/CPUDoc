@@ -25,6 +25,7 @@ namespace CPUDoc
         public string AppVersion { get; set; }
         public string LastVersionOnServer { get; set; }
         public bool bECores { get; set; }
+        public bool bECoresLast { get; set; }
         public string BoardManufacturer { get; set; }
         public string BoardModel { get; set; }
         public string BoardBIOS { get; set; }
@@ -124,6 +125,11 @@ namespace CPUDoc
         public double CpuBusClock { get; set; }
         public bool CpuSHAExt { get; set; }
         public bool CpuVAESExt { get; set; }
+        public bool TBAutoStart { get; set; }
+        public double TBLoopTime { get; set; }
+        public double TBLoopEvery { get; set; }
+        public string ThreadBoosterStatus { get; set; }
+       
 
         private int EmptyTags()
         {
@@ -2733,6 +2739,17 @@ namespace CPUDoc
             }
             catch { }
         }
+        public void SetThreadBoosterStatus(string _value)
+        {
+            try
+            {
+                ThreadBoosterStatus = _value.Length > 0 ? _value : "N/A";
+                //App.LogInfo($"{_value}");
+                OnChange("ThreadBoosterStatus");
+            }
+            catch { }
+        }
+        
         protected void OnChange(string info)
         {
             try

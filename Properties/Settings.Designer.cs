@@ -106,5 +106,41 @@ namespace CPUDoc.Properties {
                 this["ECores"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool ECoresLast {
+            get {
+                return ((bool)(this["ECoresLast"]));
+            }
+            set {
+                this["ECoresLast"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool ThreadBooster {
+            get {
+                return ((bool)(this["ThreadBooster"]));
+            }
+            set {
+                this["ThreadBooster"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool LogDebug {
+            get {
+                return ((bool)(this["LogDebug"]));
+            }
+            set {
+                this["LogDebug"] = value;
+            }
+        }
     }
 }

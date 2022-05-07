@@ -74,9 +74,9 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Name="ConfigTag" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}"
                                     Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left"  VerticalAlignment="Center"
-                                    Text="{Binding Path=settings.ThreadBoosterStatus, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                    <Button Name="TagSave" Grid.Column="1" VerticalAlignment="Center" Padding="3 0 3 0">
-                                        <TextBlock Margin="{adonisUi:Space}" Text="Start">
+                                    Text="{Binding Path=systemInfo.ThreadBoosterStatus, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <Button Name="BtnThreadBoost" Grid.Column="1" VerticalAlignment="Center" Padding="3 0 3 0" Click="BtnThreadBoost_Click">
+                                    <TextBlock x:Name="BtnThreadBoostLabel"  Margin="{adonisUi:Space}" Text="Start">
                                         </TextBlock>
                                     </Button>
                                 </Grid>
@@ -187,24 +187,13 @@
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
-                                    <TextBlock Grid.Column="0" Grid.Row="2" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center">Idling Test Period (s):</TextBlock>
-                                    <TextBox Grid.Column="1" Grid.Row="2" Name="IdleStableTime" Width="50" Margin="{adonisUi:Space}" adonisExtensions:ValidationExtension.ErrorMessagePlacement="Bottom" HorizontalAlignment="Left"  VerticalAlignment="Center" Text="{Binding Path=settings.IdleStableTime, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyUp="TextBox_KeyEnterUpdate"  ToolTip="How much time to wait for stable CPU temperature and load before stating a bench iteration"/>
-                                    <TextBlock Grid.Column="2" Grid.Row="2" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center">Idle Max CPU Temp (°C):</TextBlock>
-                                    <TextBox Grid.Column="3" Grid.Row="2" Name="IdleAbsoluteCPULimit" Width="50" Margin="{adonisUi:Space}" adonisExtensions:ValidationExtension.ErrorMessagePlacement="Bottom" HorizontalAlignment="Left"  VerticalAlignment="Center" Text="{Binding Path=settings.IdleAbsoluteCPULimit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyUp="TextBox_KeyEnterUpdate"  ToolTip="Until the CPU temperature falls below this limit the bench iteration will not start"/>
-                                    <TextBlock Grid.Column="0" Grid.Row="3" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center">Idle Load Limit (%):</TextBlock>
-                                    <TextBox Grid.Column="1" Grid.Row="3" Name="IdleLowestLoad" Width="50" Margin="{adonisUi:Space}" adonisExtensions:ValidationExtension.ErrorMessagePlacement="Bottom" HorizontalAlignment="Left"  VerticalAlignment="Center" Text="{Binding Path=settings.IdleLowestLoad, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyUp="TextBox_KeyEnterUpdate"  ToolTip="Max Load % threshold, if above this limit the benchmark iteration will not start"/>
-                                    <TextBlock Grid.Column="2" Grid.Row="3" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center">Idling Test Timeout (s):</TextBlock>
-                                    <TextBox Grid.Column="3" Grid.Row="3" Name="IdleStartTimeout" Width="50" Margin="{adonisUi:Space}" adonisExtensions:ValidationExtension.ErrorMessagePlacement="Bottom" HorizontalAlignment="Left"  VerticalAlignment="Center" Text="{Binding Path=settings.IdleStartTimeout, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyUp="TextBox_KeyEnterUpdate"  ToolTip="Timeout in seconds for the idling, the benchmark iteration will start after this limit even if the system is not idling"/>
-
-                                    <TextBlock Grid.Column="0" Grid.Row="4" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center">XMR-STAK-RX Runtime (s):</TextBlock>
-                                    <TextBox Grid.Column="1" Grid.Row="4" Name="RuntimeXMRSTAKRX" Width="50" Margin="{adonisUi:Space}" adonisExtensions:ValidationExtension.ErrorMessagePlacement="Bottom" HorizontalAlignment="Left"  VerticalAlignment="Center" Text="{Binding Path=settings.RunTimeXMRSTAKRX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyUp="TextBox_KeyEnterUpdate"  ToolTip="Recommended at least 180 seconds"/>
-
-                                    <TextBlock Grid.Column="0" Grid.Row="5" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center">CPUMINER Runtime (s):</TextBlock>
-                                    <TextBox Grid.Column="1" Grid.Row="5" Name="RuntimeCPUMINER" Width="50" Margin="{adonisUi:Space}" adonisExtensions:ValidationExtension.ErrorMessagePlacement="Bottom" HorizontalAlignment="Left"  VerticalAlignment="Center" Text="{Binding Path=settings.RunTimeCPUMINER, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyUp="TextBox_KeyEnterUpdate"  ToolTip="Recommended at least 80 seconds"/>
-
-                                    <TextBlock Grid.Column="0" Grid.Row="6" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center">CPU Sensors Source:</TextBlock>
-                                    <TextBlock Grid.Column="1" Grid.Row="6" Name="CPUSourceLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Padding="5" VerticalAlignment="Center" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}"
-                                       Text="{Binding systemInfo.CPUSensorsSource}"/>
+                                <Button Grid.Column="0" Grid.Row="5" x:Name="BtnAutoStartTask" Click="BtnAutoStartTask_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Right" Margin="10 4 10 4">
+                                    <TextBlock Margin="{adonisUi:Space}" x:Name="BtnAutoStartTaskLabel" Text="Create AutoStart Task">
+                                    </TextBlock>
+                                </Button>
+                                <CheckBox Grid.Column="0" Grid.Row="6" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center" Click="TBAutoStartCheckBox_Click" x:Name="cbTBAutoStart">
+                                    Enable ThreadBooster AutoStart
+                                </CheckBox>
                                     <Grid Grid.Column="0" Grid.Row="7" Grid.ColumnSpan="4" Margin="4 4 4 4">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="*"/>

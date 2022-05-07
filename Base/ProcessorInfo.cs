@@ -16,7 +16,17 @@ namespace CPUDoc
         private static IHardwareCore[] cores;
         private static IHardwareCpuSet[] cpuset;
         private static int[] logicalCores;
+        private static CpuLoad _cpuLoad = new CpuLoad();
+        private static int LoadMediumThreshold = 20;
+        private static int LoadHighThreshold = 98;
+        private static PerformanceCounter TotalLoadCounter = new PerformanceCounter(
+                "Processor",
+                "% Processor Time",
+                "_Total",
+                true
+                );
 
+        public static double cpuTotalLoad { get; set; }
 
         /// <summary>
         /// Hardware core
@@ -122,6 +132,34 @@ namespace CPUDoc
                     return (int)((AllFlagsStruct & 8u) / 8D);
                 }
             }
+            /// <summary>
+            /// Cpu Load
+            /// </summary>
+            float Load { get; set; }
+            /// <summary>
+            /// Cpu Load Zero times
+            /// </summary>
+            int LoadZero { get; set; }
+            /// <summary>
+            /// Cpu Load Medium times
+            /// </summary>
+            int LoadMedium { get; set; }
+            /// <summary>
+            /// Cpu Load High times
+            /// </summary>
+            int LoadHigh { get; set; }
+            /// <summary>
+            /// Forced enable
+            /// </summary>
+            bool ForcedEnable { get; set; }
+            /// <summary>
+            /// Forced enable
+            /// </summary>
+            DateTime ForcedWhen { get; set; }
+            /// <summary>
+            /// CPU Load Counter
+            /// </summary>
+            PerformanceCounter LoadCounter { get; set; }
         }
 
         /// <summary>
@@ -153,6 +191,51 @@ namespace CPUDoc
             }
         }
 
+        /// <summary>
+        /// Update CpuLoad
+        /// </summary>
+        public static void CpuLoadUpdate()
+        {
+            for (var i = 0; i < LogicalCoresCount; ++i)
+            {
+                float _Load = HardwareCpuSets[i].LoadCounter.NextValue();
+                HardwareCpuSets[i].Load = _Load;
+                int _loadhigh = HardwareCpuSets[i].LoadHigh > 40 ? 40 : HardwareCpuSets[i].LoadHigh;
+                _loadhigh = _Load >= LoadHighThreshold ? _loadhigh + 2 : _loadhigh <= 1 ? 0 : _loadhigh - 1;
+                HardwareCpuSets[i].LoadHigh = _loadhigh;
+                int _loadmedium = HardwareCpuSets[i].LoadMedium > 40 ? 40 : HardwareCpuSets[i].LoadMedium;
+                _loadmedium = _Load >= LoadMediumThreshold ? _loadmedium + 1 : _loadmedium <= 1 ? 0 : _loadmedium - 1;
+                HardwareCpuSets[i].LoadMedium = _loadmedium;
+                int _loadzero = HardwareCpuSets[i].LoadZero > 40 ? 40 : HardwareCpuSets[i].LoadZero;
+                _loadzero = _Load == 0 ? _loadzero + 1 : _loadzero <= 2 ? 0 : _loadzero - 1;
+                HardwareCpuSets[i].LoadZero = _loadzero;
+            }
+        }
+        /// <summary>
+        /// Update Total CpuLoad
+        /// </summary>
+        public static void CpuTotalLoadUpdate()
+        {
+            cpuTotalLoad = TotalLoadCounter.NextValue();
+        }
+
+        /// <summary>
+        /// Set ForceEnabled
+        /// </summary>
+        public static void SetForceEnabled(int cpu)
+        {
+            HardwareCpuSets[cpu].ForcedEnable = true;
+            HardwareCpuSets[cpu].ForcedWhen = DateTime.Now;
+        }
+
+        /// <summary>
+        /// Clear ForceEnabled
+        /// </summary>
+        public static void ClearForceEnabled(int cpu)
+        {
+            HardwareCpuSets[cpu].ForcedEnable = false;
+            HardwareCpuSets[cpu].ForcedWhen = DateTime.MinValue;
+        }
         /// <summary>
         /// All logical core IDs
         /// </summary>
@@ -257,6 +340,7 @@ namespace CPUDoc
             }
             return coresbysched;
         }
+
         /// <summary>
         /// Get Cores Sorted by EfficiencyClass
         /// </summary>
@@ -463,6 +547,18 @@ namespace CPUDoc
                 SchedulingClass = (int)x.CpuSetUnion.CpuSet.CpuSetSchedulingClass.SchedulingClass;
                 AllocationTag = (int)x.CpuSetUnion.CpuSet.AllocationTag;
                 AllFlagsStruct = x.CpuSetUnion.CpuSet.AllFlagsStruct.AllFlagsStruct;
+                Load = 0;
+                LoadZero = 0;
+                LoadMedium = 0;
+                LoadHigh = 0;
+                ForcedEnable = false;
+                ForcedWhen = DateTime.MinValue;
+                LoadCounter = new PerformanceCounter(
+                "Processor",
+                "% Processor Time",
+                $"{(int)x.CpuSetUnion.CpuSet.LogicalProcessorIndex}",
+                true
+                );
             }
             public SYSTEM_CPU_SET_INFORMATION CpuSet { get; private set; }
             public int Id { get; private set; }
@@ -475,6 +571,13 @@ namespace CPUDoc
             public int SchedulingClass { get; private set; }
             public long AllocationTag { get; private set; }
             public byte AllFlagsStruct { get; private set; }
+            public float Load { get; set; }
+            public int LoadZero { get; set; }
+            public int LoadMedium { get; set; }
+            public int LoadHigh { get; set; }
+            public bool ForcedEnable { get; set; }
+            public DateTime ForcedWhen { get; set; }
+            public PerformanceCounter LoadCounter { get; set; }
         }
         enum SE_OBJECT_TYPE
         {

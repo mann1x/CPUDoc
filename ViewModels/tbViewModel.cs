@@ -16,29 +16,23 @@ namespace CPUDoc
         /// <summary>
         /// Shows a window, if none is already open.
         /// </summary>
-        public ICommand ShowWindowCommand
+        public ICommand ShowWindowCommand => new DelegateCommand
         {
-            get
+            CanExecuteFunc = () => Application.Current.MainWindow == null,
+            CommandAction = () =>
             {
-                return new DelegateCommand
+                Application.Current.MainWindow = new MainWindow();
+
+                Application.Current.MainWindow.DataContext = new
                 {
-                    CanExecuteFunc = () => Application.Current.MainWindow == null,
-                    CommandAction = () =>
-                    {
-                        Application.Current.MainWindow = new MainWindow();
-
-                        Application.Current.MainWindow.DataContext = new
-                        {
-                            settings = CPUDoc.Properties.Settings.Default,
-                            App.systemInfo
-                        };
-
-                        Application.Current.MainWindow.Show();
-                        Application.Current.MainWindow.Focus();
-                    }
+                    settings = CPUDoc.Properties.Settings.Default,
+                    App.systemInfo
                 };
+
+                Application.Current.MainWindow.Show();
+                Application.Current.MainWindow.Focus();
             }
-        }
+        };
 
         /// <summary>
         /// Hides the main window. This command is only enabled if a window is open.
@@ -57,11 +51,10 @@ namespace CPUDoc
                         }
                         return false;
                     },
-                    CommandAction = () => Application.Current.MainWindow.Close(),
+                    CommandAction = () => Application.Current.MainWindow.Close()
                 };
             }
         }
-
 
         /// <summary>
         /// Shuts down the application.

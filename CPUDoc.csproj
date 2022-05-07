@@ -9,6 +9,7 @@
     <RepositoryUrl>https://github.com/mann1x/CPUDoc</RepositoryUrl>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>CPUDoc.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -43,6 +44,7 @@
     <PackageReference Include="System.Security.AccessControl" Version="6.0.0" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="6.0.0" />
     <PackageReference Include="System.Threading.AccessControl" Version="6.0.0" />
+    <PackageReference Include="TaskScheduler" Version="2.10.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -79,6 +81,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="CpuTools.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="inpoutx64.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

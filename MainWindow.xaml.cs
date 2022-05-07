@@ -24,6 +24,7 @@ using AutoUpdaterDotNET;
 using Newtonsoft.Json;
 using System.Windows.Threading;
 using Hardcodet.Wpf.TaskbarNotification;
+using Microsoft.Win32.TaskScheduler;
 
 namespace CPUDoc
 {
@@ -35,9 +36,8 @@ namespace CPUDoc
     {
         static bool InitUI = true;
         static bool WinLoaded = false;
-        readonly string AutoUpdaterUrl = "https://raw.githubusercontent.com/mann1x/CPUDoc/master/CPUDoc/AutoUpdaterCPUDoc.json";
-
-        //readonly string AutoUpdaterUrl = "https://raw.githubusercontent.com/mann1x/CPUDoc/master/CPUDoc/AutoUpdaterCPUDocTest.json";
+        static DispatcherTimer uitimer;
+        static bool AutoStartTask;
 
         public string WinTitle
         {
@@ -101,6 +101,22 @@ namespace CPUDoc
             SetValue(MinHeightProperty, ActualHeight);
             ClearValue(SizeToContentProperty);
 
+            if (App.tbtimer.Enabled) BtnThreadBoostLabel.Text = "Stop";
+
+            if (WindowSettings.Default.ThreadBooster == true)
+            {
+                cbTBAutoStart.IsChecked = true;
+            }
+            else
+            {
+                cbTBAutoStart.IsChecked = false;
+            }
+            AutoStartTask = CheckStartTask();
+
+            if (AutoStartTask) BtnAutoStartTaskLabel.Text = "Delete AutoStart Task";
+
+            App.uitimer.Enabled = true;
+
             WinLoaded = true;
         }
 
@@ -144,6 +160,8 @@ namespace CPUDoc
                 SaveWinPos();
                 App.LogDebug($"Saved Window Position Closing {WindowSettings.Default.Top} {WindowSettings.Default.Left} {WindowSettings.Default.Height} {WindowSettings.Default.Width} {WindowSettings.Default.Maximized}");
             }
+            //App.uitimer.Enabled = false;
+            uitimer.Stop();
         }
 
         public static IEnumerable<T> FindVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
@@ -196,43 +214,23 @@ namespace CPUDoc
             Activate();
             Focus();
 
-            AutoUpdater.ReportErrors = false;
-            AutoUpdater.InstalledVersion = new Version(App._versionInfo);
-            AutoUpdater.DownloadPath = System.IO.Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
-            AutoUpdater.RunUpdateAsAdmin = false;
-            AutoUpdater.Synchronous = false;
-            AutoUpdater.ParseUpdateInfoEvent += AutoUpdaterOnParseUpdateInfoEvent;
+            App.systemInfo.SetThreadBoosterStatus("N/A");
 
-            var autimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-            autimer.Start();
-            autimer.Tick += (sender, args) =>
+            uitimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            uitimer.Start();
+            uitimer.Tick += (sender, args) =>
             {
-                autimer.Interval = TimeSpan.FromSeconds(3600);
-                AutoUpdater.Start(AutoUpdaterUrl);
-            };
-        }
-        private void AutoUpdaterOnParseUpdateInfoEvent(ParseUpdateInfoEventArgs args)
-        {
-            dynamic json = JsonConvert.DeserializeObject(args.RemoteData);
-            args.UpdateInfo = new UpdateInfoEventArgs
-            {
-                CurrentVersion = json.version,
-                ChangelogURL = json.changelog,
-                DownloadURL = json.url,
-                Mandatory = new Mandatory
+                if (App.tbtimer.Enabled)
                 {
-                    Value = json.mandatory.value,
-                    UpdateMode = json.mandatory.mode,
-                    MinimumVersion = json.mandatory.minVersion
-                },
-                CheckSum = new CheckSum
-                {
-                    Value = json.checksum.value,
-                    HashingAlgorithm = json.checksum.hashingAlgorithm
+                    App.systemInfo.SetThreadBoosterStatus("Running");
+
                 }
-            };
-            App.systemInfo.SetLastVersionOnServer($"{args.UpdateInfo.CurrentVersion} @ {DateTime.Now:dddd, dd MMMM yyyy HH:mm:ss}");
+                else
+                {
+                    App.systemInfo.SetThreadBoosterStatus("Stopped");
+                }
 
+            };
         }
 
         private void EcoresMode(object sender, RoutedEventArgs e)
@@ -377,7 +375,7 @@ namespace CPUDoc
        
         private void ButtonCheckUpdate(object sender, RoutedEventArgs e)
         {
-            AutoUpdater.Start(AutoUpdaterUrl);
+            AutoUpdater.Start(App.AutoUpdaterUrl);
         }
         private void ButtonReset(object sender, RoutedEventArgs e)
         {
@@ -473,5 +471,99 @@ namespace CPUDoc
             Process.Start("explorer.exe", @".\Logs");
         }
 
+        private void BtnThreadBoost_Click(object sender, RoutedEventArgs e)
+        {
+            if (BtnThreadBoostLabel.Text == "Start")
+            {
+                BtnThreadBoost.IsEnabled = false;
+                App.TbSetStart();
+                BtnThreadBoostLabel.Text = "Stop";
+                BtnThreadBoost.IsEnabled = true;
+            }
+            else
+            {
+                BtnThreadBoost.IsEnabled = false;
+                App.TbSetStart(false);
+                BtnThreadBoostLabel.Text = "Start";
+                BtnThreadBoost.IsEnabled = true;
+            }
+        }
+
+        private void TBAutoStartCheckBox_Click(object sender, RoutedEventArgs e)
+        {
+            CheckBox cb = sender as CheckBox;
+
+            if (cb.IsChecked == true)
+            {
+                CPUDoc.Properties.Settings.Default.ThreadBooster = true;
+            }
+            else
+            {
+                CPUDoc.Properties.Settings.Default.ThreadBooster = false;
+            }
+            CPUDoc.Properties.Settings.Default.Save();
+        }
+        private void BtnAutoStartTask_Click(object sender, RoutedEventArgs e)
+        {
+            if (AutoStartTask)
+            {
+                DeleteStartTask();
+                BtnAutoStartTaskLabel.Text = "Create AutoStart Task";
+                AutoStartTask = false;
+            }
+            else
+            {
+                CreateStartTask();
+                BtnAutoStartTaskLabel.Text = "Delete AutoStart Task";
+                AutoStartTask = true;
+            }
+        }
+        private void CreateStartTask()
+        {
+            if (!CheckStartTask())
+            {
+                TaskDefinition td = TaskService.Instance.NewTask();
+                td.RegistrationInfo.Description = "CPUDoc AutoStart";
+                td.Principal.LogonType = TaskLogonType.InteractiveToken;
+                td.Principal.RunLevel = TaskRunLevel.Highest;
+
+                LogonTrigger lTrigger = (LogonTrigger)td.Triggers.Add(new LogonTrigger());
+
+                td.Actions.Add(new ExecAction(System.IO.Path.GetFileName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName), AppDomain.CurrentDomain.BaseDirectory, null));
+
+                // Register the task in the root folder
+                const string taskName = "CPUDoc AutoStart";
+                TaskService.Instance.RootFolder.RegisterTaskDefinition(taskName, td);
+            }
+
+        }
+        private void DeleteStartTask()
+        {
+            const string taskName = "CPUDoc AutoStart";
+            if (CheckStartTask())
+            {
+                TaskDefinition td = TaskService.Instance.FindTask(taskName).Definition;
+                if (td == null) return;
+                TaskFolder tf = TaskService.Instance.RootFolder;
+                tf.DeleteTask(taskName);
+            }
+        }
+        private bool CheckStartTask()
+        {
+            try
+            {
+                const string taskName = "CPUDoc AutoStart";
+                using (TaskService ts = new TaskService())
+                {
+                    Microsoft.Win32.TaskScheduler.Task task = ts.GetTask(taskName);
+                    return task != null;
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogInfo($"CheckStartTask Exception: {ex}");
+                return false;
+            }
+        }
     }
 }

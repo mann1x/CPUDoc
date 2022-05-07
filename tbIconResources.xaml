@@ -11,7 +11,7 @@
     <ContextMenu x:Shared="false" x:Key="SysTrayMenu">
         <MenuItem Header="{Binding Version}" />
         <Separator />
-        <MenuItem Header="Show App" Command="{Binding ShowWindowCommand}" />
+        <!--<MenuItem Header="Show App" Command="{Binding ShowWindowCommand}" />-->
         <MenuItem Header="Exit" Command="{Binding ExitApplicationCommand}" />
     </ContextMenu>
 
