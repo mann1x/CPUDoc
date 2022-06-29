@@ -27,6 +27,7 @@ using NLog.Config;
 using System.Threading.Tasks;
 using Hardcodet.Wpf.TaskbarNotification;
 using System.Windows.Threading;
+using Gma.System.MouseKeyHook;
 
 namespace CPUDoc
 {
@@ -44,6 +45,16 @@ namespace CPUDoc
 
         public static Logger logger = LogManager.GetCurrentClassLogger();
 
+        private static readonly EventHook.EventHookFactory eventHookFactory = new EventHook.EventHookFactory();
+        private static EventHook.ApplicationWatcher applicationWatcher;
+
+        //private static string codebase = System.Reflection.Assembly.GetExecutingAssembly().CodeBase;
+        //private static string basepath = new Uri(System.IO.Path.GetDirectoryName(codebase)).LocalPath;
+
+        private IKeyboardMouseEvents m_Events;
+
+        public static DateTime UAStamp;
+
         private static LoggingRule logtraceRule;
 
         private static LoggingRule logfileRule;
@@ -55,16 +66,20 @@ namespace CPUDoc
         public static int InterlockHWM = 0;
         public static int InterlockTB = 0;
         public static int InterlockUI = 0;
+        public static int InterlockSys = 0;
 
         public static CancellationTokenSource hwmcts = new CancellationTokenSource();
         public static CancellationTokenSource tbcts = new CancellationTokenSource();
+        public static CancellationTokenSource syscts = new CancellationTokenSource();
 
         public static ManualResetEventSlim mreshwm = new ManualResetEventSlim(false);
         public static ManualResetEventSlim mrestb = new ManualResetEventSlim(false);
+        public static ManualResetEventSlim mressys = new ManualResetEventSlim(false);
 
         public static System.Timers.Timer hwmtimer = new System.Timers.Timer();
         public static System.Timers.Timer tbtimer = new System.Timers.Timer();
         public static System.Timers.Timer uitimer = new System.Timers.Timer();
+        public static System.Timers.Timer systimer = new System.Timers.Timer();
 
         public static Thread thrMonitor;
         public static int thridMonitor;
@@ -72,6 +87,8 @@ namespace CPUDoc
         public static int thridThreadBooster;
         public static Thread thrUpdateUI;
         public static int thridUpdateUI;
+        public static Thread thrSys;
+        public static int thridSys;
 
         public static SystemInfo systemInfo;
         public static string version;
@@ -80,6 +97,14 @@ namespace CPUDoc
 
         public static string ZenPTSubject = "";
         public static string ZenPTBody = "";
+
+        public static uint? SysCpuSetMask = 0x0;
+        public static uint? lastSysCpuSetMask = null;
+
+        public static int SysMaskPooling = 25;
+
+        private IPowerManager powerManager;
+        private List<PowerPlan> plans;
 
         public static List<HWSensorItem> hwsensors;
 
@@ -134,6 +159,42 @@ namespace CPUDoc
             ES_SYSTEM_REQUIRED = 0x00000001
         }
         protected static bool IsInVisualStudio => LicenseManager.UsageMode == LicenseUsageMode.Designtime || Debugger.IsAttached == true || StringComparer.OrdinalIgnoreCase.Equals("devenv", Process.GetCurrentProcess().ProcessName);
+
+
+        [DllImport("user32.dll")]
+        static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        static extern int GetSystemMetrics(int smIndex);
+
+        public const int SM_CXSCREEN = 0;
+        public const int SM_CYSCREEN = 1;
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool GetWindowRect(IntPtr hWnd, out W32RECT lpRect);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct W32RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+        public static bool IsForegroundWwindowFullScreen()
+        {
+            int scrX = GetSystemMetrics(SM_CXSCREEN),
+                scrY = GetSystemMetrics(SM_CYSCREEN);
+
+            IntPtr handle = GetForegroundWindow();
+            if (handle == IntPtr.Zero) return false;
+
+            W32RECT wRect;
+            if (!GetWindowRect(handle, out wRect)) return false;
+
+            return scrX == (wRect.Right - wRect.Left) && scrY == (wRect.Bottom - wRect.Top);
+        }
         public class SettingBindingExtension : Binding
         {
             public SettingBindingExtension()
@@ -154,10 +215,11 @@ namespace CPUDoc
             }
         }
 
-        public static int SetSysCpuSet(uint BitMask = 0)
+        public static int SetSysCpuSet(uint? BitMask = 0)
         {
-            SetSystemCpuSet(BitMask);
-            int _ret = SetSystemCpuSet(BitMask);
+            uint _BitMask = 0x0;
+            if (BitMask != null) _BitMask = (uint)BitMask;
+            int _ret = SetSystemCpuSet(_BitMask);
             return _ret;
         }
 
@@ -514,17 +576,22 @@ namespace CPUDoc
                 InitColors();
 
                 TBStart();
+                HWMStart();
                 //UIStart();
 
                 if (App.systemInfo.TBAutoStart)
                 {
                     tbtimer.Enabled = true;
+                    systimer.Enabled = true;
+                    hwmtimer.Enabled = true;
                 }
                 else
                 {
                     tbtimer.Enabled = false;
+                    systimer.Enabled = false;
+                    hwmtimer.Enabled = false;
                 }
-                    
+
                 tbIcon = (TaskbarIcon)FindResource("tbIcon");
 
                 tbIcon.ToolTip = $"CPUDoc {App.version}";
@@ -547,7 +614,69 @@ namespace CPUDoc
                     AutoUpdater.Start(AutoUpdaterUrl);
                 };
 
+                UAStamp = DateTime.Now;
+                
+                SubscribeGlobal();
+
+                powerManager = PowerManagerProvider.CreatePowerManager();
+                plans = powerManager.GetPlans();
+
+                //keyboardWatcher = eventHookFactory.GetKeyboardWatcher();
+                //keyboardWatcher.Start();
+                //keyboardWatcher.OnKeyInput += UAListener.EHookKeyPress;
+                //keyboardWatcher.OnKeyInput += EHookKeyPress;
+
+                //mouseWatcher = eventHookFactory.GetMouseWatcher();
+                //mouseWatcher.Start();
+                //mouseWatcher.OnMouseInput += EHookMouseDown;
+                //mouseWatcher.OnMouseInput += UAListener.EHookMouseDown;
+
+                /*
+            using (var eventHookFactory = new EventHookFactory())
+            {
+                var keyboardWatcher = eventHookFactory.GetKeyboardWatcher();
+                keyboardWatcher.Start();
+                keyboardWatcher.OnKeyInput += (s, e) =>
+                {
+                    Console.WriteLine("Key {0} event of key {1}", e.KeyData.EventType, e.KeyData.Keyname);
+                    textBox1.AppendText(string.Format("Key {0} event of key {1}", e.KeyData.EventType, e.KeyData.Keyname));
+                    SetEvent(evtUserActivity);
+                };
+
+                var mouseWatcher = eventHookFactory.GetMouseWatcher();
+                mouseWatcher.Start();
+                mouseWatcher.OnMouseInput += (s, e) =>
+                {
+                    //Console.WriteLine("Mouse event {0} at point {1},{2}", e.Message.ToString(), e.Point.x, e.Point.y);
+                    //textBox1.AppendText(string.Format("Mouse event {0} at point {1},{2}", e.Message.ToString(), e.Point.x, e.Point.y));
+                    SetEvent(evtUserActivity);
+                };
+
+            }
+            
+            */
+                /*
+
+                applicationWatcher = eventHookFactory.GetApplicationWatcher();
+                applicationWatcher.Start();
+                applicationWatcher.OnApplicationWindowChange += CheckApplication;
+                applicationWatcher.OnApplicationWindowChange += (s, e) =>
+                {
+                    textBox1.Invoke((Action)delegate
+                                    {
+                        textBox1.AppendText(string.Format("Application window of '{0}' with the title '{1}' was {2}", e.ApplicationData.AppName, e.ApplicationData.AppTitle, e.Event));
+
+                    });
+
+                    //Console.WriteLine(string.Format("Application window of '{0}' with the title '{1}' was {2}", e.ApplicationData.AppName, e.ApplicationData.AppTitle, e.Event));
+                };
+                */
+
+
+
                 //App.LogDebug($"OnStartup App End");
+
+
 
             }
             catch (Exception ex)
@@ -555,6 +684,39 @@ namespace CPUDoc
                 LogExError($"OnStartup exception: {ex.Message}", ex);
             }
         }
+
+        private void CheckApplication(object sender, EventHook.ApplicationEventArgs e)
+        {
+            /*
+            int _prevAMDRM = AMDRMcnt;
+            if (e.ApplicationData.AppTitle == "AMD RYZEN MASTER" && e.Event.ToString() == "Launched") AMDRMcnt++;
+            if (e.ApplicationData.AppTitle == "AMD RYZEN MASTER" && e.Event.ToString() == "Closed") AMDRMcnt--;
+            textBox1.Invoke((Action)delegate
+            {
+                textBox1.AppendText(string.Format("Application window of '{0}' with the title '{1}' was {2} type {3}\n ", e.ApplicationData.AppName, e.ApplicationData.AppTitle, e.Event, e.Event.GetTypeCode()));
+                textBox1.AppendText(Environment.NewLine);
+
+            });
+            if (AMDRMcnt > 0 && _prevAMDRM == 0)
+            {
+                textBox1.Invoke((Action)delegate
+                {
+                    textBox1.AppendText(string.Format("Ryzen Master OPENED\n ", e.ApplicationData.AppName, e.ApplicationData.AppTitle, e.Event, e.Event.GetTypeCode()));
+                    textBox1.AppendText(Environment.NewLine);
+                });
+            }
+            if (AMDRMcnt == 0 && _prevAMDRM > 0)
+            {
+                textBox1.Invoke((Action)delegate
+                {
+                    textBox1.AppendText(string.Format("Ryzen Master CLOSED\n ", e.ApplicationData.AppName, e.ApplicationData.AppTitle, e.Event, e.Event.GetTypeCode()));
+                    textBox1.AppendText(Environment.NewLine);
+
+                });
+            }
+            */
+        }
+
         private void AutoUpdaterOnParseUpdateInfoEvent(ParseUpdateInfoEventArgs args)
         {
             dynamic json = JsonConvert.DeserializeObject(args.RemoteData);
@@ -585,7 +747,7 @@ namespace CPUDoc
             thridMonitor = thrMonitor.ManagedThreadId;
             thrMonitor.Priority = ThreadPriority.AboveNormal;
             
-            hwmtimer.Enabled = true;
+            hwmtimer.Enabled = false;
 
             thrMonitor.Start();
             hwmtimer.Start();
@@ -599,9 +761,15 @@ namespace CPUDoc
             thridThreadBooster = thrThreadBooster.ManagedThreadId;
             thrThreadBooster.Priority = ThreadPriority.AboveNormal;
 
+            thrSys = new Thread(RunSysMask);
+            thridSys = thrSys.ManagedThreadId;
+            thrSys.Priority = ThreadPriority.AboveNormal;
+
             tbtimer.Enabled = false;
+            systimer.Enabled = false;
 
             thrThreadBooster.Start();
+            thrSys.Start();
             //tbtimer.Start();
 
             //App.LogDebug($"ThreadBooster Started PID={thridMonitor} ALIVE={thrMonitor.IsAlive}");
@@ -679,7 +847,7 @@ namespace CPUDoc
             int sync = Interlocked.CompareExchange(ref InterlockHWM, 1, 0);
             if (sync == 0)
             {
-                //HWMonitor.OnHWM(sender, e);
+                HWMonitor.OnHWM(sender, e);
                 InterlockHWM = 0;
                 //App.LogDebug("HWM ELAPSED ON");
             }
@@ -706,6 +874,19 @@ namespace CPUDoc
                 //App.LogDebug("UI ELAPSED ON");
             }
         }
+
+        private static void SysMask_ElapsedEventHandler(object sender, ElapsedEventArgs e)
+        {
+            //App.LogDebug("SysMask ELAPSED");
+            int sync = Interlocked.CompareExchange(ref InterlockSys, 1, 0);
+            if (sync == 0)
+            {
+                ThreadBooster.OnSysCpuSet(sender, e);
+                InterlockSys = 0;
+                //App.LogDebug("SysMask ELAPSED ON");
+            }
+        }
+
         private static void OnUpdateUI(object sender, ElapsedEventArgs e)
         {
             if (tbtimer.Enabled) {
@@ -719,8 +900,8 @@ namespace CPUDoc
                 }
 
             }
+            App.systemInfo.RefreshLabels();
         }
-
         public static void RunHWM()
         {
 
@@ -760,16 +941,94 @@ namespace CPUDoc
             }
 
         }
+        public static void RunSysMask()
+        {
+
+            //App.LogDebug("RUN SysMask");
+            systimer.Interval = SysMaskPooling;
+            systimer.Elapsed += new ElapsedEventHandler(SysMask_ElapsedEventHandler);
+            if (systimer.Enabled)
+            {
+                //App.LogDebug("START SysMask");
+                systimer.Start();
+            }
+
+        }
+        private void SubscribeGlobal()
+        {
+            Unsubscribe();
+            Subscribe(Hook.GlobalEvents());
+        }
+        private void OnKeyPress(object sender, System.Windows.Forms.KeyEventArgs e)
+        {
+            //system.windows.forms instead input
+            UAStamp = DateTime.Now;
+            //int error = Marshal.GetLastWin32Error();
+            //if (error > 0) Log(string.Format("Key  \t\t {0}\n", e.KeyCode));
+            App.LogInfo("Key  \t\t {e.KeyCode}");
+        }
+
+        private void OnMouseMove(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            UAStamp = DateTime.Now;
+            //int error = Marshal.GetLastWin32Error();
+            //if (error > 0) Log(string.Format("Mouse \t\t {0}\n", e.Button));
+            //if (error > 0) Log(string.Format("Error \t\t {0}\n", error.ToString()));
+            App.LogInfo("Key  \t\t {e.Button}");
+        }
+        private void Subscribe(IKeyboardMouseEvents events)
+        {
+            m_Events = events;
+            m_Events.KeyDown += OnKeyPress;
+            m_Events.KeyUp += OnKeyPress;
+
+            m_Events.MouseUp += OnMouseMove;
+            m_Events.MouseDown += OnMouseMove;
+            m_Events.MouseClick += OnMouseMove;
+            m_Events.MouseDoubleClick += OnMouseMove;
+            m_Events.MouseWheel += OnMouseMove;
+
+            m_Events.MouseMove += OnMouseMove;
+
+        }
+        private void Unsubscribe()
+        {
+            if (m_Events == null) return;
+            m_Events.KeyDown -= OnKeyPress;
+            m_Events.KeyUp -= OnKeyPress;
+
+            m_Events.MouseUp -= OnMouseMove;
+            m_Events.MouseClick -= OnMouseMove;
+            m_Events.MouseDoubleClick -= OnMouseMove;
+
+            m_Events.MouseMove -= OnMouseMove;
+
+
+            m_Events.Dispose();
+            m_Events = null;
+        }
+
 
         private void Application_Exit(object sender, ExitEventArgs e)
         {
             try
             {
+                //keyboardWatcher.Stop();
+                //mouseWatcher.Stop();
+                //clipboardWatcher.Stop();
+                //applicationWatcher.Stop();
+                //printWatcher.Stop();
+                //Unsubscribe();
+                Unsubscribe();
+                eventHookFactory.Dispose();
+
                 HWMonitor.Close();
                 ThreadBooster.Close();
                 hwmcts?.Dispose();
                 tbcts?.Dispose();
+                syscts?.Dispose();
                 tbIcon.Dispose();
+
             }
             catch (Exception ex)
             {

@@ -61,5 +61,9 @@ You can compile with Visual Studio 2019 and .NET Core 5.
 
 ## Changelog:
 
+- v1.0.1 Alpha
+    - New: Separate threads for Hardware Monitoring, set system mask and ThreadBooster
+    - New: Updated Zen-Core DLL to latest codebase with some additions for future work (detecting Max PBO values etc)
+    - New: Added Idle detection, PowerManagement class and, Global/Event hook for future work
 - v1.0.0 Alpha
     - New: First public Alpha

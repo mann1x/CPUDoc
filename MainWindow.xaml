@@ -18,7 +18,7 @@
                             SourceInitialized="Window_SourceInitialized"
                             Loaded="MainWindow_Loaded"
                             SizeChanged="Window_SizeChanged"
-                            Closing="Window_Closing" Visibility="Visible"
+                            Closing="Window_Closing" Visibility="Visible" Activated="AdonisWindow_Activated"
                             >
         <StackPanel Margin="{adonisUi:Space}">
 

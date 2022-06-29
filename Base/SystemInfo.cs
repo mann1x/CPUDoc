@@ -64,6 +64,11 @@ namespace CPUDoc
         public int ZenTDC { get; set; }
         public int ZenEDC { get; set; }
         public int ZenTHM { get; set; }
+        public int ZenMaxBoost { get; set; }
+        public int ZenMaxPPT { get; set; }
+        public int ZenMaxTDC { get; set; }
+        public int ZenMaxEDC { get; set; }
+        public int ZenMaxTHM { get; set; }
         public double ZenFCLK { get; set; }
         public double ZenUCLK { get; set; }
         public double ZenMCLK { get; set; }
@@ -245,6 +250,11 @@ namespace CPUDoc
             ZenTDC = 0;
             ZenEDC = 0;
             ZenTHM = 0;
+            ZenMaxBoost = 0;
+            ZenMaxPPT = 0;
+            ZenMaxTDC = 0;
+            ZenMaxEDC = 0;
+            ZenMaxTHM = 0;
             ZenFCLK = 0;
             ZenUCLK = 0;
             ZenMCLK = 0;
@@ -397,7 +407,7 @@ namespace CPUDoc
                 ZenVIOD = (int)(Zen.powerTable.Table[138] * 1000);
                 ZenVCCD = (int)(Zen.powerTable.Table[139] * 1000);
             }
-            else if (ZenPTVersion == 0x400005)
+            else if (ZenPTVersion == 0x400004 || ZenPTVersion == 0x400005)
             {
                 ZenPPT = (int)Zen.powerTable.Table[4];
                 ZenTDC = (int)Zen.powerTable.Table[8];
@@ -682,19 +692,58 @@ namespace CPUDoc
 
                 if (ZenStates)
                 {
+                    Zen.RefreshPowerTable();
+                    ZenPPT = Zen.GetPPTLimit();
+                    ZenBoost = Zen.GetBoostLimit();
+                    ZenScalar = Zen.GetPBOScalar();
                     string _CPULabel = "";
-                    if (ZenPPT > 0) _CPULabel += $"PPT: {string.Format("{0:N0}W", ZenPPT)} ";
-                    if (ZenTDC > 0) _CPULabel += $"TDC: {string.Format("{0:N0}A", ZenTDC)} ";
-                    if (ZenEDC > 0) _CPULabel += $"EDC: {string.Format("{0:N0}A", ZenEDC)} ";
+                    if (ZenPPT > 0 && ZenMaxPPT > 0 && ZenPPT != ZenMaxPPT)
+                    {
+                        _CPULabel += $"PPT: {string.Format("{0:N0}/{1:N0}W", ZenPPT, ZenMaxPPT)} ";
+                    } 
+                    else if (ZenPPT > 0)
+                    {
+                        _CPULabel += $"PPT: {string.Format("{0:N0}W", ZenPPT)} ";
+                    }
+                    if (Zen.powerTable.TDC > 0 && ZenMaxTDC > 0 && Zen.powerTable.TDC != ZenMaxTDC)
+                    {
+                        _CPULabel += $"TDC: {string.Format("{0:N0}/{1:N0}A", Zen.powerTable.TDC, ZenMaxTDC)} ";
+                    }
+                    else if (Zen.powerTable.TDC > 0)
+                    {
+                        _CPULabel += $"TDC: {string.Format("{0:N0}A", Zen.powerTable.TDC)} ";
+                    }
+                    if (Zen.powerTable.EDC > 0 && ZenMaxEDC > 0 && Zen.powerTable.EDC != ZenMaxEDC)
+                    {
+                        _CPULabel += $"EDC: {string.Format("{0:N0}/{1:N0}A", Zen.powerTable.EDC, ZenMaxEDC)} ";
+                    }
+                    else if (Zen.powerTable.EDC > 0)
+                    {
+                        _CPULabel += $"EDC: {string.Format("{0:N0}A", Zen.powerTable.EDC)} ";
+                    }
                     if (ZenScalar > 0) _CPULabel += $"Scalar: {ZenScalar}x ";
-                    if (ZenTHM > 0) _CPULabel += $"THM: {string.Format("{0:N0}°C", ZenTHM)} ";
+                    if (Zen.powerTable.THM > 0 && ZenMaxTHM > 0 && Zen.powerTable.THM != ZenMaxTHM)
+                    {
+                        _CPULabel += $"THM: {string.Format("{0:N0}/{1:N0}°C", Zen.powerTable.THM, ZenMaxTHM)} ";
+                    }
+                    else if (Zen.powerTable.THM > 0)
+                    {
+                        _CPULabel += $"THM: {string.Format("{0:N0}°C", Zen.powerTable.THM)} ";
+                    }
 
                     if (_CPULabel.Length > 0) CPULabel += $"\n{_CPULabel}";
 
                     _CPULabel = "";
 
                     if (ZenMCLK > 0 || ZenFCLK > 0 || ZenUCLK > 0) _CPULabel += $"MCLK/FCLK/UCLK: {ZenMCLK.ToString("0.##")}/{ZenFCLK.ToString("0.##")}/{ZenUCLK.ToString("0.##")} ";
-                    if (ZenBoost > 0) _CPULabel += $"Boost Clock: {ZenBoost} MHz ";
+                    if (ZenBoost > 0 && ZenMaxBoost > 0 && ZenBoost != ZenMaxBoost)
+                    {
+                        _CPULabel += $"Boost Clock: {ZenBoost}/{ZenMaxBoost} MHz ";
+                    }
+                    else if (ZenBoost > 0)
+                    {
+                        _CPULabel += $"Boost Clock: {ZenBoost} MHz ";
+                    }
 
                     if (_CPULabel.Length > 0) CPULabel += $"\n{_CPULabel}";
 
@@ -1558,6 +1607,14 @@ namespace CPUDoc
 
                         CpuBusClock = Zen.cpuBusClock;
 
+                        ZenMaxBoost = Zen.GetMaxBoostLimit();
+                        ZenMaxPPT = Zen.GetMaxPPTLimit();
+                        ZenMaxTDC = Zen.GetMaxTDCLimit();
+                        ZenMaxEDC = Zen.GetMaxEDCLimit();
+                        ZenMaxTHM = Zen.GetMaxTHMLimit();
+
+                        App.LogInfo($"Zen BCLK: {CpuBusClock}");
+
                         if (CpuBusClock <= 0) CpuBusClock = 100;
 
                         double _bclkmulti = CpuBusClock / 100;
@@ -2061,7 +2118,7 @@ namespace CPUDoc
                                 App.LogInfo($"Configuring Zen Source done");
 
                             }
-                            else if (ZenPTVersion == 0x400005)
+                            else if (ZenPTVersion == 0x400005 || ZenPTVersion == 0x400004)
                             {
                                 ZenPTKnown = true;
                                 int _maxcores = 8;
@@ -2267,6 +2324,12 @@ namespace CPUDoc
 
                             sb.Clear();
                             sb = null;
+
+                            App.LogInfo($"Zen Boost: {ZenBoost}/{ZenMaxBoost}");
+                            App.LogInfo($"Zen PPT: {ZenPPT}/{ZenMaxPPT}");
+                            App.LogInfo($"Zen TDC: {ZenTDC}/{ZenMaxTDC} ({Zen.info.TDCSupported})");
+                            App.LogInfo($"Zen EDC: {ZenEDC}/{ZenMaxEDC} ({Zen.info.EDCSupported})");
+                            App.LogInfo($"Zen THM: {ZenTHM}/{ZenMaxTHM} ({Zen.info.THMSupported})");
 
                         }
                         else

@@ -17,12 +17,13 @@ namespace CPUDoc
     public class ThreadBooster
     {
         public static CancellationToken tbtoken = new CancellationToken();
-        public static int PoolingInterval = 250;
-        public static int PoolingIntervalSlow = 1000;
+        public static CancellationToken systoken = new CancellationToken();
+        public static int PoolingInterval = 50;
+        public static int PoolingIntervalSlow = 500;
         public static uint defBitMask = 0;
         public static uint newBitMask = 0;
         public static uint defFullBitMask = 0;
-        public static uint prevBitMask = 0;
+        //public static uint prevBitMask = 0;
         public static int prevNeedcores = 0;
         public static int prevMorecores = 0;
         public static int basecores = 0;
@@ -85,7 +86,7 @@ namespace CPUDoc
                 addcores++;
                 App.LogDebug($"Build defFullBitMask 0x{defBitMask:X8} {logical}");
             }
-            prevBitMask = defBitMask;
+            //prevBitMask = defBitMask;
             setcores = basecores;
             HighTotalLoadThreshold = (basecores + addcores) * 100 / ProcessorInfo.LogicalCoresCount * HighTotalLoadFactor;
         }
@@ -97,7 +98,7 @@ namespace CPUDoc
                 tbtoken = new CancellationToken();
                 tbtoken = (CancellationToken)App.tbcts.Token;
 
-                Process.GetCurrentProcess().PriorityBoostEnabled = true;
+                //Process.GetCurrentProcess().PriorityBoostEnabled = true;
 
                 if (tbtoken.IsCancellationRequested)
                 {
@@ -108,21 +109,24 @@ namespace CPUDoc
                 if (!bInit)
                 {
                     BuildDefaultMask();
-                    SetSysCpuSet(defBitMask);
+                    App.SysCpuSetMask = defBitMask;
+                    //SetSysCpuSet(defBitMask);
                     bInit = true;
                 }
-
-                ProcessorInfo.CpuTotalLoadUpdate();
 
                 _deltaStamp = DateTime.Now - prevFullcoresStamp;
                 
                 if (ProcessorInfo.cpuTotalLoad > HighTotalLoadThreshold || _deltaStamp.TotalSeconds < FullLoadHystSecs)
                 {
                     if (ProcessorInfo.cpuTotalLoad > HighTotalLoadThreshold) prevFullcoresStamp = DateTime.Now;
-                    //App.LogDebug($"CpuLoad: {ProcessorInfo.cpuTotalLoad:0} {_deltaStamp.TotalSeconds}");
-                    if (defFullBitMask != prevBitMask)
+                    //App.LogDebug($"Full CpuLoad: {ProcessorInfo.cpuTotalLoad:0} {_deltaStamp.TotalSeconds}");
+                    //if (defFullBitMask != prevBitMask)
+                    if (defFullBitMask != App.SysCpuSetMask)
                     {
-                        App.LogDebug($"defFullBitMask 0x{defFullBitMask:X8}");
+                        //App.LogDebug($"defFullBitMask 0x{defFullBitMask:X8}");
+                        setcores = basecores + addcores;
+                        App.SysCpuSetMask = defFullBitMask;
+                        /*
                         try
                         {
                             if (SetSysCpuSet(defFullBitMask) == 0)
@@ -135,12 +139,12 @@ namespace CPUDoc
                         {
                             App.LogDebug($"Failed SetSystemCpuSet: {ex}");
                         }
+                        */
                     }
                     App.tbtimer.Interval = PoolingIntervalSlow;
                 }
                 else
                 {
-                    ProcessorInfo.CpuLoadUpdate();
                     App.tbtimer.Interval = PoolingInterval;
                     //App.LogDebug($"CpuLoad: {ProcessorInfo.cpuTotalLoad:0}");
                     //App.LogDebug($"\tLoad0={ProcessorInfo.HardwareCpuSets[0].Load:0} \tLoad1={ProcessorInfo.HardwareCpuSets[1].Load:0}");
@@ -214,17 +218,19 @@ namespace CPUDoc
                     {
                         if (i < morecores || ProcessorInfo.HardwareCpuSets[App.logicalsT1[i]].ForcedEnable)
                             newBitMask |= (uint)1 << (App.logicalsT1[i]);
-                        //App.LogDebug($"calc newbitMask 0x{newBitMask:X8} {morecores}");
+                        //App.LogDebug($"calc newbitMask 0x{newBitMask:X8} Morecores:{morecores}");
                     }
 
-                    if (newBitMask != prevBitMask && !SetHysteresis)
+                    if (newBitMask != App.SysCpuSetMask && !SetHysteresis)
                     {
-                        //App.LogDebug($"set newbitMask 0x{newBitMask:X8} prevBitMask 0x{prevBitMask:X8} {morecores}");
+                        //App.LogDebug($"set newbitMask 0x{newBitMask:X8} prevBitMask 0x{App.SysCpuSetMask:X8} {morecores}");
                         //App.LogDebug($"setcores {setcores} newsetcores {newsetcores} basecores {basecores} morecores {morecores}");
                         prevNeedcores = needcores;
                         prevMorecores = morecores;
                         if (newsetcores > setcores) prevIncreaseStamp = DateTime.Now;
                         setcores = newsetcores;
+                        App.SysCpuSetMask = newBitMask;
+                        /*
                         try
                         {
                             if (SetSysCpuSet(newBitMask) == 0)
@@ -234,6 +240,7 @@ namespace CPUDoc
                         {
                             App.LogInfo($"Failed SetSystemCpuSet: {ex}");
                         }
+                        */
                     }
                     //if (needcores > 0 || morecores > 0 || usedcores > basecores)
                     //    App.LogDebug($"needcores {needcores} morecores {morecores} usedcores {usedcores} setcores {setcores} newsetcores {newsetcores} T0Load {TotalT0LoadNorm}");
@@ -242,13 +249,58 @@ namespace CPUDoc
             catch (OperationCanceledException)
             {
                 SetSysCpuSet(0);
-                App.LogDebug("HWM Monitoring cycle exiting due to OperationCanceled");
+                App.LogDebug("ThreadBooster cycle exiting due to OperationCanceled");
                 throw;
             }
             catch (Exception ex)
             {
                 SetSysCpuSet(0);
-                App.LogExError($"HWM Monitoring cycle Exception: {ex.Message}", ex); 
+                App.LogExError($"ThreadBooster cycle Exception: {ex.Message}", ex); 
+            }
+            finally
+            {
+            }
+        }
+        public static void OnSysCpuSet(object sender, ElapsedEventArgs args)
+        {
+            try
+            {
+                systoken = new CancellationToken();
+                systoken = (CancellationToken)App.syscts.Token;
+
+                if (systoken.IsCancellationRequested)
+                {
+                    App.LogDebug("SYSCPUSET CANCELLATION REQUESTED");
+                    systoken.ThrowIfCancellationRequested();
+                }
+
+                //App.LogDebug($"SYSCPUSET ON SetSystemCpuSet: 0x{App.SysCpuSetMask:X8} Last: 0x{App.lastSysCpuSetMask:X8}");
+
+                try
+                {
+                    if (App.lastSysCpuSetMask != App.SysCpuSetMask)
+                    {
+                        App.LogInfo($"SetSystemCpuSet: 0x{App.SysCpuSetMask:X8} Last: 0x{App.lastSysCpuSetMask:X8}");
+                        if (App.SetSysCpuSet(App.SysCpuSetMask) == 0)
+                        {
+                            App.lastSysCpuSetMask = App.SysCpuSetMask;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    App.LogInfo($"Failed SetSystemCpuSet: {ex}");
+                }
+
+            }
+            catch (OperationCanceledException)
+            {
+                App.LogDebug("OnSysCpuSet cycle exiting due to OperationCanceled");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                App.LogExError($"OnSysCpuSet cycle Exception: {ex.Message}", ex);
             }
             finally
             {

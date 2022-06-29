@@ -25,7 +25,7 @@ namespace CPUDoc
         public static bool MonitoringBenchStarted = false;
         public static DateTime MonitoringBenchStartedTS = DateTime.MinValue;
         public static bool MonitoringParsed = false;
-        public static bool MonitoringPause = false;
+        public static bool MonitoringPause = true;
         public static bool MonitoringIdle = false;
         public static bool IdleCPUTempSensor = true;
         public static bool InitSensor = false;
@@ -41,7 +41,7 @@ namespace CPUDoc
         public static HWSensorSource GPUSource;
         public static HWSensorSource BoardSource;
         public static bool EndCheckLowLoad = false;
-        public static CpuLoad cpuLoad;
+        //public static CpuLoad cpuLoad;
 
         public static bool _dumphwm = true;
         public static bool _dumphwmidle = true;
@@ -112,8 +112,8 @@ namespace CPUDoc
 
             MonitoringPause = true;
 
-            cpuLoad = new CpuLoad();
-            cpuLoad.Update();
+            //cpuLoad = new CpuLoad();
+            //cpuLoad.Update();
 
         }
 
@@ -156,17 +156,17 @@ namespace CPUDoc
 
                 float _cpuBusClock;
                 _cpuBusClock = App.systemInfo.Zen.cpuBusClock;
-                App.LogDebug($"_cpuBusClock: {_cpuBusClock}");
+                //App.LogDebug($"_cpuBusClock: {_cpuBusClock}");
                 float _cpuMulti;
                 _cpuMulti = App.systemInfo.Zen.baseMulti;
-                App.LogDebug($"_cpuMulti: {_cpuMulti}");
+                //App.LogDebug($"_cpuMulti: {_cpuMulti}");
                 float _cpubaseClock;
                 _cpubaseClock = App.systemInfo.Zen.baseClock;
-                App.LogDebug($"_cpubaseClock: {_cpubaseClock}");
-                App.LogDebug($"_someClock: {App.systemInfo.Zen.GetSome1Clock()}");
-                App.LogDebug($"teststring: {App.systemInfo.Zen.teststring}");
-                App.LogDebug($"teststring1: {App.systemInfo.Zen.teststring1}");
-                App.LogDebug($"teststring2: {App.systemInfo.Zen.teststring2}");
+                //App.LogDebug($"_cpubaseClock: {_cpubaseClock}");
+                //App.LogDebug($"_someClock: {App.systemInfo.Zen.GetSome1Clock()}");
+                //App.LogDebug($"teststring: {App.systemInfo.Zen.teststring}");
+                //App.LogDebug($"teststring1: {App.systemInfo.Zen.teststring1}");
+                //App.LogDebug($"teststring2: {App.systemInfo.Zen.teststring2}");
 
                 //App.LogDebug($"Test: {App.systemInfo.Zen.teststring}");
 
@@ -212,7 +212,8 @@ namespace CPUDoc
                     for (int i = 0; i < App.systemInfo.CPULogicalProcessors; i++)
                     {
                         //Trace.Write($"_GetCpuLoad [{cpuLoad.GetCpuCount()}] read #{i} ");
-                        float _value = cpuLoad.GetCpuLoad(i);
+                        //float _value = cpuLoad.GetCpuLoad(i);
+                        float _value = ProcessorInfo.HardwareCpuSets[i].Load;
                         //App.LogDebug($" {_value}%");
                         _sensor.MultiValues[i].Values.Add(_value);
                         if (_value > 98)
@@ -235,7 +236,7 @@ namespace CPUDoc
                 }
 
                 float _cputemp = App.systemInfo.Zen.cpuTemp;
-                float? _cpuload = cpuLoad.GetTotalLoad();
+                float? _cpuload = (float)ProcessorInfo.cpuTotalLoad;
                 App.hwsensors.UpdateZenSensor(HWSensorName.CPULoad, _cpuload);
                 App.hwsensors.UpdateZenSensor(HWSensorName.CPUTemp, _cputemp);
                 //App.LogDebug($"Zen CPU Temp {App.systemInfo.Zen.cpuTemp}");
@@ -991,6 +992,9 @@ namespace CPUDoc
             MonitoringPause = false;
             MonitoringPooling = MonitoringPoolingSlow;
         }
+
+        */
+
         public static void OnHWM(object sender, ElapsedEventArgs args)
         {
             try
@@ -1032,11 +1036,21 @@ namespace CPUDoc
                     InitSensor = true;
                 }
 
+
+                if (App.IsForegroundWwindowFullScreen()) App.UAStamp = DateTime.Now;
+
+
+                //App.LogDebug("HWM MONITOR CPULOAD");
+
+                ProcessorInfo.CpuTotalLoadUpdate();
+                ProcessorInfo.CpuLoadUpdate();
+
+
                 if (MonitoringStopped && !MonitoringParsed)
                 {
                     try
                     {
-                        ParseMonitoring();
+                        //ParseMonitoring();
                     }
                     catch (Exception ex)
                     {
@@ -1049,10 +1063,11 @@ namespace CPUDoc
                 {
                     if (CPUSource == HWSensorSource.Zen)
                     {
-                        if (cpuLoad.IsAvailable) cpuLoad.Update();
+                        //if (cpuLoad.IsAvailable) cpuLoad.Update();
                         UpdateZenSensors();
                     }
 
+                    /*
                     bool _libre = false;
 
                     //if (MonitoringIdle) _libre = true;
@@ -1077,8 +1092,10 @@ namespace CPUDoc
                         computer.Accept(new UpdateVisitor());
                         UpdateSensors(computer);
                     }
+                    */
                 }
 
+                /*
                 if (!MonitoringPause && !MonitoringStarted && MonitoringBenchStarted)
                 {
                     foreach (int _cpu in App.CurrentRun.RunLogicals)
@@ -1130,6 +1147,7 @@ namespace CPUDoc
                         App.systemInfo.DumpZenPowerTable();
                     }
                 }
+                */
 
                 if (MonitoringIdle)
                 {
@@ -1151,9 +1169,10 @@ namespace CPUDoc
 
                 }
 
+                /*
+
                 TimeSpan _delta = DateTime.Now - MonitoringStart;
                 //App.LogDebug($"Monitoring pause={MonitoringPause} bstarted={MonitoringBenchStarted} started={MonitoringStarted} stopped={MonitoringStopped} _delta={_delta.TotalSeconds}");
-
                 if (!MonitoringPause && MonitoringStarted && !MonitoringStopped)
                 {
                     if (App.RunningProcess == -1)
@@ -1196,17 +1215,17 @@ namespace CPUDoc
                     }
 
                 }
-
                 bool _debug = false;
 
                 try
                 {
-                    DumpHWM(_debug);
+                   // DumpHWM(_debug);
                 }
                 catch (Exception ex)
                 {
                     App.LogExError($"HWM Monitoring DumpHWM Exception: {ex.Message}", ex);
                 }
+                */
 
             }
             catch (OperationCanceledException)
@@ -1224,8 +1243,6 @@ namespace CPUDoc
                 //App.LogDebug($"HWM MONITOR TICK {MonitoringPooling}ms");
             }
         }
-        
-        */
         public static (double, string) GetScaleValueAndPrefix(double value)
         {
             string prefix;

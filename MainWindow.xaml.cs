@@ -565,5 +565,10 @@ namespace CPUDoc
                 return false;
             }
         }
+
+        private void AdonisWindow_Activated(object sender, EventArgs e)
+        {
+            App.systemInfo.RefreshLabels();
+        }
     }
 }
