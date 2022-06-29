@@ -965,7 +965,7 @@ namespace CPUDoc
             UAStamp = DateTime.Now;
             //int error = Marshal.GetLastWin32Error();
             //if (error > 0) Log(string.Format("Key  \t\t {0}\n", e.KeyCode));
-            App.LogInfo("Key  \t\t {e.KeyCode}");
+            //App.LogInfo("Key  \t\t {e.KeyCode}");
         }
 
         private void OnMouseMove(object sender, System.Windows.Forms.MouseEventArgs e)
@@ -974,7 +974,7 @@ namespace CPUDoc
             //int error = Marshal.GetLastWin32Error();
             //if (error > 0) Log(string.Format("Mouse \t\t {0}\n", e.Button));
             //if (error > 0) Log(string.Format("Error \t\t {0}\n", error.ToString()));
-            App.LogInfo("Key  \t\t {e.Button}");
+            //App.LogInfo("Key  \t\t {e.Button}");
         }
         private void Subscribe(IKeyboardMouseEvents events)
         {

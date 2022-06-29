@@ -61,6 +61,8 @@ You can compile with Visual Studio 2019 and .NET Core 5.
 
 ## Changelog:
 
+- v1.0.2 Alpha
+    - Fix: Disabled massive debug logging left enabled
 - v1.0.1 Alpha
     - New: Separate threads for Hardware Monitoring, set system mask and ThreadBooster
     - New: Updated Zen-Core DLL to latest codebase with some additions for future work (detecting Max PBO values etc)
