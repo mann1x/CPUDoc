@@ -57,6 +57,78 @@ namespace CPUDoc
         }
 
         /// <summary>
+        /// Toggle NumaZero
+        /// </summary>
+        public ICommand ToggleNumaZero
+        {
+            get
+            {
+                return new DelegateCommand
+                {
+                    CanExecuteFunc = () =>
+                    {
+                        return true;
+                    },
+                    CommandAction = () =>
+                    {
+                        App.pactive.NumaZero = App.pactive.NumaZero ? false : true;
+                        App.SetActiveConfig();
+                        App.LogDebug($"N0 Toggle: {App.pactive.NumaZero}");
+                    }
+                    
+                };
+            }
+        }
+
+        /// <summary>
+        /// Toggle PSA
+        /// </summary>
+        public ICommand TogglePSA
+        {
+            get
+            {
+                return new DelegateCommand
+                {
+                    CanExecuteFunc = () =>
+                    {
+                        return true;
+                    },
+                    CommandAction = () =>
+                    {
+                        App.pactive.PowerSaverActive = App.pactive.PowerSaverActive ? false : true;
+                        App.SetActiveConfig();
+                        App.LogDebug($"PSA Toggle: {App.pactive.PowerSaverActive}");
+                    }
+
+                };
+            }
+        }
+
+        /// <summary>
+        /// Toggle SysSetHack
+        /// </summary>
+        public ICommand ToggleSSH
+        {
+            get
+            {
+                return new DelegateCommand
+                {
+                    CanExecuteFunc = () =>
+                    {
+                        return true;
+                    },
+                    CommandAction = () =>
+                    {
+                        App.pactive.SysSetHack = App.pactive.SysSetHack ? false : true;
+                        App.SetActiveConfig();
+                        App.LogDebug($"SysSetHack Toggle: {App.pactive.SysSetHack}");
+                    }
+
+                };
+            }
+        }
+
+        /// <summary>
         /// Shuts down the application.
         /// </summary>
         public ICommand ExitApplicationCommand

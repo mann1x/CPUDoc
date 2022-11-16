@@ -64,6 +64,14 @@
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center" >Thread Booster:</TextBlock>
                                 <Grid Grid.Column="1" Grid.Row="1">
@@ -80,36 +88,48 @@
                                         </TextBlock>
                                     </Button>
                                 </Grid>
-                                <TextBlock Grid.Column="0" Grid.Row="2" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Top"
+                            <TextBlock Grid.Column="0" Grid.Row="2" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center" >SysSetHack:</TextBlock>
+                            <TextBlock Grid.Column="1" Grid.Row="2" x:Name="SSHStatus" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}"
+                                    Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left"  VerticalAlignment="Center"
+                                    Text="{Binding Path=systemInfo.SSHStatus, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Grid.Column="0" Grid.Row="3" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center" >PowerSaverActive:</TextBlock>
+                            <TextBlock Grid.Column="1" Grid.Row="3" x:Name="PSAStatus" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}"
+                                    Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left"  VerticalAlignment="Center"
+                                    Text="{Binding Path=systemInfo.PSAStatus, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Grid.Column="0" Grid.Row="4" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center" >NumaZero:</TextBlock>
+                            <TextBlock Grid.Column="1" Grid.Row="4" x:Name="N0Status" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}"
+                                    Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left"  VerticalAlignment="Center"
+                                    Text="{Binding Path=systemInfo.N0Status, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Grid.Column="0" Grid.Row="5" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Top"
                            Text="CPU:"/>
-                                <TextBlock Grid.Column="1" Grid.Row="2" Name="CPULabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
+                                <TextBlock Grid.Column="1" Grid.Row="5" Name="CPULabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
                            Text="{Binding systemInfo.CPULabel, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                <TextBlock Grid.Column="0" Grid.Row="3" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                <TextBlock Grid.Column="0" Grid.Row="7" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Top"
                            Text="Board:"/>
-                                <TextBlock Grid.Column="1" Grid.Row="3" Name="BoardLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
+                                <TextBlock Grid.Column="1" Grid.Row="7" Name="BoardLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
                            Text="{Binding systemInfo.BoardLabel, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                <TextBlock Grid.Column="0" Grid.Row="4" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" 
+                                <TextBlock Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" 
                            Text="Processors:"/>
-                                <TextBlock Grid.Column="1" Grid.Row="4" x:Name="ProcessorsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
+                                <TextBlock Grid.Column="1" Grid.Row="9" x:Name="ProcessorsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
                            Text="{Binding systemInfo.ProcessorsLabel, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                <TextBlock Grid.Column="0" Grid.Row="5" x:Name="MemoryRow" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" 
+                                <TextBlock Grid.Column="0" Grid.Row="10" x:Name="MemoryRow" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" 
                            Text="Memory:"/>
-                                <TextBlock Grid.Column="1" Grid.Row="5" x:Name="MemoryLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
+                                <TextBlock Grid.Column="1" Grid.Row="10" x:Name="MemoryLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
                            Text="{Binding systemInfo.MemoryLabel, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                <TextBlock Grid.Column="0" Grid.Row="6" x:Name="COCounts" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                <TextBlock Grid.Column="0" Grid.Row="11" x:Name="COCounts" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center"
                            Text="CO Counts:" Visibility="Collapsed"/>
-                                <TextBlock Grid.Column="1" Grid.Row="6" x:Name="COCountsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Padding="5" VerticalAlignment="Center" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}" 
+                                <TextBlock Grid.Column="1" Grid.Row="11" x:Name="COCountsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Padding="5" VerticalAlignment="Center" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}" 
                            Text="{Binding systemInfo.ZenCOLabel, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" Visibility="Collapsed"/>
-                                <TextBlock Grid.Column="0" Grid.Row="8" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                <TextBlock Grid.Column="0" Grid.Row="12" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center"
                            Text="CPPC Order:"/>
-                                <TextBlock Grid.Column="1" Grid.Row="8" Name="CPPCLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left"
+                                <TextBlock Grid.Column="1" Grid.Row="12" Name="CPPCLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left"
                            Text="{Binding systemInfo.CPPCLabel}"/>
-                                <TextBlock Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                <TextBlock Grid.Column="0" Grid.Row="13" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center"
                            Text="CPPC Tags:"/>
-                                <TextBlock Grid.Column="1" Grid.Row="9" Name="CPPCTagsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Padding="5" VerticalAlignment="Center" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}"
+                                <TextBlock Grid.Column="1" Grid.Row="13" Name="CPPCTagsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Padding="5" VerticalAlignment="Center" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}"
                            Text="{Binding systemInfo.CPPCTagsLabel}"/>
 
-                            <TextBlock x:Name="ECoresLabel" Grid.Column="0" Grid.Row="12" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right"  VerticalAlignment="Center" Text="E-Cores:" Visibility="Collapsed"/>
+                            <TextBlock x:Name="ECoresLabel" Grid.Column="0" Grid.Row="14" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right"  VerticalAlignment="Center" Text="E-Cores:" Visibility="Collapsed"/>
                             <StackPanel Grid.Column="1" Grid.Row="12" x:Name="ECoresPanel" Visibility="Collapsed">
                                 <Grid Margin="2 2 2 2" VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
@@ -158,158 +178,239 @@
                         </Grid>
                     </TabItem>
 
-                        <TabItem MouseEnter="TabItemEnter">
-                            <TabItem.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Settings" FontSize="15" Style="{StaticResource HeaderTextBlockStyle}" />
-                                </StackPanel>
-                            </TabItem.Header>
-                            <StackPanel>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                    </Grid.RowDefinitions>
+                    <TabItem MouseEnter="TabItemEnter">
+                        <TabItem.Header>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Configs" FontSize="15" Style="{StaticResource HeaderTextBlockStyle}" />
+                            </StackPanel>
+                        </TabItem.Header>
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <CheckBox Grid.Column="0" Grid.Row="6" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TBAutoStartCheckBox_Click" x:Name="cbTBAutoStart">
+                                    ThreadBooster
+                                </CheckBox>
+
+                                <CheckBox Grid.Column="0" Grid.Row="7" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="SysSetHack_Click" x:Name="cbSysSetHack">
+                                    SysSetHack
+                                </CheckBox>
+
+                                <CheckBox Grid.Column="0" Grid.Row="8" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="PSA_Click" x:Name="cbPSA">
+                                    PowerSaverActive
+                                </CheckBox>
+
+                                <CheckBox Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="NumaZero_Click" x:Name="cbNumaZero">
+                                    NumaZero
+                                </CheckBox>
+
+                                <TextBlock Grid.Column="1" Grid.Row="9" HorizontalAlignment="Right" VerticalAlignment="Center">Type:</TextBlock> 
+                                <ComboBox Grid.Column="2" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroType_Select" x:Name="listNumaZeroType">
+                                    
+                                    <ComboBoxItem Tag="0">Auto</ComboBoxItem>
+                                    <ComboBoxItem Tag="1">First 8 Cores</ComboBoxItem>
+                                    <ComboBoxItem Tag="2">First 6 Cores</ComboBoxItem>
+                                    <ComboBoxItem Tag="3">First 4 Cores</ComboBoxItem>
+                                    <ComboBoxItem Tag="4">First 2 Cores</ComboBoxItem>
+                                </ComboBox>
+
+                                <Button Grid.Column="0" Grid.Row="10" Name="SaveConfig" Click="SaveConfig_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Left" Margin="10 4 10 4">
+                                    <TextBlock Margin="{adonisUi:Space}" Text="Save config">
+                                    </TextBlock>
+                                </Button>
+
+
+                            </Grid>
+                        </StackPanel>
+
+                    </TabItem>
+
+                    <TabItem MouseEnter="TabItemEnter">
+                        <TabItem.Header>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Settings" FontSize="15" Style="{StaticResource HeaderTextBlockStyle}" />
+                            </StackPanel>
+                        </TabItem.Header>
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
 
                                 <Button Grid.Column="0" Grid.Row="5" x:Name="BtnAutoStartTask" Click="BtnAutoStartTask_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Right" Margin="10 4 10 4">
                                     <TextBlock Margin="{adonisUi:Space}" x:Name="BtnAutoStartTaskLabel" Text="Create AutoStart Task">
                                     </TextBlock>
                                 </Button>
-                                <CheckBox Grid.Column="0" Grid.Row="6" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center" Click="TBAutoStartCheckBox_Click" x:Name="cbTBAutoStart">
-                                    Enable ThreadBooster AutoStart
+                                <Grid Grid.Column="0" Grid.Row="7" Grid.ColumnSpan="4" Margin="4 4 4 4">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Grid.Row="0" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center">Last Version:</TextBlock>
+                                    <TextBlock Grid.Column="1" Grid.Row="0" Name="LastVersionLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Padding="5" VerticalAlignment="Center" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}"
+                                    Text="{Binding systemInfo.LastVersionOnServer}"/>
+                                    <Button Grid.Column="2" Grid.Row="0" Name="CheckForUpdate" Click="ButtonCheckUpdate" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Right" Margin="10 4 10 4">
+                                        <TextBlock Margin="{adonisUi:Space}" Text="Check for Update">
+                                        </TextBlock>
+                                    </Button>
+                                </Grid>
+                                
+                                <CheckBox Grid.Column="0" Grid.Row="8" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TraceInfoCheckBox_Click" x:Name="cbTraceInfo">
+                                    Write Trace Information log
                                 </CheckBox>
-                                    <Grid Grid.Column="0" Grid.Row="7" Grid.ColumnSpan="4" Margin="4 4 4 4">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="*"/>
-                                        </Grid.RowDefinitions>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Grid.Row="0" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center">Last Version:</TextBlock>
-                                        <TextBlock Grid.Column="1" Grid.Row="0" Name="LastVersionLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Padding="5" VerticalAlignment="Center" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}"
-                                       Text="{Binding systemInfo.LastVersionOnServer}"/>
-                                        <Button Grid.Column="2" Grid.Row="0" Name="CheckForUpdate" Click="ButtonCheckUpdate" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Right" Margin="10 4 10 4">
-                                            <TextBlock Margin="{adonisUi:Space}" Text="Check for Update">
-                                            </TextBlock>
-                                        </Button>
-                                    </Grid>
 
-                                    <Grid Grid.Column="0" Grid.Row="8" Grid.ColumnSpan="4" Margin="4 4 4 4">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="*"/>
-                                        </Grid.RowDefinitions>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Button Grid.Column="0" Grid.Row="0" Name="BtnLogsFolder" Click="ButtonLogsFolder" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4">
-                                            <TextBlock Margin="{adonisUi:Space}" Text="Open Logs folder">
-                                            </TextBlock>
-                                        </Button>
+                                <CheckBox Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TraceDebugCheckBox_Click" x:Name="cbTraceDebug">
+                                    Write Debug Trace log
+                                </CheckBox>
 
+                                <Grid Grid.Column="0" Grid.Row="10" Grid.ColumnSpan="4" Margin="4 4 4 4">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Grid.Row="0" Name="BtnLogsFolder" Click="ButtonLogsFolder" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4">
+                                        <TextBlock Margin="{adonisUi:Space}" Text="Open Logs folder">
+                                        </TextBlock>
+                                    </Button>
 
-                                    </Grid>
-
-                                    <Grid Grid.Column="0" Grid.Row="9" Grid.ColumnSpan="4" Margin="4 4 4 4">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="*"/>
-                                        </Grid.RowDefinitions>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Button Grid.Column="0" Grid.Row="0" Name="ResetSettings" Click="ButtonReset" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Right" Margin="10 4 10 4">
-                                            <TextBlock Margin="{adonisUi:Space}" Text="Reset settings">
-                                            </TextBlock>
-                                        </Button>
-
-                                        <Button Grid.Column="1" Grid.Row="0" Name="SaveSettings" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Left" Margin="10 4 10 4">
-                                            <TextBlock Margin="{adonisUi:Space}" Text="Save settings">
-                                            </TextBlock>
-                                        </Button>
-
-                                    </Grid>
 
                                 </Grid>
+
+                                <Grid Grid.Column="0" Grid.Row="11" Grid.ColumnSpan="4" Margin="4 4 4 4">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <!--
+                                    <Button Grid.Column="0" Grid.Row="0" Name="ResetSettings" Click="ButtonReset" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Right" Margin="10 4 10 4">
+                                        <TextBlock Margin="{adonisUi:Space}" Text="Reset settings">
+                                        </TextBlock>
+                                    </Button>
+
+                                    <Button Grid.Column="1" Grid.Row="0" Name="SaveSettings" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Left" Margin="10 4 10 4">
+                                        <TextBlock Margin="{adonisUi:Space}" Text="Save settings">
+                                        </TextBlock>
+                                    </Button>
+                                    -->
+
+                                </Grid>
+
+                            </Grid>
+                        </StackPanel>
+
+                    </TabItem>
+
+                    <TabItem MouseEnter="TabItemEnter">
+                        <TabItem.Header>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="About" FontSize="15" Style="{StaticResource HeaderTextBlockStyle}"/>
                             </StackPanel>
-
-                        </TabItem>
-
-                        <TabItem MouseEnter="TabItemEnter">
-                            <TabItem.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="About" FontSize="15" Style="{StaticResource HeaderTextBlockStyle}"/>
-                                </StackPanel>
-                            </TabItem.Header>
-                            <TextBlock Margin="4 4 4 4" Grid.Row="12" Height="Auto">
-                                GPL-3.0 License - Free Open Source software by ManniX - <Hyperlink 
-                                    Foreground="LightSkyBlue"
-                                NavigateUri="https://www.overclock.net/members/mannix-ita.538195/"
+                        </TabItem.Header>
+                        <TextBlock Margin="4 4 4 4" Grid.Row="12" Height="Auto">
+                            GPL-3.0 License - Free Open Source software by ManniX - <Hyperlink 
+                                Foreground="LightSkyBlue"
+                            NavigateUri="https://www.overclock.net/members/mannix-ita.538195/"
+                            RequestNavigate="Hyperlink_RequestNavigate">
+                            OCN: ManniX-ITA</Hyperlink>
+                        <LineBreak/>
+                        GitHub Project: <Hyperlink 
+                                Foreground="LightSkyBlue"
+                                NavigateUri="https://github.com/mann1x/CPUDoc"
                                 RequestNavigate="Hyperlink_RequestNavigate">
-                                OCN: ManniX-ITA</Hyperlink>
-                            <LineBreak/>
-                            GitHub Project: <Hyperlink 
-                                    Foreground="LightSkyBlue"
-                                    NavigateUri="https://github.com/mann1x/CPUDoc"
-                                    RequestNavigate="Hyperlink_RequestNavigate">
-                                    github.com/mann1x/CPUDoc</Hyperlink>
-                            <LineBreak/>
-                            Thanks for testing, colors and advice - <Hyperlink 
-                                    Foreground="LightSkyBlue"
-                                    NavigateUri="https://www.overclock.net/members/veii.609138/"
-                                    RequestNavigate="Hyperlink_RequestNavigate">
-                                    OCN: Veii</Hyperlink>
-                            <LineBreak/>
-                            Thanks to Yuri for his efforts supporting the community - <Hyperlink
-                                    Foreground="LightSkyBlue"
-                                    NavigateUri="https://www.patreon.com/1usmus/posts"
-                                    RequestNavigate="Hyperlink_RequestNavigate">
-                                    Patreon: 1usmus</Hyperlink>
-                            <LineBreak/>
-                            Credits to Irusanov's Zentimings, ZenCore
-                            GitHub Project: <Hyperlink 
-                                    Foreground="LightSkyBlue"
-                                    NavigateUri="https://github.com/irusanov/ZenTimings"
-                                    RequestNavigate="Hyperlink_RequestNavigate">
-                                    github.com/irusanov/ZenTimings</Hyperlink> - 
-                            <Hyperlink 
-                                    Foreground="LightSkyBlue"
-                                    NavigateUri="https://zentimings.protonrom.com/"
-                                    RequestNavigate="Hyperlink_RequestNavigate">
-                                    Project Home</Hyperlink>
-                            <LineBreak/>
-                            <Hyperlink 
-                                    Foreground="LightSkyBlue"
-                                    NavigateUri="https://www.flaticon.com/free-icons/chip"
-                                    RequestNavigate="Hyperlink_RequestNavigate">
-                                    Chip icons created by Freepik - Flaticon</Hyperlink>
-                            <LineBreak/>
-                            <LineBreak/>
-                            License:
-                            <LineBreak/>
-                            <TextBox x:Name="boxLicense" IsReadOnly="True" VerticalScrollBarVisibility="Auto" Height="Auto" MaxHeight="200" MaxWidth="750"/>
-                            <LineBreak/>
-                            </TextBlock>
-                        </TabItem>
-                    </TabControl>
-                </Grid>
+                                github.com/mann1x/CPUDoc</Hyperlink>
+                        <LineBreak/>
+                        Thanks for testing, colors and advice - <Hyperlink 
+                                Foreground="LightSkyBlue"
+                                NavigateUri="https://www.overclock.net/members/veii.609138/"
+                                RequestNavigate="Hyperlink_RequestNavigate">
+                                OCN: Veii</Hyperlink>
+                        <LineBreak/>
+                        Thanks to Yuri for his efforts supporting the community - <Hyperlink
+                                Foreground="LightSkyBlue"
+                                NavigateUri="https://www.patreon.com/1usmus/posts"
+                                RequestNavigate="Hyperlink_RequestNavigate">
+                                Patreon: 1usmus</Hyperlink>
+                        <LineBreak/>
+                        Credits to Irusanov's Zentimings, ZenCore
+                        GitHub Project: <Hyperlink 
+                                Foreground="LightSkyBlue"
+                                NavigateUri="https://github.com/irusanov/ZenTimings"
+                                RequestNavigate="Hyperlink_RequestNavigate">
+                                github.com/irusanov/ZenTimings</Hyperlink> - 
+                        <Hyperlink 
+                                Foreground="LightSkyBlue"
+                                NavigateUri="https://zentimings.protonrom.com/"
+                                RequestNavigate="Hyperlink_RequestNavigate">
+                                Project Home</Hyperlink>
+                        <LineBreak/>
+                        <Hyperlink 
+                                Foreground="LightSkyBlue"
+                                NavigateUri="https://www.flaticon.com/free-icons/chip"
+                                RequestNavigate="Hyperlink_RequestNavigate">
+                                Chip icons created by Freepik - Flaticon</Hyperlink>
+                        <LineBreak/>
+                        <LineBreak/>
+                        License:
+                        <LineBreak/>
+                        <TextBox x:Name="boxLicense" IsReadOnly="True" VerticalScrollBarVisibility="Auto" Height="Auto" MinWidth="550" MaxHeight="200" MaxWidth="1050"/>
+                        <LineBreak/>
+                        </TextBlock>
+                    </TabItem>
+                </TabControl>
             </Grid>
-        </StackPanel>
+        </Grid>
+    </StackPanel>
 </adonisControls:AdonisWindow>

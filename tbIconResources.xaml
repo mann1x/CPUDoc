@@ -11,7 +11,10 @@
     <ContextMenu x:Shared="false" x:Key="SysTrayMenu">
         <MenuItem Header="{Binding Version}" />
         <Separator />
-        <!--<MenuItem Header="Show App" Command="{Binding ShowWindowCommand}" />-->
+        <MenuItem Header="Toggle SysSetHack" Command="{Binding ToggleSSH}" />
+        <MenuItem Header="Toggle PowerSaveActive" Command="{Binding TogglePSA}" />
+        <MenuItem Header="Toggle NumaZero" Command="{Binding ToggleNumaZero}" />
+        <Separator />
         <MenuItem Header="Exit" Command="{Binding ExitApplicationCommand}" />
     </ContextMenu>
 
@@ -26,6 +29,7 @@
         <tb:TaskbarIcon.DataContext>
             <local:tbViewModel />
         </tb:TaskbarIcon.DataContext>
+
     </tb:TaskbarIcon>
 
 </ResourceDictionary>

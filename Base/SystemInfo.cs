@@ -130,11 +130,12 @@ namespace CPUDoc
         public double CpuBusClock { get; set; }
         public bool CpuSHAExt { get; set; }
         public bool CpuVAESExt { get; set; }
-        public bool TBAutoStart { get; set; }
         public double TBLoopTime { get; set; }
         public double TBLoopEvery { get; set; }
         public string ThreadBoosterStatus { get; set; }
-       
+        public string PSAStatus { get; set; }
+        public string SSHStatus { get; set; }
+        public string N0Status { get; set; }
 
         private int EmptyTags()
         {
@@ -1166,7 +1167,7 @@ namespace CPUDoc
                 string shastr = "";
                 string vaesstr = "";
                 string avx512str = "No";
-                string cpumanufacturer = HWMonitor.computer.SMBios.Processor.ManufacturerName;
+                string cpumanufacturer = HWMonitor.computer.SMBios.Processors[0].ManufacturerName;
 
                 App.LogInfo($"CPU Manufacturer: {cpumanufacturer}");
                 App.LogInfo("");
@@ -2812,7 +2813,42 @@ namespace CPUDoc
             }
             catch { }
         }
-        
+
+        public void SetPSAStatus(bool _status)
+        {
+            try
+            {
+                string lsleep = "";
+                string dsleep = "";
+                if (_status)
+                {
+                    lsleep = App.psact_light_b ? "[LightSleep]" : "";
+                    dsleep = App.psact_deep_b ? "[DeepSleep]" : "";
+                }
+                PSAStatus = _status ? $"Enabled {lsleep} {dsleep}" : "Disabled";
+                OnChange("PSAStatus");
+            }
+            catch { }
+        }
+
+        public void SetSSHStatus(bool _status)
+        {
+            try
+            {
+                SSHStatus = _status ? $"Enabled {ThreadBooster.CountBits(App.lastSysCpuSetMask)}/{ThreadBooster.CountBits(ThreadBooster.defFullBitMask)}" : "Disabled";
+                OnChange("SSHStatus");
+            }
+            catch { }
+        }
+        public void SetN0Status(bool _status)
+        {
+            try
+            {
+                N0Status = _status ? $"Enabled {App.n0enabledT0.Count() + App.n0enabledT1.Count()}T Excluded: {App.n0disabledT0.Count() + App.n0disabledT1.Count()}T" : "Disabled";
+                OnChange("N0Status");
+            }
+            catch { }
+        }
         protected void OnChange(string info)
         {
             try

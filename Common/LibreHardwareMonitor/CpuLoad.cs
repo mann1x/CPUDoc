@@ -4,6 +4,7 @@
 // Partial Copyright (C) Michael Möller <mmoeller@openhardwaremonitor.org> and Contributors.
 // All Rights Reserved.
 
+using net.r_eg.Conari;
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -17,6 +18,8 @@ namespace CPUDoc
         private long[] _idleTimes;
         private float _totalLoad;
         private long[] _totalTimes;
+        private static Interop.NtDll.SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION[] information = new Interop.NtDll.SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION[64];
+        private static int size = Marshal.SizeOf(typeof(Interop.NtDll.SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION));
 
         public CpuLoad()
         {
@@ -41,12 +44,9 @@ namespace CPUDoc
 
         private static bool GetTimes(out long[] idle, out long[] total)
         {
-            Interop.NtDll.SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION[] information = new Interop.NtDll.SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION[64];
-            int size = Marshal.SizeOf(typeof(Interop.NtDll.SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION));
 
             idle = null;
             total = null;
-
             if (Interop.NtDll.NtQuerySystemInformation(Interop.NtDll.SYSTEM_INFORMATION_CLASS.SystemProcessorPerformanceInformation,
                                                        information,
                                                        information.Length * size,
@@ -57,6 +57,21 @@ namespace CPUDoc
 
             idle = new long[(int)returnLength / size];
             total = new long[(int)returnLength / size];
+
+            /*
+            using (var lam = new ConariL(@"NtDll.dll"))
+            {
+                if (lam.DLR.NtQuerySystemInformation<int>(Interop.NtDll.SYSTEM_INFORMATION_CLASS.SystemProcessorPerformanceInformation,
+                                                       information,
+                                                       information.Length * size,
+                                                       out IntPtr returnLength) != 0)
+                {
+                    return false;
+                }
+                idle = new long[(int)returnLength / size];
+                total = new long[(int)returnLength / size];
+            }
+            */
 
             for (int i = 0; i < idle.Length; i++)
             {

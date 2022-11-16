@@ -29,9 +29,9 @@ namespace CPUDoc
         public static bool MonitoringIdle = false;
         public static bool IdleCPUTempSensor = true;
         public static bool InitSensor = false;
-        public static int MonitoringPooling = 250;
         public static int MonitoringPoolingFast = 250;
         public static int MonitoringPoolingSlow = 1000;
+        public static int MonitoringPooling = MonitoringPoolingFast;
         public static int IdleCurrentCPUTemp = 1000;
         public static int IdleHysteresis = 3;
         public static int IdleCurrentCPULoad = 100;
@@ -1039,12 +1039,23 @@ namespace CPUDoc
 
                 if (App.IsForegroundWwindowFullScreen()) App.UAStamp = DateTime.Now;
 
-
                 //App.LogDebug("HWM MONITOR CPULOAD");
 
-                ProcessorInfo.CpuTotalLoadUpdate();
-                ProcessorInfo.CpuLoadUpdate();
+                if (!ProcessorInfo.CpuLoadPerfCounter) ProcessorInfo._cpuLoad.Update();
+                if (App.pactive.SysSetHack || App.pactive.PowerSaverActive) ProcessorInfo.CpuTotalLoadUpdate();
+                if (App.pactive.SysSetHack) ProcessorInfo.CpuLoadUpdate();
+                App.cpuTotalLoad.Push(ProcessorInfo.cpuTotalLoad);
 
+                //App.LogDebug($"TL={ProcessorInfo.cpuTotalLoad:0} AvgTL={App.cpuTotalLoad.Current:0} MaxTL={App.cpuTotalLoad.GetMax:0}");
+
+                if (MonitoringPooling == MonitoringPoolingSlow)
+                {
+                    MonitoringPooling = App.cpuTotalLoad.GetMax > ThreadBooster.HighTotalLoadLowThreshold ? MonitoringPoolingSlow : MonitoringPoolingFast;
+                }
+                else
+                {
+                    MonitoringPooling = ProcessorInfo.cpuTotalLoad > ThreadBooster.HighTotalLoadThreshold ? MonitoringPoolingSlow : MonitoringPoolingFast;
+                }
 
                 if (MonitoringStopped && !MonitoringParsed)
                 {

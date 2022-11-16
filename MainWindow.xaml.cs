@@ -39,6 +39,7 @@ namespace CPUDoc
         static DispatcherTimer uitimer;
         static bool AutoStartTask;
 
+        static appConfigs pcurrent;
         public string WinTitle
         {
             get { return (string)GetValue(WinTitleProperty); }
@@ -46,7 +47,7 @@ namespace CPUDoc
         }
 
         public static readonly DependencyProperty WinTitleProperty =
-            DependencyProperty.Register("WinTitle", typeof(string), typeof(MainWindow), new UIPropertyMetadata($"CPUDoc-{App.version}"));
+            DependencyProperty.Register("WinTitle", typeof(string), typeof(MainWindow), new UIPropertyMetadata($"CPUDoc-{App.version}", WinTitleChanged));
         public MainWindow()
         {
             InitializeComponent();
@@ -103,14 +104,39 @@ namespace CPUDoc
 
             if (App.tbtimer.Enabled) BtnThreadBoostLabel.Text = "Stop";
 
-            if (WindowSettings.Default.ThreadBooster == true)
+            pcurrent = new appConfigs();
+            pcurrent = App.AppConfigs[0];
+
+            cbTBAutoStart.IsChecked = pcurrent.ThreadBooster ? true : false;
+            cbNumaZero.IsChecked = pcurrent.NumaZero ? true : false;
+            cbPSA.IsChecked = pcurrent.PowerSaverActive ? true : false;
+            cbSysSetHack.IsChecked = pcurrent.SysSetHack ? true : false;
+            cbTraceInfo.IsChecked = App.AppSettings.LogInfo ? true : false;
+            cbTraceDebug.IsChecked = App.AppSettings.LogTrace ? true : false;
+
+            listNumaZeroType.SelectedIndex = pcurrent.NumaZeroType;
+
+            SSHStatus.Text = App.pactive.SysSetHack ? "Enabled" : "Disabled";
+            PSAStatus.Text = App.pactive.PowerSaverActive ? "Enabled" : "Disabled";
+            N0Status.Text = App.pactive.NumaZero ? "Enabled" : "Disabled";
+
+            if (cbTBAutoStart.IsChecked == true)
             {
-                cbTBAutoStart.IsChecked = true;
+                cbNumaZero.IsEnabled = true;
+                cbSysSetHack.IsEnabled = true;
+                cbPSA.IsEnabled = true;
+                listNumaZeroType.IsEnabled = true;
             }
             else
             {
-                cbTBAutoStart.IsChecked = false;
+                cbNumaZero.IsEnabled = false;
+                cbSysSetHack.IsEnabled = false;
+                cbPSA.IsEnabled = false;
+                listNumaZeroType.IsEnabled = false;
             }
+
+            cbSysSetHack.IsChecked = pcurrent.SysSetHack ? true : false;
+
             AutoStartTask = CheckStartTask();
 
             if (AutoStartTask) BtnAutoStartTaskLabel.Text = "Delete AutoStart Task";
@@ -199,6 +225,12 @@ namespace CPUDoc
                 }
             }
         }
+        private static void WinTitleChanged(DependencyObject source, DependencyPropertyChangedEventArgs e)
+        {
+            MainWindow mainWindow = source as MainWindow;
+            string newValue = e.NewValue as string;
+            mainWindow.Title = newValue;
+        }
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             InitMainUI();
@@ -213,6 +245,8 @@ namespace CPUDoc
 
             Activate();
             Focus();
+
+            this.Title = WinTitle;
 
             App.systemInfo.SetThreadBoosterStatus("N/A");
 
@@ -229,6 +263,9 @@ namespace CPUDoc
                 {
                     App.systemInfo.SetThreadBoosterStatus("Stopped");
                 }
+                App.systemInfo.SetSSHStatus(App.pactive.SysSetHack);
+                App.systemInfo.SetPSAStatus(App.pactive.PowerSaverActive);
+                App.systemInfo.SetN0Status(App.pactive.NumaZero);
 
             };
         }
@@ -495,13 +532,105 @@ namespace CPUDoc
 
             if (cb.IsChecked == true)
             {
-                CPUDoc.Properties.Settings.Default.ThreadBooster = true;
+                pcurrent.ThreadBooster = true;
+                cbNumaZero.IsEnabled = true;
+                cbSysSetHack.IsEnabled = true;
+                cbPSA.IsEnabled = true;
+                listNumaZeroType.IsEnabled = true;
             }
             else
             {
-                CPUDoc.Properties.Settings.Default.ThreadBooster = false;
+                pcurrent.ThreadBooster = false;
+                cbNumaZero.IsEnabled = false;
+                cbSysSetHack.IsEnabled = false;
+                cbPSA.IsEnabled = false;
+                listNumaZeroType.IsEnabled = false;
             }
-            CPUDoc.Properties.Settings.Default.Save();
+        }
+        private void TraceDebugCheckBox_Click(object sender, RoutedEventArgs e)
+        {
+            CheckBox cb = sender as CheckBox;
+
+            if (cb.IsChecked == true)
+            {
+                App.AppSettings.LogTrace = true;
+            }
+            else
+            {
+                App.AppSettings.LogTrace = false;
+            }
+            App.TraceLogging(App.AppSettings.LogTrace);
+            ProtBufSettings.WriteSettings();
+        }
+        private void TraceInfoCheckBox_Click(object sender, RoutedEventArgs e)
+        {
+            CheckBox cb = sender as CheckBox;
+
+            if (cb.IsChecked == true)
+            {
+                App.AppSettings.LogInfo = true;
+            }
+            else
+            {
+                App.AppSettings.LogInfo = false;
+            }
+            App.InfoLogging(App.AppSettings.LogInfo);
+            ProtBufSettings.WriteSettings();
+        }
+        private void SysSetHack_Click(object sender, RoutedEventArgs e)
+        {
+            CheckBox cb = sender as CheckBox;
+
+            if (cb.IsChecked == true)
+            {
+                pcurrent.SysSetHack = true;
+            }
+            else
+            {
+                pcurrent.SysSetHack = false;
+            }
+        }
+        private void PSA_Click(object sender, RoutedEventArgs e)
+        {
+            CheckBox cb = sender as CheckBox;
+
+            if (cb.IsChecked == true)
+            {
+                pcurrent.PowerSaverActive = true;
+            }
+            else
+            {
+                pcurrent.PowerSaverActive = false;
+            }
+        }
+        private void NumaZero_Click(object sender, RoutedEventArgs e)
+        {
+            CheckBox cb = sender as CheckBox;
+
+            if (cb.IsChecked == true)
+            {
+                pcurrent.NumaZero = true;
+            }
+            else
+            {
+                pcurrent.NumaZero = false;
+            }
+        }
+
+        private void NumaZeroType_Select(object sender, SelectionChangedEventArgs e)
+        {
+            ComboBox cb = sender as ComboBox;
+            pcurrent.NumaZeroType = cb.SelectedIndex;
+        }
+        private void SaveConfig_Click(object sender, RoutedEventArgs e)
+        {
+            //App.LogInfo($"NumaZeroType Index={cb.SelectedIndex} {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
+            //App.LogInfo($"NumaZeroType {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
+            App.AppConfigs[pcurrent.id] = pcurrent;
+            ProtBufSettings.WriteSettings();
+            ProtBufSettings.ReadSettings();
+            App.SetActiveConfig(pcurrent.id);
+            App.LogDebug($"Config[{App.pactive.id}] TBA={App.pactive.ThreadBooster} PSA={App.pactive.PowerSaverActive} SSH={App.pactive.SysSetHack} N0={App.pactive.NumaZero}:{App.pactive.NumaZeroType}");
         }
         private void BtnAutoStartTask_Click(object sender, RoutedEventArgs e)
         {

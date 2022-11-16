@@ -10,7 +10,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>CPUDoc.ico</ApplicationIcon>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -31,16 +31,20 @@
   <ItemGroup>
     <PackageReference Include="AdonisUI" Version="1.17.1" />
     <PackageReference Include="AdonisUI.ClassicTheme" Version="1.17.1" />
-    <PackageReference Include="Autoupdater.NET.Official" Version="1.7.3" />
+    <PackageReference Include="Autoupdater.NET.Official" Version="1.7.6" />
     <PackageReference Include="Conari" Version="1.5.0" />
     <PackageReference Include="EventHook" Version="1.4.113" />
-    <PackageReference Include="gong-wpf-dragdrop" Version="3.1.1" />
+    <PackageReference Include="gong-wpf-dragdrop" Version="3.2.0" />
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
-    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.0" />
-    <PackageReference Include="Microsoft.Win32.Registry.AccessControl" Version="6.0.0" />
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.1" />
+    <PackageReference Include="Microsoft.Win32.Registry.AccessControl" Version="7.0.0" />
     <PackageReference Include="MouseKeyHook" Version="5.6.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="NLog" Version="5.0.1" />
+    <PackageReference Include="NLog" Version="5.0.5" />
+    <PackageReference Include="OSVersionExt" Version="2.0.0" />
+    <PackageReference Include="PowerManagerAPI" Version="0.2.0-CI-20200413-015121" />
+    <PackageReference Include="protobuf-net" Version="3.1.25" />
+    <PackageReference Include="protobuf-net-data" Version="4.0.0" />
     <PackageReference Include="regXwild" Version="1.4.0" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
     <PackageReference Include="System.IO.Pipes.AccessControl" Version="5.0.0" />
@@ -53,8 +57,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Common\" />
     <Folder Include="Base\" />
+    <Folder Include="Settings\" />
     <Folder Include="Resources\" />
     <Folder Include="Windows\" />
   </ItemGroup>
@@ -86,6 +90,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="CPUDocDynamicW10_v1.pow">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="CPUDocDynamicW11_v1.pow">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="CpuTools.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -100,6 +110,9 @@
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <None Update="README.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Settings\Settings.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="WinIo32.dll">

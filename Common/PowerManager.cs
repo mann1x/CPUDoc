@@ -7,6 +7,7 @@ using System.Text;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using System.ServiceProcess;
+using PowerManagerAPI;
 
 namespace CPUDoc
 {
@@ -23,7 +24,7 @@ namespace CPUDoc
         }
     }
 
-    public interface IPowerManager
+    public interface IPowerPlanManager
     {
         /// <returns>
         /// All supported power plans.
@@ -33,6 +34,10 @@ namespace CPUDoc
         PowerPlan GetCurrentPlan();
         Guid GetActiveGuid();
         string GetPowerPlanName(Guid guid);
+        string GetActivePlanFriendlyName();
+        bool PlanExists(Guid guid);
+        bool SetActiveGuid(Guid guid);
+        void SetDynamic(SettingSubgroup subgroup, Guid setting, PowerMode powerMode, uint value);
 
         /// <returns>Battery charge value in percent, 
         /// i.e. values in a 0..100 range</returns>
@@ -42,13 +47,13 @@ namespace CPUDoc
 
     public class PowerManagerProvider
     {
-        public static IPowerManager CreatePowerManager()
+        public static IPowerPlanManager CreatePowerManager()
         {
-            return new PowerManager();
+            return new PowerPlanManager();
         }
     }
 
-    class PowerManager : IPowerManager
+    class PowerPlanManager : IPowerPlanManager
     {
         /// <summary>
         /// Indicates that almost no power savings measures will be used.
@@ -66,7 +71,7 @@ namespace CPUDoc
         /// </summary>
         private readonly PowerPlan PowerSourceOptimized;
 
-        public PowerManager()
+        public PowerPlanManager()
         {
             // See GUID values in WinNT.h.
             MaximumPerformance = NewPlan("8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c");
@@ -95,26 +100,75 @@ namespace CPUDoc
         /// </returns>
         public List<PowerPlan> GetPlans()
         {
+            var list = PowerManager.ListPlans();
+            var plans = new List<PowerPlan>();
+            if (list.Count > 0)
+            {
+                foreach(var _plan in list)
+                {
+                    var newplan = new PowerPlan(PowerManager.GetPlanName(_plan), _plan);
+                    plans.Add(newplan);
+                }
+            }
+            return plans;
+            /*
             return new List<PowerPlan>(new PowerPlan[] {
                 MaximumPerformance,
                 Balanced,
                 PowerSourceOptimized
             });
+            */
+        }
+        public bool PlanExists(Guid plan)
+        {
+            return PowerManager.PlanExists(plan);
         }
 
         public Guid GetActiveGuid()
         {
             Guid ActiveScheme = Guid.Empty;
+            ActiveScheme = PowerManager.GetActivePlan();
+            /*
             IntPtr ptr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(IntPtr)));
             if (PowerGetActiveScheme((IntPtr)null, out ptr) == 0)
             {
                 ActiveScheme = (Guid)Marshal.PtrToStructure(ptr, typeof(Guid));
-                if (ptr != null)
+                if (ptr != IntPtr.Zero)
                 {
                     Marshal.FreeHGlobal(ptr);
                 }
             }
+            */
             return ActiveScheme;
+        }
+        public bool SetActiveGuid(Guid guid)
+        {
+            PowerManager.SetActivePlan(guid);
+            bool isactive = PowerManager.GetActivePlan() == guid ? true : false;
+            return isactive;
+        }
+
+        public void SetDynamic(SettingSubgroup subgroup, Guid settingId, PowerMode powerMode, uint value)
+        {
+            Guid subgroupId = SettingIdLookup.SettingSubgroupGuids[subgroup];            
+
+            if (powerMode.HasFlag(PowerMode.AC))
+            {
+                var res = PowerWriteACValueIndex(IntPtr.Zero, ref App.PPGuid, ref subgroupId, ref settingId, value);
+                if (res != (uint)ErrorCode.SUCCESS)
+                    App.LogDebug($"Error setting PSA AC Guid {settingId} to {value}");
+            }
+            if (powerMode.HasFlag(PowerMode.DC))
+            {
+                var res = PowerWriteDCValueIndex(IntPtr.Zero, ref App.PPGuid, ref subgroupId, ref settingId, value);
+                if (res != (uint)ErrorCode.SUCCESS)
+                    App.LogDebug($"Error setting PSA DC Guid {settingId} to {value}");
+            }
+        }
+        public string GetActivePlanFriendlyName()
+        {
+            var activePlanGuid = PowerManager.GetActivePlan();
+            return PowerManager.GetPlanName(activePlanGuid);
         }
 
         public PowerPlan GetCurrentPlan()
@@ -124,27 +178,28 @@ namespace CPUDoc
         }
         private void PowerModeChangedHandler(object sender, PowerModeChangedEventArgs e)
         {
-            App.LogInfo("Detected PowerMode Change");
+            App.LogDebug("Detected PowerMode Change");
             
             if (e.Mode == PowerModes.Suspend)
             {
-                App.LogInfo("Detected Suspend");
+                App.LogInfo("Detected going to Standby");
             }
             else if (e.Mode == PowerModes.Resume)
             {
-                App.LogInfo("Detected Resume");
+                App.LogInfo("Detected Resume from Standby");
+                App.reapplyProfile = true;
             }
         }
         private void SystemEvents_UserPreferenceChanging(object sender, UserPreferenceChangingEventArgs e)
         {
             // 10 = Power 
-            //Console.WriteLine("The user preference is changing. Category={0}", e.Category);
-            App.LogInfo("Detected Change UserPref Category: " + e.Category);
-
+            App.LogInfo($"Detected Change UserPref Category: {e.Category} Object: {e}");
         }
 
         public string GetPowerPlanName(Guid guid)
         {
+            return PowerManager.GetPlanName(guid);
+            /*
             string name = string.Empty;
             IntPtr lpszName = (IntPtr)null;
             uint dwSize = 0;
@@ -162,6 +217,7 @@ namespace CPUDoc
             }
 
             return name;
+            */
         }
 
         #region DLL imports
@@ -178,6 +234,23 @@ namespace CPUDoc
         [DllImportAttribute("powrprof.dll", EntryPoint = "PowerReadFriendlyName")]
         public static extern uint PowerReadFriendlyName(IntPtr RootPowerKey, ref Guid SchemeGuid, IntPtr SubGroupOfPowerSettingsGuid, IntPtr PowerSettingGuid, IntPtr Buffer, ref uint BufferSize);
 
+        [DllImport("powrprof.dll")]
+        private static extern uint PowerWriteACValueIndex(
+        [In, Optional] IntPtr RootPowerKey,
+        [In] ref Guid SchemeGuid,
+        [In, Optional] ref Guid SubGroupOfPowerSettingsGuid,
+        [In, Optional] ref Guid PowerSettingGuid,
+        [In] uint AcValueIndex
+        );
+
+        [DllImport("powrprof.dll")]
+        private static extern uint PowerWriteDCValueIndex(
+            [In, Optional] IntPtr RootPowerKey,
+            [In] ref Guid SchemeGuid,
+            [In, Optional] ref Guid SubGroupOfPowerSettingsGuid,
+            [In, Optional] ref Guid PowerSettingGuid,
+            [In] uint DcValueIndex
+        );
         #endregion
     }
 }

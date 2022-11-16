@@ -16,16 +16,13 @@ namespace CPUDoc
         private static IHardwareCore[] cores;
         private static IHardwareCpuSet[] cpuset;
         private static int[] logicalCores;
-        private static CpuLoad _cpuLoad = new CpuLoad();
         private static int LoadMediumThreshold = 20;
+        private static int LoadLowThreshold = 20;
         private static int LoadHighThreshold = 98;
-        private static PerformanceCounter TotalLoadCounter = new PerformanceCounter(
-                "Processor",
-                "% Processor Time",
-                "_Total",
-                true
-                );
+        private static PerformanceCounter TotalLoadCounter;
 
+        public static bool CpuLoadPerfCounter = true;
+        public static CpuLoad _cpuLoad = new CpuLoad();
         public static double cpuTotalLoad { get; set; }
 
         /// <summary>
@@ -143,6 +140,10 @@ namespace CPUDoc
             /// <summary>
             /// Cpu Load Medium times
             /// </summary>
+            int LoadLow { get; set; }
+            /// <summary>
+            /// Cpu Load Medium times
+            /// </summary>
             int LoadMedium { get; set; }
             /// <summary>
             /// Cpu Load High times
@@ -171,11 +172,49 @@ namespace CPUDoc
             {
                 return cores ?? (cores = GetLogicalProcessorInformation()
                     .Where(x => x.Relationship == LOGICAL_PROCESSOR_RELATIONSHIP.RelationProcessorCore)
-                    .Select(x => new HardwareCore((UInt64)x.ProcessorMask))
+                    .Select(x => new HardwareCore((UInt64) x.ProcessorMask))
                     .ToArray<IHardwareCore>());
             }
         }
 
+        /// <summary>
+        /// Init CpuLoad
+        /// </summary>
+        public static bool CpuLoadInit()
+        {
+            try
+            {
+                TotalLoadCounter = new PerformanceCounter(
+                "Processor",
+                "% Processor Time",
+                "_Total",
+                true
+                );
+                TotalLoadCounter.NextValue();
+            }
+            catch
+            {
+                App.ExecuteCmd("lodctr", "/R", @"c:\windows\system32");
+                App.ExecuteCmd("lodctr", "/R", @"c:\windows\sysWOW64");
+                App.ExecuteCmd("WINMGMT", "/RESYNCPERF", @"c:\windows\system32");
+                try
+                {
+                    TotalLoadCounter = new PerformanceCounter(
+                    "Processor",
+                    "% Processor Time",
+                    "_Total",
+                    true
+                    );
+                    TotalLoadCounter.NextValue();
+                }
+                catch
+                {
+                    _cpuLoad.Update();
+                    CpuLoadPerfCounter = false;
+                }
+            }
+            return CpuLoadPerfCounter;
+        }
         /// <summary>
         /// Hardware CpuSets
         /// </summary>
@@ -198,7 +237,8 @@ namespace CPUDoc
         {
             for (var i = 0; i < LogicalCoresCount; ++i)
             {
-                float _Load = HardwareCpuSets[i].LoadCounter.NextValue();
+                float _Load;
+                _Load = CpuLoadPerfCounter ? HardwareCpuSets[i].LoadCounter.NextValue() : _cpuLoad.GetCpuLoad(i);
                 HardwareCpuSets[i].Load = _Load;
                 int _loadhigh = HardwareCpuSets[i].LoadHigh > 40 ? 40 : HardwareCpuSets[i].LoadHigh;
                 _loadhigh = _Load >= LoadHighThreshold ? _loadhigh + 2 : _loadhigh <= 1 ? 0 : _loadhigh - 1;
@@ -206,6 +246,9 @@ namespace CPUDoc
                 int _loadmedium = HardwareCpuSets[i].LoadMedium > 40 ? 40 : HardwareCpuSets[i].LoadMedium;
                 _loadmedium = _Load >= LoadMediumThreshold ? _loadmedium + 1 : _loadmedium <= 1 ? 0 : _loadmedium - 1;
                 HardwareCpuSets[i].LoadMedium = _loadmedium;
+                int _loadlow = HardwareCpuSets[i].LoadLow > 40 ? 40 : HardwareCpuSets[i].LoadLow;
+                _loadlow = _Load >= LoadLowThreshold ? _loadlow + 1 : _loadlow <= 1 ? 0 : _loadlow - 1;
+                HardwareCpuSets[i].LoadLow = _loadlow;
                 int _loadzero = HardwareCpuSets[i].LoadZero > 40 ? 40 : HardwareCpuSets[i].LoadZero;
                 _loadzero = _Load == 0 ? _loadzero + 1 : _loadzero <= 2 ? 0 : _loadzero - 1;
                 HardwareCpuSets[i].LoadZero = _loadzero;
@@ -216,7 +259,14 @@ namespace CPUDoc
         /// </summary>
         public static void CpuTotalLoadUpdate()
         {
-            cpuTotalLoad = TotalLoadCounter.NextValue();
+            try
+            {
+                cpuTotalLoad = CpuLoadPerfCounter ? TotalLoadCounter.NextValue() : _cpuLoad.GetTotalLoad();
+            }
+            catch (System.InvalidOperationException)
+            {
+                cpuTotalLoad = CpuLoadPerfCounter ? TotalLoadCounter.NextValue() : _cpuLoad.GetTotalLoad();
+            }
         }
 
         /// <summary>
@@ -365,6 +415,106 @@ namespace CPUDoc
                 _prev = _pcore;
             }
             return coresbyeff;
+        }
+        /// <summary>
+        /// Get Thread Cores only EfficiencyClass = 1
+        /// </summary>
+        public static int[][] CoresEfficient()
+        {
+            var coresbyeff = new int[HardwareCores.Length][];
+            int count = 0;
+            var cpusetsbyeff = HardwareCpuSets.Where(x => x.EfficiencyClass > 0);
+            int _prev = -1;
+            foreach (HardwareCpuSet cpuset in cpusetsbyeff)
+            {
+                int _pcore = cpuset.LogicalProcessorIndex;
+                //System.Diagnostics.App.LogDebug($"Logical={cpuset.LogicalProcessorIndex} Physical={_pcore} Prev={_prev} ");
+                if (_pcore != _prev)
+                {
+                    //System.Diagnostics.App.LogDebug($"Add Physical={_pcore} Count={count} ");
+                    coresbyeff[count] = new int[2];
+                    coresbyeff[count][0] = _pcore;
+                    coresbyeff[count][1] = cpuset.EfficiencyClass;
+                    count++;
+                }
+                _prev = _pcore;
+            }
+            return coresbyeff;
+        }
+        /// <summary>
+        /// Get Cores only LastLevelCacheIndex > 0
+        /// </summary>
+        public static int[][] CoresCache()
+        {
+            var coresbycache = new int[HardwareCores.Length][];
+            int count = 0;
+            var cpusetsbycache = HardwareCpuSets.Where(x => x.LastLevelCacheIndex > 0);
+            int _prev = -1;
+            foreach (HardwareCpuSet cpuset in cpusetsbycache)
+            {
+                int _pcore = cpuset.LogicalProcessorIndex;
+                //System.Diagnostics.App.LogDebug($"Logical={cpuset.LogicalProcessorIndex} Physical={_pcore} Prev={_prev} ");
+                if (_pcore != _prev)
+                {
+                    //System.Diagnostics.App.LogDebug($"Add Physical={_pcore} Count={count} ");
+                    coresbycache[count] = new int[2];
+                    coresbycache[count][0] = _pcore;
+                    coresbycache[count][1] = cpuset.LastLevelCacheIndex;
+                    count++;
+                }
+                _prev = _pcore;
+            }
+            return coresbycache;
+        }
+        /// <summary>
+        /// Get Cores onnly NumaZero
+        /// </summary>
+        public static int[][] CoresNumaZero()
+        {
+            var coresbyn0 = new int[HardwareCores.Length][];
+            int count = 0;
+            var cpusetsbyn0 = HardwareCpuSets.Where(x => x.LastLevelCacheIndex == 0 && x.NumaNodeIndex == 0 && x.EfficiencyClass == 0).OrderByDescending(x => x.SchedulingClass);
+            int _prev = -1;
+            foreach (HardwareCpuSet cpuset in cpusetsbyn0)
+            {
+                int _pcore = cpuset.LogicalProcessorIndex;
+                //System.Diagnostics.App.LogDebug($"Logical={cpuset.LogicalProcessorIndex} Physical={_pcore} Prev={_prev} ");
+                if (_pcore != _prev)
+                {
+                    //System.Diagnostics.App.LogDebug($"Add Physical={_pcore} Count={count} ");
+                    coresbyn0[count] = new int[2];
+                    coresbyn0[count][0] = _pcore;
+                    coresbyn0[count][1] = cpuset.SchedulingClass;
+                    count++;
+                }
+                _prev = _pcore;
+            }
+            return coresbyn0;
+        }
+        /// <summary>
+        /// Get Cores only NumaNodeIndex > 0
+        /// </summary>
+        public static int[][] CoresIndex()
+        {
+            var coresbyindex = new int[HardwareCores.Length][];
+            int count = 0;
+            var cpusetsbyindex = HardwareCpuSets.Where(x => x.NumaNodeIndex > 0);
+            int _prev = -1;
+            foreach (HardwareCpuSet cpuset in cpusetsbyindex)
+            {
+                int _pcore = cpuset.LogicalProcessorIndex;
+                //System.Diagnostics.App.LogDebug($"Logical={cpuset.LogicalProcessorIndex} Physical={_pcore} Prev={_prev} ");
+                if (_pcore != _prev)
+                {
+                    //System.Diagnostics.App.LogDebug($"Add Physical={_pcore} Count={count} ");
+                    coresbyindex[count] = new int[2];
+                    coresbyindex[count][0] = _pcore;
+                    coresbyindex[count][1] = PhysicalCore(_pcore);
+                    count++;
+                }
+                _prev = _pcore;
+            }
+            return coresbyindex;
         }
         public static bool IsCoresByEfficiencyAllZeros()
         {
@@ -551,14 +701,16 @@ namespace CPUDoc
                 LoadZero = 0;
                 LoadMedium = 0;
                 LoadHigh = 0;
+                LoadLow = 0;
                 ForcedEnable = false;
                 ForcedWhen = DateTime.MinValue;
-                LoadCounter = new PerformanceCounter(
+                LoadCounter = CpuLoadPerfCounter ? new PerformanceCounter(
                 "Processor",
                 "% Processor Time",
                 $"{(int)x.CpuSetUnion.CpuSet.LogicalProcessorIndex}",
                 true
-                );
+                ) : new PerformanceCounter();
+                LoadCounter.NextValue();
             }
             public SYSTEM_CPU_SET_INFORMATION CpuSet { get; private set; }
             public int Id { get; private set; }
@@ -573,6 +725,7 @@ namespace CPUDoc
             public byte AllFlagsStruct { get; private set; }
             public float Load { get; set; }
             public int LoadZero { get; set; }
+            public int LoadLow { get; set; }
             public int LoadMedium { get; set; }
             public int LoadHigh { get; set; }
             public bool ForcedEnable { get; set; }

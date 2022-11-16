@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 
 namespace CPUDoc
 {
-
     public class HWSensors<T> : IList<T>
     {
         private List<T> _innerList;
@@ -772,5 +771,325 @@ namespace CPUDoc
         }
     }
 
+    public class MovingAverage
+    {
+        private readonly int _length;
+        private int _circIndex = -1;
+        private bool _filled;
+        private readonly double _oneOverLength;
+        private readonly double[] _circularBuffer;
+        private readonly int[] _maxPos;
+        private readonly int[] _minPos;
+        private double _total;
 
+        public MovingAverage(int length)
+        {
+            _length = length;
+            _oneOverLength = 1.0 / length;
+            _circularBuffer = new double[length];
+            _maxPos = new int[length];
+            _minPos = new int[length];
+        }
+
+        public MovingAverage Update(double value)
+        {
+            double lostValue = _circularBuffer[_circIndex];
+            _circularBuffer[_circIndex] = value;
+
+            if (value > GetAbsMax || GetAbsMax == double.NaN) GetAbsMax = value;
+            if (value < GetAbsMin || GetAbsMin == double.NaN) GetAbsMin = value;
+
+            if (_circIndex == 0 && !_filled)
+            {
+                _minPos[_circIndex] = _circIndex;
+                _maxPos[_circIndex] = _circIndex;
+                GetMax = value;
+                GetMin = value;
+            }
+            else
+            {
+                int _prevIndex = _circIndex == 0 ? _length - 1 : _circIndex - 1;
+
+                if (value >= GetMax)
+                {
+                    GetMax = value;
+                    _maxPos[_circIndex] = _circIndex;
+                }
+                else if (_filled)
+                {
+                    while (true)
+                    {
+                        if (_circularBuffer[_maxPos[_prevIndex]] > value || _maxPos[_prevIndex] == _circIndex)
+                        {
+                            _maxPos[_circIndex] = _maxPos[_prevIndex];
+                            break;
+                        }
+                        else
+                        {
+                            _prevIndex = _maxPos[_prevIndex];
+
+                        }
+                    }
+                    GetMax = _circularBuffer[_maxPos[_circIndex]];
+                }
+                else
+                {
+                    _maxPos[_circIndex] = _maxPos[_circIndex - 1];
+                    GetMax = _circularBuffer[_maxPos[_circIndex]];
+                }
+
+                _prevIndex = _circIndex == 0 ? _length - 1 : _circIndex - 1;
+
+                if (value <= GetMin)
+                {
+                    GetMin = value;
+                    _minPos[_circIndex] = _circIndex;
+                }
+                else if (_filled)
+                {
+                    int i = 1;
+                    while (true)
+                    {
+                        if (i == _length)
+                        {
+                            _minPos[_circIndex] = _circIndex;
+                            break;
+                        }
+                        if (_circularBuffer[_minPos[_prevIndex]] <= value || _minPos[_prevIndex] == _circIndex)
+                        {
+                            _minPos[_circIndex] = _minPos[_prevIndex];
+                            break;
+                        }
+                        else
+                        {
+                            _prevIndex = _minPos[_prevIndex];
+
+                        }
+                        i++;
+                    }
+                    GetMin = _circularBuffer[_minPos[_circIndex]];
+                }
+                else
+                {
+                    _minPos[_circIndex] = _minPos[_circIndex - 1];
+                    GetMin = _circularBuffer[_minPos[_circIndex - 1]];
+                }
+
+
+            }
+
+            // Maintain totals for Push function
+            _total += value;
+            _total -= lostValue;
+
+            // If not yet filled, current value is average for the current elements in array
+            if (!_filled)
+            {
+                Current = _total * (1.0 / (_circIndex + 1));
+                return this;
+            }
+
+            // Compute the average and maybe max
+            double average = 0.0;
+
+            for (int i = 0; i < _circularBuffer.Length; i++)
+            {
+                average += _circularBuffer[i];
+            }
+
+            Current = average * _oneOverLength;
+            return this;
+        }
+
+        public MovingAverage Push(double value)
+        {
+            // Apply the circular buffer
+            if (++_circIndex == _length)
+            {
+                _circIndex = 0;
+            }
+
+            if (value > GetAbsMax || GetAbsMax == double.NaN) GetAbsMax = value;
+            if (value < GetAbsMin || GetAbsMin == double.NaN) GetAbsMin = value;
+
+            if (_circIndex == 0 && !_filled)
+            {
+                _minPos[_circIndex] = _circIndex;
+                _maxPos[_circIndex] = _circIndex;
+                GetMax = value;
+                GetMin = value;
+            }
+            else
+            {
+                int _prevIndex = _circIndex == 0 ? _length - 1 : _circIndex - 1;
+
+                if (value >= GetMax)
+                {
+                    GetMax = value;
+                    _maxPos[_circIndex] = _circIndex;
+                }
+                else if (_filled)
+                {
+                    int i = 1;
+                    while (true)
+                    {
+                        if (i == _length)
+                        {
+                            _maxPos[_circIndex] = _circIndex;
+                            break;
+                        }
+                        if (_circularBuffer[_maxPos[_prevIndex]] >= value || _maxPos[_prevIndex] == _circIndex)
+                        {
+                            _maxPos[_circIndex] = _maxPos[_prevIndex];
+                            break;
+                        }
+                        else
+                        {
+                            _prevIndex = _maxPos[_prevIndex];
+
+                        }
+                        i++;
+                    }
+                    GetMax = _circularBuffer[_maxPos[_circIndex]];
+                }
+                else
+                {
+                    _maxPos[_circIndex] = _maxPos[_circIndex - 1];
+                    GetMax = _circularBuffer[_maxPos[_circIndex - 1]];
+                }
+
+                _prevIndex = _circIndex == 0 ? _length - 1 : _circIndex - 1;
+
+                if (value <= GetMin)
+                {
+                    GetMin = value;
+                    _minPos[_circIndex] = _circIndex;
+                }
+                else if (_filled)
+                {
+                    int i = 1;
+                    while (true)
+                    {
+                        if (i == _length)
+                        {
+                            _minPos[_circIndex] = _circIndex;
+                            break;
+                        }
+                        if (_circularBuffer[_minPos[_prevIndex]] <= value || _minPos[_prevIndex] == _circIndex)
+                        {
+                            _minPos[_circIndex] = _minPos[_prevIndex];
+                            break;
+                        }
+                        else
+                        {
+                            _prevIndex = _minPos[_prevIndex];
+
+                        }
+                        i++;
+                    }
+                    GetMin = _circularBuffer[_minPos[_circIndex]];
+                }
+                else
+                {
+                    _minPos[_circIndex] = _minPos[_circIndex - 1];
+                    GetMin = _circularBuffer[_minPos[_circIndex - 1]];
+                }
+
+            }
+
+            double lostValue = _circularBuffer[_circIndex];
+            _circularBuffer[_circIndex] = value;
+
+            // Compute the average
+            _total += value;
+            _total -= lostValue;
+
+
+            // If not yet filled, just return. Current value should be 0.0
+            if (!_filled && _circIndex != _length - 1)
+            {
+                Current = _total * (1.0 / (_circIndex + 1));
+                return this;
+            }
+            else
+            {
+                // Set a flag to indicate this is the first time the buffer has been filled
+                _filled = true;
+            }
+            Current = _total * _oneOverLength;
+            return this;
+        }
+
+        public int Length { get { return _length; } }
+        public double Current { get; private set; } = 0.0;
+        public double GetAbsMax { get; private set; }
+        public double GetAbsMin { get; private set; }
+        public double GetMax { get; private set; }
+        public double GetMin { get; private set; }
+        public string PrintValues
+        {
+            get
+            {
+
+                string _return = "";
+                for (int i = 0; i < _circularBuffer.Length; i++)
+                {
+                    _return += " " + i + "_" + _circularBuffer[i];
+                }
+                _return += " index: " + _circIndex;
+                return _return;
+            }
+        }
+        public string PrintMinPos
+        {
+            get
+            {
+
+                string _return = "";
+                for (int i = 0; i < _circularBuffer.Length; i++)
+                {
+                    _return += " " + i + "_" + _minPos[i];
+                }
+                _return += " index: " + _circIndex;
+                return _return;
+            }
+        }
+        public string PrintMaxPos
+        {
+            get
+            {
+
+                string _return = "";
+                for (int i = 0; i < _circularBuffer.Length; i++)
+                {
+                    _return += " " + i + "_" + _maxPos[i];
+                }
+                _return += " index: " + _circIndex;
+                return _return;
+            }
+        }
+
+    }
+    internal static class MovingAverageExtensions
+    {
+        public static IEnumerable<double> MovingAverage<T>(this IEnumerable<T> inputStream, Func<T, double> selector, int period)
+        {
+            var ma = new MovingAverage(period);
+            foreach (var item in inputStream)
+            {
+                ma.Push(selector(item));
+                yield return ma.Current;
+            }
+        }
+
+        public static IEnumerable<double> MovingAverage(this IEnumerable<double> inputStream, int period)
+        {
+            var ma = new MovingAverage(period);
+            foreach (var item in inputStream)
+            {
+                ma.Push(item);
+                yield return ma.Current;
+            }
+        }
+    }
 }

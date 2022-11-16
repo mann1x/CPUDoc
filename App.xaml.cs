@@ -28,6 +28,10 @@ using System.Threading.Tasks;
 using Hardcodet.Wpf.TaskbarNotification;
 using System.Windows.Threading;
 using Gma.System.MouseKeyHook;
+using net.r_eg.Conari;
+using net.r_eg.Conari.Accessors;
+using net.r_eg.Conari.Types;
+using OSVersionExtension;
 
 namespace CPUDoc
 {
@@ -47,6 +51,8 @@ namespace CPUDoc
 
         private static readonly EventHook.EventHookFactory eventHookFactory = new EventHook.EventHookFactory();
         private static EventHook.ApplicationWatcher applicationWatcher;
+        private static EventHook.KeyboardWatcher keyboardWatcher;
+        //private static EventHook.MouseWatcher mouseWatcher;
 
         //private static string codebase = System.Reflection.Assembly.GetExecutingAssembly().CodeBase;
         //private static string basepath = new Uri(System.IO.Path.GetDirectoryName(codebase)).LocalPath;
@@ -98,13 +104,31 @@ namespace CPUDoc
         public static string ZenPTSubject = "";
         public static string ZenPTBody = "";
 
+        public static bool Win11 = false;
+
         public static uint? SysCpuSetMask = 0x0;
         public static uint? lastSysCpuSetMask = null;
 
+        public static bool CoreBestT1T0 = false;
+        public static bool CoreZeroT1T0 = false;
+
         public static int SysMaskPooling = 25;
 
-        private IPowerManager powerManager;
-        private List<PowerPlan> plans;
+        public static IPowerPlanManager powerManager = PowerManagerProvider.CreatePowerManager();
+        public static Guid PPGuid = new Guid("FBB9C3D1-AF6E-46CF-B02B-C411928D1BE1");
+
+        public static string boot_ppname;
+        public static Guid boot_ppguid;
+
+        public static bool psact_plan = false;
+        public static bool psact_light_b = false;
+        public static bool psact_deep_b = false;
+
+        public static bool numazero_b = false;
+
+        public static MovingAverage cpuTotalLoad;
+
+        public static bool reapplyProfile = false;
 
         public static List<HWSensorItem> hwsensors;
 
@@ -131,8 +155,55 @@ namespace CPUDoc
         public static List<int> logicalsT0;
         public static List<int> logicalsT1;
 
+        public static List<int> n0enabledT0;
+        public static List<int> n0enabledT1;
+
+        public static List<int> n0disabledT0;
+        public static List<int> n0disabledT1;
+
+        public static appSettings AppSettings;
+        public static appConfigs pactive;
+        public static List<appConfigs> AppConfigs = new List<appConfigs>();
+        public static appProfiles AppProfiles;
+        internal struct LASTINPUTINFO
+        {
+            public uint cbSize;
+            public uint dwTime;
+        }
+
+        [DllImport(@"User32.dll")]
+        private static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
+
+        [DllImport(@"User32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+        [DllImport(@"kernel32.dll")]
+        private static extern uint GetLastError();
+        public static uint GetIdleTime()
+        {
+            LASTINPUTINFO lastInPut = new LASTINPUTINFO();
+            lastInPut.cbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf(lastInPut);
+            GetLastInputInfo(ref lastInPut);
+
+            return ((uint)Environment.TickCount - lastInPut.dwTime);
+        }
+        public static long GetLastInputTime()
+        {
+            LASTINPUTINFO lastInPut = new LASTINPUTINFO();
+            lastInPut.cbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf(lastInPut);
+            if (!GetLastInputInfo(ref lastInPut))
+            {
+                throw new Exception(GetLastError().ToString());
+            }
+
+            return lastInPut.dwTime;
+        }
+
         [DllImport(@"cputools.dll")]
         private static extern int SetSystemCpuSet(uint bitMask);
+
+        [DllImport(@"cputools.dll")]
+        private static extern int ResetSystemCpuSetProc(int pid, uint bitMask);
 
         [DllImport(@"kernel32.dll", SetLastError = true)]
         static extern bool FreeLibrary(IntPtr hModule);
@@ -218,11 +289,29 @@ namespace CPUDoc
         public static int SetSysCpuSet(uint? BitMask = 0)
         {
             uint _BitMask = 0x0;
+            int _ret = 0;
             if (BitMask != null) _BitMask = (uint)BitMask;
-            int _ret = SetSystemCpuSet(_BitMask);
+            using (var lam = new ConariX(@"cputools.dll"))
+            {
+                _ret = lam.DLR.SetSystemCpuSet<int>(_BitMask);
+            }
+            /*
+            _ret = SetSystemCpuSet(_BitMask);
+            */
             return _ret;
         }
-
+        public static int ResetSysCpuSetProc(int pid, uint BitMask = 0)
+        {
+            int _ret = 0;
+            using (var lam = new ConariL(@"cputools.dll"))
+            {
+                _ret = lam.DLR.ResetSystemCpuSetProc<int>(pid, BitMask);
+            }
+            /*
+            _ret = ResetSystemCpuSetProc(pid, BitMask);
+            */
+            return _ret;
+        }
         public static int GetLastThread(int _base = 1)
         {
             try
@@ -234,6 +323,20 @@ namespace CPUDoc
             catch (Exception ex)
             {
                 LogExError($"GetLastThread exception: {ex.Message}", ex);
+                return 1;
+            }
+        }
+
+        public static int GetLastThreadT0()
+        {
+            try
+            {
+                return logicalsT0.Last();
+
+            }
+            catch (Exception ex)
+            {
+                LogExError($"GetLastThreadT0 exception: {ex.Message}", ex);
                 return 1;
             }
         }
@@ -329,14 +432,14 @@ namespace CPUDoc
                 }
 
                 //TIER 2 No E-Core if Hybrid, Second Thread
-                for (int j = 0; j < CPPC.Length; ++j)
+                for (int j = CPPC.Length - 1; j >= 0; --j)
                 {
                     tcore = CPPC[j];
                     //App.LogDebug($"t2 tcore {tcore} isecore={systemInfo.Ecores.Contains(tcore)} tcoreloglen={ProcessorInfo.HardwareCores[tcore].LogicalCores.Length}");
                     if ((!systemInfo.IntelHybrid || (systemInfo.IntelHybrid && !systemInfo.Ecores.Contains(tcore))) && ProcessorInfo.HardwareCores[tcore].LogicalCores.Length > 1)
                     {
                         //App.LogDebug($"t2 add {tcore} logical={ProcessorInfo.HardwareCores[tcore].LogicalCores[1]}");
-                        if (ProcessorInfo.HardwareCores[tcore].LogicalCores[1] == 1)
+                        if (ProcessorInfo.HardwareCores[tcore].LogicalCores[1] == 1 && App.CoreZeroT1T0)
                         {
                             _runt0.Add(ProcessorInfo.HardwareCores[tcore].LogicalCores[1]);
 
@@ -500,7 +603,7 @@ namespace CPUDoc
             }
 
         }
-        public void TraceLogging(bool enable)
+        public static void TraceLogging(bool enable)
         {
             if (enable && !LogManager.Configuration.LoggingRules.Contains(logtraceRule))
             {
@@ -510,6 +613,19 @@ namespace CPUDoc
             else if (!enable && LogManager.Configuration.LoggingRules.Contains(logtraceRule))
             {
                 LogManager.Configuration.LoggingRules.Remove(logtraceRule);
+                LogManager.ReconfigExistingLoggers();
+            }
+        }
+        public static void InfoLogging(bool enable)
+        {
+            if (enable && !LogManager.Configuration.LoggingRules.Contains(logfileRule))
+            {
+                LogManager.Configuration.LoggingRules.Add(logfileRule);
+                LogManager.ReconfigExistingLoggers();
+            }
+            else if (!enable && LogManager.Configuration.LoggingRules.Contains(logfileRule))
+            {
+                LogManager.Configuration.LoggingRules.Remove(logfileRule);
                 LogManager.ReconfigExistingLoggers();
             }
         }
@@ -559,13 +675,21 @@ namespace CPUDoc
 
                 base.OnStartup(e);
 
-                SetThreadExecutionState(EXECUTION_STATE.ES_DISPLAY_REQUIRED | EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_SYSTEM_REQUIRED);
+                // NO POWER SAVING
+                //SetThreadExecutionState(EXECUTION_STATE.ES_DISPLAY_REQUIRED | EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_SYSTEM_REQUIRED);
 
                 Version _version = Assembly.GetExecutingAssembly().GetName().Version;
                 version = string.Format("v{0}.{1}.{2}", _version.Major, _version.Minor, _version.Build);
                 _versionInfo = string.Format("{0}.{1}.{2}", _version.Major, _version.Minor, _version.Build);
 
+                if (OSVersion.GetOSVersion().Version.Major > 10 && OSVersion.GetOSVersion().Version.Build >= 22000) App.Win11 = true;
+
                 LogInfo($"CPUDoc Version {_versionInfo}");
+
+                cpuTotalLoad = new MovingAverage(4);
+
+                bool cpuloadperfcount = ProcessorInfo.CpuLoadInit();
+                LogInfo($"CPULoad using Performance Counters: {cpuloadperfcount}");
 
                 systemInfo = new();
 
@@ -573,31 +697,26 @@ namespace CPUDoc
 
                 SettingsInit();
 
+                PSAInit();
+
                 InitColors();
 
                 TBStart();
                 HWMStart();
                 //UIStart();
 
-                if (App.systemInfo.TBAutoStart)
-                {
-                    tbtimer.Enabled = true;
-                    systimer.Enabled = true;
-                    hwmtimer.Enabled = true;
-                }
-                else
-                {
-                    tbtimer.Enabled = false;
-                    systimer.Enabled = false;
-                    hwmtimer.Enabled = false;
-                }
+                SetActiveConfig(0);
+
+                TraceLogging(AppSettings.LogTrace);
+                InfoLogging(AppSettings.LogInfo);
+
 
                 tbIcon = (TaskbarIcon)FindResource("tbIcon");
 
                 tbIcon.ToolTip = $"CPUDoc {App.version}";
                 tbIcon.Icon = new Icon(Application.GetResourceStream(new Uri("pack://application:,,,/images/cpudoc.ico")).Stream);
 
-                Set0T1Affinity();
+                SetLastT0Affinity();
 
                 AutoUpdater.ReportErrors = false;
                 AutoUpdater.InstalledVersion = new Version(App._versionInfo);
@@ -615,108 +734,140 @@ namespace CPUDoc
                 };
 
                 UAStamp = DateTime.Now;
-                
+
+                Processes.Init();
+
                 SubscribeGlobal();
+
+                /*
 
                 powerManager = PowerManagerProvider.CreatePowerManager();
                 plans = powerManager.GetPlans();
 
-                //keyboardWatcher = eventHookFactory.GetKeyboardWatcher();
-                //keyboardWatcher.Start();
-                //keyboardWatcher.OnKeyInput += UAListener.EHookKeyPress;
-                //keyboardWatcher.OnKeyInput += EHookKeyPress;
-
-                //mouseWatcher = eventHookFactory.GetMouseWatcher();
-                //mouseWatcher.Start();
-                //mouseWatcher.OnMouseInput += EHookMouseDown;
-                //mouseWatcher.OnMouseInput += UAListener.EHookMouseDown;
-
-                /*
-            using (var eventHookFactory = new EventHookFactory())
-            {
-                var keyboardWatcher = eventHookFactory.GetKeyboardWatcher();
+                keyboardWatcher = eventHookFactory.GetKeyboardWatcher();
                 keyboardWatcher.Start();
-                keyboardWatcher.OnKeyInput += (s, e) =>
-                {
-                    Console.WriteLine("Key {0} event of key {1}", e.KeyData.EventType, e.KeyData.Keyname);
-                    textBox1.AppendText(string.Format("Key {0} event of key {1}", e.KeyData.EventType, e.KeyData.Keyname));
-                    SetEvent(evtUserActivity);
-                };
+                keyboardWatcher.OnKeyInput += UAListener.EHookKeyPress;
+                keyboardWatcher.OnKeyInput += EHookKeyPress;
 
-                var mouseWatcher = eventHookFactory.GetMouseWatcher();
+                mouseWatcher = eventHookFactory.GetMouseWatcher();
                 mouseWatcher.Start();
-                mouseWatcher.OnMouseInput += (s, e) =>
+                mouseWatcher.OnMouseInput += EHookMouseDown;
+                mouseWatcher.OnMouseInput += UAListener.EHookMouseDown;
+              
+                using (var eventHookFactory = new EventHookFactory())
                 {
-                    //Console.WriteLine("Mouse event {0} at point {1},{2}", e.Message.ToString(), e.Point.x, e.Point.y);
-                    //textBox1.AppendText(string.Format("Mouse event {0} at point {1},{2}", e.Message.ToString(), e.Point.x, e.Point.y));
-                    SetEvent(evtUserActivity);
-                };
+                    var keyboardWatcher = eventHookFactory.GetKeyboardWatcher();
+                    keyboardWatcher.Start();
+                    keyboardWatcher.OnKeyInput += (s, e) =>
+                    {
+                        Console.WriteLine("Key {0} event of key {1}", e.KeyData.EventType, e.KeyData.Keyname);
+                        textBox1.AppendText(string.Format("Key {0} event of key {1}", e.KeyData.EventType, e.KeyData.Keyname));
+                        SetEvent(evtUserActivity);
+                    };
 
-            }
-            
-            */
+                    var mouseWatcher = eventHookFactory.GetMouseWatcher();
+                    mouseWatcher.Start();
+                    mouseWatcher.OnMouseInput += (s, e) =>
+                    {
+                        //Console.WriteLine("Mouse event {0} at point {1},{2}", e.Message.ToString(), e.Point.x, e.Point.y);
+                        //textBox1.AppendText(string.Format("Mouse event {0} at point {1},{2}", e.Message.ToString(), e.Point.x, e.Point.y));
+                        SetEvent(evtUserActivity);
+                    };
+
+                }
+                */
+                using (var eventHookFactory = new EventHook.EventHookFactory())
+                {
+                    applicationWatcher = eventHookFactory.GetApplicationWatcher();
+                    applicationWatcher.Start();
+                    applicationWatcher.OnApplicationWindowChange += CheckApplication;
+                    //keyboardWatcher = eventHookFactory.GetKeyboardWatcher();
+                    //keyboardWatcher.Start();
+                    //keyboardWatcher.OnKeyInput += CheckHotKey;
+                }
                 /*
-
                 applicationWatcher = eventHookFactory.GetApplicationWatcher();
                 applicationWatcher.Start();
                 applicationWatcher.OnApplicationWindowChange += CheckApplication;
+                /*
                 applicationWatcher.OnApplicationWindowChange += (s, e) =>
                 {
-                    textBox1.Invoke((Action)delegate
-                                    {
-                        textBox1.AppendText(string.Format("Application window of '{0}' with the title '{1}' was {2}", e.ApplicationData.AppName, e.ApplicationData.AppTitle, e.Event));
-
-                    });
-
-                    //Console.WriteLine(string.Format("Application window of '{0}' with the title '{1}' was {2}", e.ApplicationData.AppName, e.ApplicationData.AppTitle, e.Event));
+                    Debug.WriteLine($"Application window of '{e.ApplicationData.AppName}' with the title '{e.ApplicationData.AppTitle}' was {e.Event}");
                 };
-                */
-
-
+                    */
 
                 //App.LogDebug($"OnStartup App End");
-
-
-
             }
             catch (Exception ex)
             {
                 LogExError($"OnStartup exception: {ex.Message}", ex);
             }
         }
-
+        public void PSAInit()
+        {
+            boot_ppname = powerManager.GetActivePlanFriendlyName();
+            boot_ppguid = powerManager.GetActiveGuid();
+            App.LogDebug($"Power Plan at boot: {boot_ppname}");
+        }
+        public static void PSAPlanDisable()
+        {
+            if (psact_plan)
+            {
+                bool isactive = powerManager.SetActiveGuid(boot_ppguid);
+                psact_plan = false;
+                if (isactive)
+                {
+                    App.LogDebug($"PSA Disabled Power Plan set back to: {boot_ppname}");
+                }
+                else
+                {
+                    App.LogDebug($"PSA Disabled Power Plan failed to set back to original, active is: {powerManager.GetActivePlanFriendlyName()}");
+                }
+            }
+        }
+        public static void PSAEnable()
+        {
+            try
+            {
+                if (App.pactive.PowerSaverActive)
+                {
+                    if (powerManager.GetActiveGuid() != PPGuid)
+                    {
+                        if (!powerManager.PlanExists(PPGuid)) ImportPowerPlan();
+                        bool isactive = powerManager.SetActiveGuid(PPGuid);
+                        if (isactive)
+                        {
+                            psact_plan = true;
+                            App.LogInfo($"CPUDoc Dynamic Power Plan enabled: {powerManager.GetActivePlanFriendlyName()}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogExError("PowerSaverActive Init Exception:", ex);
+            }
+        }
         private void CheckApplication(object sender, EventHook.ApplicationEventArgs e)
         {
-            /*
-            int _prevAMDRM = AMDRMcnt;
-            if (e.ApplicationData.AppTitle == "AMD RYZEN MASTER" && e.Event.ToString() == "Launched") AMDRMcnt++;
-            if (e.ApplicationData.AppTitle == "AMD RYZEN MASTER" && e.Event.ToString() == "Closed") AMDRMcnt--;
-            textBox1.Invoke((Action)delegate
-            {
-                textBox1.AppendText(string.Format("Application window of '{0}' with the title '{1}' was {2} type {3}\n ", e.ApplicationData.AppName, e.ApplicationData.AppTitle, e.Event, e.Event.GetTypeCode()));
-                textBox1.AppendText(Environment.NewLine);
+            //App.LogDebug($"{(int)e.ApplicationData.HWnd} {e.ApplicationData.AppPath} Application window of '{e.ApplicationData.AppName}' with the title '{e.ApplicationData.AppTitle}' was {e.Event}");
 
-            });
-            if (AMDRMcnt > 0 && _prevAMDRM == 0)
-            {
-                textBox1.Invoke((Action)delegate
-                {
-                    textBox1.AppendText(string.Format("Ryzen Master OPENED\n ", e.ApplicationData.AppName, e.ApplicationData.AppTitle, e.Event, e.Event.GetTypeCode()));
-                    textBox1.AppendText(Environment.NewLine);
-                });
-            }
-            if (AMDRMcnt == 0 && _prevAMDRM > 0)
-            {
-                textBox1.Invoke((Action)delegate
-                {
-                    textBox1.AppendText(string.Format("Ryzen Master CLOSED\n ", e.ApplicationData.AppName, e.ApplicationData.AppTitle, e.Event, e.Event.GetTypeCode()));
-                    textBox1.AppendText(Environment.NewLine);
+            uint processId = 0;
+            GetWindowThreadProcessId(e.ApplicationData.HWnd, out processId);
 
-                });
-            }
-            */
+            if (e.Event == EventHook.ApplicationEvents.Launched) Processes.AppLaunched(Path.GetFileNameWithoutExtension(e.ApplicationData.AppPath), (int)processId);
+
+            if (e.Event == EventHook.ApplicationEvents.Closed) Processes.AppClosed(Path.GetFileNameWithoutExtension(e.ApplicationData.AppPath), (int)processId);
+
+            App.LogDebug($"[PID={processId}] AppBin={Path.GetFileNameWithoutExtension(e.ApplicationData.AppPath)} Application window of '{e.ApplicationData.AppName}' with the title '{e.ApplicationData.AppTitle}' was {e.Event}");
+
         }
 
+        private void CheckHotKey(object sender, EventHook.KeyInputEventArgs e)
+        {
+            App.LogDebug($"Key {e.KeyData.EventType} event of key {e.KeyData.Keyname}");
+
+        }
         private void AutoUpdaterOnParseUpdateInfoEvent(ParseUpdateInfoEventArgs args)
         {
             dynamic json = JsonConvert.DeserializeObject(args.RemoteData);
@@ -746,7 +897,7 @@ namespace CPUDoc
             thrMonitor = new Thread(RunHWM);
             thridMonitor = thrMonitor.ManagedThreadId;
             thrMonitor.Priority = ThreadPriority.AboveNormal;
-            
+
             hwmtimer.Enabled = false;
 
             thrMonitor.Start();
@@ -778,7 +929,7 @@ namespace CPUDoc
 
         public static void TbSetStart(bool enable = true)
         {
-            
+
             if (enable)
             {
                 tbtimer.Enabled = true;
@@ -826,20 +977,55 @@ namespace CPUDoc
                 logicalsT0 = new();
                 logicalsT1 = new();
 
+                n0enabledT0 = new();
+                n0enabledT1 = new();
+
+                n0disabledT0 = new();
+                n0disabledT1 = new();
+
                 (logicalsT0, logicalsT1) = GetTieredListsThreads();
 
-                //SetLastTieredThreadAffinity(_runlogicals);
+                //SetLastTieredThreadAffinity(logicalsT0);
 
                 _runlogicals = null;
                 _runcores = null;
 
-                systemInfo.TBAutoStart = CPUDoc.Properties.Settings.Default.ThreadBooster;
+                ProtBufSettings.ReadSettings();
+
+                App.LogDebug($"p0 tba {AppConfigs[0].ThreadBooster}");
+
+                pactive = AppConfigs[0];
+
+                App.LogDebug($"pact tba {pactive.ThreadBooster}");
+
+                //systemInfo.TBAutoStart = CPUDoc.Properties.Settings.Default.ThreadBooster;
 
             }
             catch (Exception ex)
             {
                 LogExError($"SettingsInit exception: {ex.Message}", ex);
             }
+        }
+
+        public static void AddConfig(int _id, bool enabled = false) {
+            AppConfigs.Add(new appConfigs()
+            {
+                id = _id,
+                WHEASuppressor = false,
+                ThreadBooster = true,
+                SysSetHack = true,
+                PSALightSleep = true,
+                PSADeepSleep = true,
+                PowerSaverActive = true,
+                NumaZero = false,
+                NumaZeroType = 0,
+                PSALightSleepSeconds = 15,
+                PSADeepSleepSeconds = 60,
+                PSALightSleepThreshold = 14,
+                PSADeepSleepThreshold = 8,
+                COStandbySafe = true,
+                Enabled = enabled,
+            });
         }
         private static void Monitor_ElapsedEventHandler(object sender, ElapsedEventArgs e)
         {
@@ -900,6 +1086,11 @@ namespace CPUDoc
                 }
 
             }
+
+            App.systemInfo.SetSSHStatus(App.pactive.SysSetHack);
+            App.systemInfo.SetPSAStatus(App.pactive.PowerSaverActive);
+            App.systemInfo.SetN0Status(App.pactive.NumaZero);
+
             App.systemInfo.RefreshLabels();
         }
         public static void RunHWM()
@@ -959,29 +1150,39 @@ namespace CPUDoc
             Unsubscribe();
             Subscribe(Hook.GlobalEvents());
         }
-        private void OnKeyPress(object sender, System.Windows.Forms.KeyEventArgs e)
+        private void OnKeyPressDown(object sender, System.Windows.Forms.KeyEventArgs e)
         {
             //system.windows.forms instead input
-            UAStamp = DateTime.Now;
+            //UAStamp = DateTime.Now;
             //int error = Marshal.GetLastWin32Error();
             //if (error > 0) Log(string.Format("Key  \t\t {0}\n", e.KeyCode));
-            //App.LogInfo("Key  \t\t {e.KeyCode}");
+            //App.LogInfo($"KeyDown  \t\t {e.KeyCode}");
         }
 
+        private void OnKeyPressUp(object sender, System.Windows.Forms.KeyEventArgs e)
+        {
+            //system.windows.forms instead input
+            //UAStamp = DateTime.Now;
+            //int error = Marshal.GetLastWin32Error();
+            //if (error > 0) Log(string.Format("Key  \t\t {0}\n", e.KeyCode));
+            //App.LogInfo($"KeyUp  \t\t {e.KeyCode}");
+        }
         private void OnMouseMove(object sender, System.Windows.Forms.MouseEventArgs e)
         {
             UAStamp = DateTime.Now;
             //int error = Marshal.GetLastWin32Error();
             //if (error > 0) Log(string.Format("Mouse \t\t {0}\n", e.Button));
             //if (error > 0) Log(string.Format("Error \t\t {0}\n", error.ToString()));
-            //App.LogInfo("Key  \t\t {e.Button}");
+            //Debug.WriteLine("Key  \t\t {e.Button}");
         }
         private void Subscribe(IKeyboardMouseEvents events)
         {
-            m_Events = events;
-            m_Events.KeyDown += OnKeyPress;
-            m_Events.KeyUp += OnKeyPress;
 
+            m_Events = events;
+
+            m_Events.KeyDown += OnKeyPressDown;
+            m_Events.KeyUp += OnKeyPressUp;
+            /*
             m_Events.MouseUp += OnMouseMove;
             m_Events.MouseDown += OnMouseMove;
             m_Events.MouseClick += OnMouseMove;
@@ -989,20 +1190,21 @@ namespace CPUDoc
             m_Events.MouseWheel += OnMouseMove;
 
             m_Events.MouseMove += OnMouseMove;
-
+            */
         }
         private void Unsubscribe()
         {
             if (m_Events == null) return;
-            m_Events.KeyDown -= OnKeyPress;
-            m_Events.KeyUp -= OnKeyPress;
+            m_Events.KeyDown -= OnKeyPressDown;
+            m_Events.KeyUp -= OnKeyPressUp;
 
+            /*
             m_Events.MouseUp -= OnMouseMove;
             m_Events.MouseClick -= OnMouseMove;
             m_Events.MouseDoubleClick -= OnMouseMove;
 
             m_Events.MouseMove -= OnMouseMove;
-
+            */
 
             m_Events.Dispose();
             m_Events = null;
@@ -1016,7 +1218,7 @@ namespace CPUDoc
                 //keyboardWatcher.Stop();
                 //mouseWatcher.Stop();
                 //clipboardWatcher.Stop();
-                //applicationWatcher.Stop();
+                applicationWatcher.Stop();
                 //printWatcher.Stop();
                 //Unsubscribe();
                 Unsubscribe();
@@ -1036,8 +1238,8 @@ namespace CPUDoc
             }
             try
             {
+                //RESTORE POWER SAVING
                 SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
-
             }
             catch (Exception ex)
             {
@@ -1178,6 +1380,23 @@ namespace CPUDoc
                 LogExWarn($"Set0T1Affinity exception: {ex.Message}", ex);
             }
         }
+        public static void SetLastT0Affinity()
+        {
+            try
+            {
+                int thread = App.GetLastThreadT0();
+                using (Process thisprocess = Process.GetCurrentProcess())
+                {
+                    if (thisprocess.ProcessorAffinity != (IntPtr)(1L << thread))
+                        thisprocess.ProcessorAffinity = (IntPtr)(1L << thread);
+                    Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.AboveNormal;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogExWarn($"SetLastT0Affinity exception: {ex.Message}", ex);
+            }
+        }
         public static void SetLastTieredThreadAffinity(List<int> tieredlist)
         {
             try
@@ -1198,6 +1417,205 @@ namespace CPUDoc
             {
                 LogExError($"SetLastTieredThreadAffinity exception: {ex.Message}", ex);
             }
+        }
+        public static void ImportPowerPlan()
+        {
+            try
+            {
+                var cmd = new Process { StartInfo = { FileName = "powercfg" } };
+                using (cmd)
+                {
+                    string planName = "CPUDocDynamicW10_v1.pow";
+                    if (App.Win11)
+                        planName = "CPUDocDynamicW11_v1.pow";
+
+                    var inputPath = Path.Combine(Environment.CurrentDirectory, planName);
+
+                    //This hides the resulting popup window
+                    cmd.StartInfo.CreateNoWindow = true;
+                    cmd.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+
+                    //Import the new power plan
+                    cmd.StartInfo.Arguments = $"-import \"{inputPath}\" {PPGuid}";
+                    cmd.Start();
+
+                    cmd.WaitForExit();
+                }
+            }
+            catch (Exception ex)
+            {
+                LogExError($"ImportPowerPlan exception: {ex.Message}", ex);
+            }
+
+        }
+        public static void ExecuteCmd(string exe, string arguments, string path)
+        {
+            var cmd = new Process { StartInfo = { FileName = exe, WorkingDirectory = path } };
+            using (cmd)
+            {
+                cmd.StartInfo.CreateNoWindow = true;
+                cmd.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+
+                cmd.StartInfo.Arguments = arguments;
+                cmd.Start();
+
+                cmd.WaitForExit();
+            }
+        }
+
+        public static void SetActiveConfig(int id = -1)
+        {
+            if (id >= 0) 
+                pactive = AppConfigs[id];
+
+            if (pactive.ThreadBooster)
+            {
+                tbtimer.Enabled = true;
+                systimer.Enabled = true;
+                hwmtimer.Enabled = true;
+            }
+            else
+            {
+                tbtimer.Enabled = false;
+                systimer.Enabled = false;
+                hwmtimer.Enabled = false;
+            }
+
+            if (!pactive.SysSetHack && !pactive.NumaZero)
+            {
+                lastSysCpuSetMask = 0;
+                SetSysCpuSet(0);
+                systimer.Enabled = false;
+                systimer.Stop();
+            }
+            else if (systimer.Enabled)
+            {
+                systimer.Start();
+            }
+
+            numazero_b = false;
+
+            if (pactive.NumaZero)
+            {
+                int _found = 0;
+                n0enabledT0 = new List<int>();
+                n0enabledT1 = new List<int>();
+                n0disabledT0 = new List<int>();
+                n0disabledT1 = new List<int>();
+
+                if (pactive.NumaZeroType == 0)
+                {
+                    for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
+                    {
+                        int[][] _cores = ProcessorInfo.CoresNumaZero();
+                        for (int c = 0; c < _cores.Count(); ++c)
+                        {
+                            if (_cores[c] != null)
+                            {
+                                if (_cores[c][0] == i)
+                                {
+                                    if (logicalsT1.Contains(i)) n0enabledT1.Add(i);
+                                    if (logicalsT0.Contains(i)) n0enabledT0.Add(i);
+                                }
+                            }
+                        }
+                        _cores = ProcessorInfo.CoresEfficient();
+                        for (int c = 0; c < _cores.Count(); ++c)
+                        {
+                            if (_cores[c] != null)
+                            {
+                                if (_cores[c][0] == i)
+                                {
+                                    _found++;
+                                    if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
+                                    if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
+                                    App.LogDebug($"N0 DISABLED CoresEfficient={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
+                                }
+                            }
+                        }
+                        _cores = ProcessorInfo.CoresCache();
+                        for (int c = 0; c < _cores.Count(); ++c)
+                        {
+                            if (_cores[c] != null)
+                            {
+                                if (_cores[c][0] == i)
+                                {
+                                    _found++;
+                                    if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
+                                    if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
+                                    App.LogDebug($"N0 DISABLED CoresCache={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
+                                }
+                            }
+                        }
+                        _cores = ProcessorInfo.CoresIndex();
+                        for (int c = 0; c < _cores.Count(); ++c)
+                        {
+                            if (_cores[c] != null)
+                            {
+                                if (_cores[c][0] == i)
+                                {
+                                    _found++;
+                                    if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
+                                    if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
+                                    App.LogDebug($"N0 DISABLED CoresIndex={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (_found > 0) numazero_b = true;
+                App.LogDebug($"N0={pactive.NumaZero} N0Type={pactive.NumaZeroType} CORES={ProcessorInfo.PhysicalCoresCount-_found}/{ProcessorInfo.PhysicalCoresCount}[{_found}] HT={systemInfo.HyperThreading}");
+
+                if (pactive.NumaZeroType > 0 || _found < 1) 
+                {
+                    int _forced = pactive.NumaZeroType == 1 ? 8 : pactive.NumaZeroType == 2 ? 6 : pactive.NumaZeroType == 3 ? 4 : pactive.NumaZeroType == 4 ? 2 : 0;
+                    int _auto = ProcessorInfo.PhysicalCoresCount > 12 ? 8 : ProcessorInfo.PhysicalCoresCount == 12 ? 6 : ProcessorInfo.PhysicalCoresCount - 2;                    
+                    _forced = pactive.NumaZeroType == 0 ? _auto : _forced;
+                    if (_forced > 0)
+                    {
+                        numazero_b = true;
+                        if (systemInfo.HyperThreading) _forced = _forced * 2;
+                        App.LogDebug($"N0={pactive.NumaZero} N0Type={pactive.NumaZeroType} FORCED={_forced} HT={systemInfo.HyperThreading}");
+                        for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
+                        {
+                            if (i > _forced - 1)
+                            {
+                                if (logicalsT1.Contains(i))
+                                {
+                                    n0disabledT1.Add(i);
+                                    App.LogDebug($"N0 Disabled T1={i}");
+                                }
+                                else if (logicalsT0.Contains(i))
+                                {
+                                    n0disabledT0.Add(i);
+                                    App.LogDebug($"N0 Disabled T0={i}");
+                                }
+                            }
+                            else
+                            {
+                                if (logicalsT1.Contains(i))
+                                {
+                                    n0enabledT1.Add(i);
+                                    App.LogDebug($"N0 Enabled T1={i}");
+                                }
+                                else if (logicalsT0.Contains(i))
+                                {
+                                    n0enabledT0.Add(i);
+                                    App.LogDebug($"N0 Enabled T0={i}");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (n0disabledT0.Count() > 0 || n0disabledT1.Count() > 0 && pactive.NumaZero) numazero_b = true;
+            
+            App.LogDebug($"N0={pactive.NumaZero} N0Active={numazero_b} HT={systemInfo.HyperThreading}");
+
+            ThreadBooster.bInit = false;
+
         }
         public static void CleanUpOldFiles()
         {
