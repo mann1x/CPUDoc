@@ -94,6 +94,9 @@ You can compile with Visual Studio 2019 and .NET Core 5.
 
 ## Changelog:
 
+- v1.0.4 Beta
+    - Fix: Disable SetSysHack and NumaZero for pre Win10 OS
+    - Fix: Status display in Main tab for the features
 - v1.0.3 Beta
     - New: SysSetHack feature; dynamic T1 allocation, increased performances as with SMT/HyperThreading Off
     - New: PowerSaveActive feature; dynamic power plan, ultra low power Light and Deep Sleep modes

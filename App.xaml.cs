@@ -104,6 +104,7 @@ namespace CPUDoc
         public static string ZenPTSubject = "";
         public static string ZenPTBody = "";
 
+        public static bool Win10 = false;
         public static bool Win11 = false;
 
         public static uint? SysCpuSetMask = 0x0;
@@ -682,7 +683,8 @@ namespace CPUDoc
                 version = string.Format("v{0}.{1}.{2}", _version.Major, _version.Minor, _version.Build);
                 _versionInfo = string.Format("{0}.{1}.{2}", _version.Major, _version.Minor, _version.Build);
 
-                if (OSVersion.GetOSVersion().Version.Major > 10 && OSVersion.GetOSVersion().Version.Build >= 22000) App.Win11 = true;
+                if (OSVersion.GetOSVersion().Version.Major >= 10) App.Win10 = true;
+                if (OSVersion.GetOSVersion().Version.Major >= 10 && OSVersion.GetOSVersion().Version.Build >= 22000) App.Win11 = true;
 
                 LogInfo($"CPUDoc Version {_versionInfo}");
 
@@ -1468,11 +1470,23 @@ namespace CPUDoc
             if (id >= 0) 
                 pactive = AppConfigs[id];
 
+
+            if (Win10)
+            {
+                systimer.Enabled = true;
+                hwmtimer.Enabled = true;
+            }
+            else
+            {
+                systimer.Enabled = false;
+                hwmtimer.Enabled = false;
+                pactive.NumaZero = false;
+                pactive.SysSetHack = false;
+            }
+
             if (pactive.ThreadBooster)
             {
                 tbtimer.Enabled = true;
-                systimer.Enabled = true;
-                hwmtimer.Enabled = true;
             }
             else
             {
@@ -1495,13 +1509,14 @@ namespace CPUDoc
 
             numazero_b = false;
 
+            n0enabledT0 = new List<int>();
+            n0enabledT1 = new List<int>();
+            n0disabledT0 = new List<int>();
+            n0disabledT1 = new List<int>();
+
             if (pactive.NumaZero)
             {
                 int _found = 0;
-                n0enabledT0 = new List<int>();
-                n0enabledT1 = new List<int>();
-                n0disabledT0 = new List<int>();
-                n0disabledT1 = new List<int>();
 
                 if (pactive.NumaZeroType == 0)
                 {

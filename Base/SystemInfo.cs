@@ -2835,7 +2835,8 @@ namespace CPUDoc
         {
             try
             {
-                SSHStatus = _status ? $"Enabled {ThreadBooster.CountBits(App.lastSysCpuSetMask)}/{ThreadBooster.CountBits(ThreadBooster.defFullBitMask)}" : "Disabled";
+                SSHStatus = _status ? $"Enabled" : "Disabled";
+                if (_status) SSHStatus = App.systimer.Enabled ? $"{SSHStatus} {ThreadBooster.CountBits(App.lastSysCpuSetMask)}/{ThreadBooster.CountBits(ThreadBooster.defFullBitMask)}" : $"{SSHStatus} (Inactive)";
                 OnChange("SSHStatus");
             }
             catch { }
@@ -2844,7 +2845,8 @@ namespace CPUDoc
         {
             try
             {
-                N0Status = _status ? $"Enabled {App.n0enabledT0.Count() + App.n0enabledT1.Count()}T Excluded: {App.n0disabledT0.Count() + App.n0disabledT1.Count()}T" : "Disabled";
+                N0Status = _status ? $"Enabled" : "Disabled";
+                if (_status) N0Status = App.numazero_b ? $"{N0Status} {App.n0enabledT0.Count() + App.n0enabledT1.Count()}T Excluded: {App.n0disabledT0.Count() + App.n0disabledT1.Count()}T" : $"{N0Status} (Inactive)";
                 OnChange("N0Status");
             }
             catch { }
