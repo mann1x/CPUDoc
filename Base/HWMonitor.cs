@@ -1045,6 +1045,7 @@ namespace CPUDoc
                 if (App.pactive.SysSetHack || App.pactive.PowerSaverActive) ProcessorInfo.CpuTotalLoadUpdate();
                 if (App.pactive.SysSetHack) ProcessorInfo.CpuLoadUpdate();
                 App.cpuTotalLoad.Push(ProcessorInfo.cpuTotalLoad);
+                App.cpuTotalLoadLong.Push(ProcessorInfo.cpuTotalLoad);
 
                 //App.LogDebug($"TL={ProcessorInfo.cpuTotalLoad:0} AvgTL={App.cpuTotalLoad.Current:0} MaxTL={App.cpuTotalLoad.GetMax:0}");
 

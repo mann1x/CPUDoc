@@ -94,6 +94,9 @@ You can compile with Visual Studio 2019 and .NET Core 5.
 
 ## Changelog:
 
+- v1.0.5 Beta
+    - Fix: Start button for ThreadBooster not in sync with the status
+    - New: PowerSaveActive - new dynamic settings based on load
 - v1.0.4 Beta
     - Fix: Disable SetSysHack and NumaZero for pre Win10 OS
     - Fix: Status display in Main tab for the features

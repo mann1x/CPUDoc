@@ -84,7 +84,7 @@
                                     Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left"  VerticalAlignment="Center"
                                     Text="{Binding Path=systemInfo.ThreadBoosterStatus, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                     <Button Name="BtnThreadBoost" Grid.Column="1" VerticalAlignment="Center" Padding="3 0 3 0" Click="BtnThreadBoost_Click">
-                                    <TextBlock x:Name="BtnThreadBoostLabel"  Margin="{adonisUi:Space}" Text="Start">
+                                    <TextBlock x:Name="BtnThreadBoostLabel" Margin="{adonisUi:Space}" Text="{Binding Path=systemInfo.ThreadBoosterButton, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                                         </TextBlock>
                                     </Button>
                                 </Grid>

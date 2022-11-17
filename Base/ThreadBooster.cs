@@ -37,6 +37,11 @@ namespace CPUDoc
         public static DateTime prevFullcoresStamp = DateTime.MinValue;
         public static TimeSpan _deltaStamp;
         public static TimeSpan _deltaUA;
+        public static TimeSpan _deltaHPX;
+        public static TimeSpan _deltaBAL;
+        public static DateTime _stampHPX = DateTime.MinValue;
+        public static DateTime _stampBAL = DateTime.MinValue;
+
         public static bool bInit = false;
         public static int IncreaseHysteresis = 6;
         public static bool SetHysteresis = true;
@@ -136,6 +141,7 @@ namespace CPUDoc
                         App.SysCpuSetMask = defBitMask;
                     }
                     App.lastSysCpuSetMask = 0;
+                    App.systemInfo.PSABias = "";
                     bInit = true;
                 }
 
@@ -295,6 +301,7 @@ namespace CPUDoc
             {
                 App.SetSysCpuSet(0);
                 App.PSAPlanDisable();
+                App.systemInfo.PSABias = "";
                 App.LogDebug("ThreadBooster cycle exiting due to OperationCanceled");
                 throw;
             }
@@ -302,6 +309,7 @@ namespace CPUDoc
             {
                 App.SetSysCpuSet(0);
                 App.PSAPlanDisable();
+                App.systemInfo.PSABias = "";
                 App.LogExError($"ThreadBooster cycle Exception: {ex.Message}", ex); 
             }
             finally
@@ -309,14 +317,123 @@ namespace CPUDoc
                 //App.LogDebug($"TB MONITOR TICK {App.tbtimer.Interval}ms");
             }
         }
+        public static void SetPSAActive(int? id)
+        {
+            if (id == null) id = 1;
+            uint _value;
+            string _label = (id == 0) ? " [LowPower]" : (id == 1) ? " [Balanced]" : " [HighPerformance]";
+            App.systemInfo.PSABias = _label;
+            App.systemInfo.SetPSAStatus(true);
+            
+            //Processor performance time check interval
+            _value = (uint)((id == 0) ? 15 : (id == 1) ? 30: 30);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("4d2b0152-7d5c-498b-88e2-34345392a2c5"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor performance increase threshold
+            _value = (uint)((id == 0) ? 85 : (id == 1) ? 60 : 30);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("06cadf0e-64ed-448a-8927-ce7bf90eb35d"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor performance increase threshold for Processor Power Efficiency Class 1
+            _value = (uint)((id == 0) ? 95 : (id == 1) ? 60 : 60);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("06cadf0e-64ed-448a-8927-ce7bf90eb35e"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Minimum processor state
+            _value = (uint)((id == 0) ? 50 : (id == 1) ? 100 : 100);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("893dee8e-2bef-41e0-89c6-b55d0929964c"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor idle promote threshold
+            _value = (uint)((id == 0) ? 45 : (id == 1) ? 60 : 60);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("7b224883-b3cc-4d79-819f-8374152cbe7c"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor performance boost policy
+            _value = (uint)((id == 0) ? 90 : (id == 1) ? 100 : 100);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("45bcc044-d885-43e2-8605-ee0ec6e96b59"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor performance decrease time
+            _value = (uint)((id == 0) ? 1 : (id == 1) ? 5 : 5);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("d8edeb9b-95cf-4f95-a73c-b061973693c8"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor idle time check
+            _value = (uint)((id == 0) ? 20000 : (id == 1) ? 30000 : 50000);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("c4581c31-89ab-4597-8e2b-9c9cab440e6b"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor idle demote threshold
+            _value = (uint)((id == 0) ? 25 : (id == 1) ? 35 : 40);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("4b92d758-5a24-4851-a470-815d78aee119"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor duty cycling
+            _value = (uint)((id == 0) ? 1 : (id == 1) ? 0 : 0);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("4e4450b3-6179-4e91-b8f1-5bb9938f81a1"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor performance decrease threshold
+            _value = (uint)((id == 0) ? 25 : (id == 1) ? 10 : 5);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("12a0ab44-fe28-4fa9-b3bd-4b64f44960a6"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor performance decrease threshold for Processor Power Efficiency Class 1
+            _value = (uint)((id == 0) ? 60 : (id == 1) ? 60 : 5);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("12a0ab44-fe28-4fa9-b3bd-4b64f44960a7"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor idle threshold scaling
+            _value = (uint)((id == 0) ? 1 : (id == 1) ? 0 : 0);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("6c2993b0-8f48-481f-bcc6-00dd2742aa06"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor performance boost mode
+            _value = (uint)((id == 0) ? 3 : (id == 1) ? 2 : 2);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("be337238-0d82-4146-a960-4f3749d470c7"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, _value);
+
+            //Processor performance increase policy
+            _value = (uint)((id == 0) ? 0 : (id == 1) ? 2 : 2);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("465e1f50-b610-473a-ab58-00d1077dc418"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor performance decrease policy
+            _value = (uint)((id == 0) ? 0 : (id == 1) ? 1 : 1);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("40fbefc7-2e9d-4d25-a185-0cfd8574bac6"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor performance autonomous mode
+            _value = (uint)((id == 0) ? 0 : (id == 1) ? 1 : 1);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("8baa4a8a-14c6-4451-8e8b-14bdbd197537"), PowerManagerAPI.PowerMode.AC, _value);
+
+            App.powerManager.SetActiveGuid(App.PPGuid);
+        
+        }
         public static void PowerSaverActive()
         {
             int _cpuTotalLoad = (int)App.cpuTotalLoad.Current;
+            int _cpuTotalLoadLong = (int)App.cpuTotalLoadLong.Current;
+
+            _deltaHPX = DateTime.Now - _stampHPX;
+            _deltaBAL = DateTime.Now - _stampBAL;
+            
+            //App.LogDebug($"{_deltaHPX.TotalSeconds}>{App.pactive.PSABiasHpxHysteresis} {_deltaBAL.TotalSeconds}>{App.pactive.PSABiasBalHysteresis}");
+            
+            if (_cpuTotalLoadLong > App.pactive.PSABiasHpxThreshold)
+            {
+                App.PSABiasCurrent = 2;
+            }
+            else if (_cpuTotalLoadLong > App.pactive.PSABiasBalThreshold)
+            {
+                if (_deltaHPX.TotalSeconds > App.pactive.PSABiasHpxHysteresis) App.PSABiasCurrent = 1;
+
+            }
+            else
+            {
+                if (_deltaHPX.TotalSeconds > App.pactive.PSABiasHpxHysteresis && _deltaBAL.TotalSeconds > App.pactive.PSABiasBalHysteresis) App.PSABiasCurrent = 0;
+            }
+
+            if (App.PSABiasCurrent != App.lastPSABiasCurrent || App.lastPSABiasCurrent == null)
+            {
+                SetPSAActive(App.PSABiasCurrent);
+                App.lastPSABiasCurrent = App.PSABiasCurrent;
+                App.LogDebug($"New PSA Bias:{App.systemInfo.PSABias}");
+                if (App.PSABiasCurrent == 2) _stampHPX = DateTime.Now;
+                if (App.PSABiasCurrent == 1) _stampBAL = DateTime.Now;
+            }
+
             if (_deltaUA.TotalSeconds > App.pactive.PSALightSleepSeconds && !App.psact_light_b && _cpuTotalLoad <= App.pactive.PSALightSleepThreshold)
             {
                 App.psact_light_b = true;
                 PSAct_Light(App.psact_light_b);
-                App.LogDebug($"IN LIGHT SLEEP AVGLOAD={_cpuTotalLoad}");
+                //App.LogDebug($"IN LIGHT SLEEP AVGLOAD={_cpuTotalLoad}");
             }
 
             if (_deltaUA.TotalSeconds > App.pactive.PSADeepSleepSeconds && !App.psact_deep_b && _cpuTotalLoad <= App.pactive.PSADeepSleepThreshold)
@@ -337,6 +454,7 @@ namespace CPUDoc
             {
                 App.psact_light_b = false;
                 PSAct_Light(App.psact_light_b);
+                SetPSAActive(App.PSABiasCurrent);
                 App.UAStamp = DateTime.Now;
                 //App.LogDebug($"OUT LIGHT SLEEP {_cpuTotalLoad}>{App.pactive.PSALightSleepThreshold * 2} {_deltaUA.TotalSeconds}<={App.pactive.PSALightSleepSeconds}");
             }
@@ -381,10 +499,6 @@ namespace CPUDoc
             _value = (uint)(enable ? 0 : 1);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("8baa4a8a-14c6-4451-8e8b-14bdbd197537"), PowerManagerAPI.PowerMode.AC, _value);
 
-            //Processor performance time check interval
-            _value = (uint)(enable ? 15 : 30);
-            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("4d2b0152-7d5c-498b-88e2-34345392a2c5"), PowerManagerAPI.PowerMode.AC, _value);
-
             //Processor energy performance preference policy
             _value = (uint)(enable ? 25 : 0);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("36687f9e-e3a5-4dbf-b1dc-15eb381c6863"), PowerManagerAPI.PowerMode.AC, _value);
@@ -409,17 +523,13 @@ namespace CPUDoc
             _value = (uint)(enable ? 1 : 0);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("4e4450b3-6179-4e91-b8f1-5bb9938f81a1"), PowerManagerAPI.PowerMode.AC, _value);
 
-            //Processor performance increase threshold
-            _value = (uint)(enable ? 95 : 30);
-            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("06cadf0e-64ed-448a-8927-ce7bf90eb35d"), PowerManagerAPI.PowerMode.AC, _value);
+            //Processor performance decrease threshold
+            _value = (uint)(enable ? 60 : 5);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("12a0ab44-fe28-4fa9-b3bd-4b64f44960a6"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Processor performance increase threshold for Processor Power Efficiency Class 1
             _value = (uint)(enable ? 95 : 60);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("06cadf0e-64ed-448a-8927-ce7bf90eb35e"), PowerManagerAPI.PowerMode.AC, _value);
-
-            //Processor performance decrease threshold
-            _value = (uint)(enable ? 25 : 5);
-            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("12a0ab44-fe28-4fa9-b3bd-4b64f44960a6"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Processor performance decrease threshold for Processor Power Efficiency Class 1
             _value = (uint)(enable ? 60 : 5);

@@ -133,6 +133,8 @@ namespace CPUDoc
         public double TBLoopTime { get; set; }
         public double TBLoopEvery { get; set; }
         public string ThreadBoosterStatus { get; set; }
+        public string ThreadBoosterButton { get; set; }
+        public string PSABias { get; set; }
         public string PSAStatus { get; set; }
         public string SSHStatus { get; set; }
         public string N0Status { get; set; }
@@ -2809,7 +2811,10 @@ namespace CPUDoc
             {
                 ThreadBoosterStatus = _value.Length > 0 ? _value : "N/A";
                 //App.LogInfo($"{_value}");
+                ThreadBoosterButton = "Start";
+                if (App.thrThreadBooster.ThreadState == System.Threading.ThreadState.Running || App.thrThreadBooster.ThreadState == System.Threading.ThreadState.Background || App.tbtimer.Enabled == true) ThreadBoosterButton = "Stop";
                 OnChange("ThreadBoosterStatus");
+                OnChange("ThreadBoosterButton");
             }
             catch { }
         }
@@ -2818,15 +2823,14 @@ namespace CPUDoc
         {
             try
             {
-                string lsleep = "";
-                string dsleep = "";
+                string sleep = "";
                 if (_status)
                 {
-                    lsleep = App.psact_light_b ? "[LightSleep]" : "";
-                    dsleep = App.psact_deep_b ? "[DeepSleep]" : "";
+                    sleep = App.psact_deep_b ? " [Deep Sleep]" : App.psact_light_b ? " [Light Sleep]" : "";
                 }
-                PSAStatus = _status ? $"Enabled {lsleep} {dsleep}" : "Disabled";
+                PSAStatus = _status ? $"Enabled {PSABias}{sleep}" : "Disabled";
                 OnChange("PSAStatus");
+                OnChange("PSABias");
             }
             catch { }
         }

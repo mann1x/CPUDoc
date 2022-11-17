@@ -63,6 +63,18 @@ namespace CPUDoc
         public int id { get; set; }
         [ProtoMember(16)]
         public string Description { get; set; }
+        [ProtoMember(17)]
+        public int PSABias { get; set; }
+        [ProtoMember(18)]
+        public bool PSABiasAuto { get; set; }
+        [ProtoMember(19)]
+        public int PSABiasHpxHysteresis { get; set; }
+        [ProtoMember(20)]
+        public int PSABiasHpxThreshold { get; set; }
+        [ProtoMember(21)]
+        public int PSABiasBalHysteresis { get; set; }
+        [ProtoMember(22)]
+        public int PSABiasBalThreshold { get; set; }
         /*
         public static T DeepClone<T>(this T obj)
         {
@@ -76,6 +88,29 @@ namespace CPUDoc
             }
         }
         */
+        public appConfigs() 
+        {
+            WHEASuppressor = false;
+            ThreadBooster = true;
+            SysSetHack = true;
+            PSALightSleep = true;
+            PSADeepSleep = true;
+            PowerSaverActive = true;
+            NumaZero = false;
+            NumaZeroType = 0;
+            PSALightSleepSeconds = 15;
+            PSADeepSleepSeconds = 60;
+            PSALightSleepThreshold = 14;
+            PSADeepSleepThreshold = 8;
+            PSABias = 1;
+            PSABiasAuto = true;
+            PSABiasHpxHysteresis = 30;
+            PSABiasHpxThreshold = 65;
+            PSABiasBalHysteresis = 10;
+            PSABiasBalThreshold = 25;
+            COStandbySafe = true;
+        }
+
     }
 
     [ProtoContract]

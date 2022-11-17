@@ -110,6 +110,9 @@ namespace CPUDoc
         public static uint? SysCpuSetMask = 0x0;
         public static uint? lastSysCpuSetMask = null;
 
+        public static int? PSABiasCurrent = null;
+        public static int? lastPSABiasCurrent = null;
+
         public static bool CoreBestT1T0 = false;
         public static bool CoreZeroT1T0 = false;
 
@@ -128,6 +131,7 @@ namespace CPUDoc
         public static bool numazero_b = false;
 
         public static MovingAverage cpuTotalLoad;
+        public static MovingAverage cpuTotalLoadLong;
 
         public static bool reapplyProfile = false;
 
@@ -689,6 +693,7 @@ namespace CPUDoc
                 LogInfo($"CPUDoc Version {_versionInfo}");
 
                 cpuTotalLoad = new MovingAverage(4);
+                cpuTotalLoadLong = new MovingAverage(16);
 
                 bool cpuloadperfcount = ProcessorInfo.CpuLoadInit();
                 LogInfo($"CPULoad using Performance Counters: {cpuloadperfcount}");
@@ -1009,24 +1014,12 @@ namespace CPUDoc
             }
         }
 
-        public static void AddConfig(int _id, bool enabled = false) {
+        public static void AddConfig(int _id, bool enabled = false, string description = "") {
             AppConfigs.Add(new appConfigs()
             {
                 id = _id,
-                WHEASuppressor = false,
-                ThreadBooster = true,
-                SysSetHack = true,
-                PSALightSleep = true,
-                PSADeepSleep = true,
-                PowerSaverActive = true,
-                NumaZero = false,
-                NumaZeroType = 0,
-                PSALightSleepSeconds = 15,
-                PSADeepSleepSeconds = 60,
-                PSALightSleepThreshold = 14,
-                PSADeepSleepThreshold = 8,
-                COStandbySafe = true,
                 Enabled = enabled,
+                Description = description,
             });
         }
         private static void Monitor_ElapsedEventHandler(object sender, ElapsedEventArgs e)
@@ -1077,16 +1070,13 @@ namespace CPUDoc
 
         private static void OnUpdateUI(object sender, ElapsedEventArgs e)
         {
-            if (tbtimer.Enabled) {
-                if (thrThreadBooster.ThreadState == System.Threading.ThreadState.Running || thrThreadBooster.ThreadState == System.Threading.ThreadState.Background)
-                {
-                    App.systemInfo.SetThreadBoosterStatus("Running");
-                }
-                else
-                {
-                    App.systemInfo.SetThreadBoosterStatus("Stopped");
-                }
-
+            if (thrThreadBooster.ThreadState == System.Threading.ThreadState.Running || thrThreadBooster.ThreadState == System.Threading.ThreadState.Background)
+            {
+                App.systemInfo.SetThreadBoosterStatus("Running");
+            }
+            else
+            {
+                App.systemInfo.SetThreadBoosterStatus("Stopped");
             }
 
             App.systemInfo.SetSSHStatus(App.pactive.SysSetHack);
@@ -1469,7 +1459,6 @@ namespace CPUDoc
         {
             if (id >= 0) 
                 pactive = AppConfigs[id];
-
 
             if (Win10)
             {
