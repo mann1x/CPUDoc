@@ -1484,6 +1484,8 @@ namespace CPUDoc
             if (pactive.ThreadBooster)
             {
                 tbtimer.Enabled = true;
+                if (!pactive.ManualPoolingRate) SetPoolingRate();
+                if (pactive.ManualPoolingRate) SetPoolingRate(pactive.PoolingRate);
             }
             else
             {
@@ -1632,6 +1634,69 @@ namespace CPUDoc
 
             ThreadBooster.bInit = false;
 
+        }
+        public static void SetPoolingRate(int rate = -1)
+        {
+            switch (rate)
+            {
+                case 0: //Very Slow
+                    ThreadBooster.PoolingInterval = 750;
+                    HWMonitor.MonitoringPooling = 500;
+                    HWMonitor.MonitoringPoolingFast = 500;
+                    cpuTotalLoad = new MovingAverage(3);
+                    cpuTotalLoadLong = new MovingAverage(12);
+                    return;
+                case 1:
+                    ThreadBooster.PoolingInterval = 500;
+                    HWMonitor.MonitoringPooling = 250;
+                    HWMonitor.MonitoringPoolingFast = 250;
+                    cpuTotalLoad = new MovingAverage(4);
+                    cpuTotalLoadLong = new MovingAverage(16);
+                    return;
+                case 2:
+                    ThreadBooster.PoolingInterval = 350;
+                    HWMonitor.MonitoringPooling = 250;
+                    HWMonitor.MonitoringPoolingFast = 250;
+                    cpuTotalLoad = new MovingAverage(4);
+                    cpuTotalLoadLong = new MovingAverage(16);
+                    return;
+                case 4:
+                    ThreadBooster.PoolingInterval = 200;
+                    HWMonitor.MonitoringPooling = 200;
+                    HWMonitor.MonitoringPoolingFast = 200;
+                    cpuTotalLoad = new MovingAverage(6);
+                    cpuTotalLoadLong = new MovingAverage(20);
+                    return;
+                case 5:
+                    ThreadBooster.PoolingInterval = 150;
+                    HWMonitor.MonitoringPooling = 150;
+                    HWMonitor.MonitoringPoolingFast = 150;
+                    cpuTotalLoad = new MovingAverage(8);
+                    cpuTotalLoadLong = new MovingAverage(32);
+                    return;
+                case 6:
+                    ThreadBooster.PoolingInterval = 100;
+                    HWMonitor.MonitoringPooling = 100;
+                    HWMonitor.MonitoringPoolingFast = 100;
+                    cpuTotalLoad = new MovingAverage(10);
+                    cpuTotalLoadLong = new MovingAverage(40);
+                    return;
+                case 7: //Crazy Fast
+                    ThreadBooster.PoolingInterval = 50;
+                    HWMonitor.MonitoringPooling = 50;
+                    HWMonitor.MonitoringPoolingFast = 50;
+                    cpuTotalLoad = new MovingAverage(16);
+                    cpuTotalLoadLong = new MovingAverage(64);
+                    return;
+                default: 
+                case 3: //Default
+                    ThreadBooster.PoolingInterval = 250;
+                    HWMonitor.MonitoringPooling = 250;
+                    HWMonitor.MonitoringPoolingFast = 250;
+                    cpuTotalLoad = new MovingAverage(4);
+                    cpuTotalLoadLong = new MovingAverage(16);
+                    return;
+            }
         }
         public static void CleanUpOldFiles()
         {

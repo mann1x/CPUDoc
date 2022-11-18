@@ -20,6 +20,8 @@ namespace CPUDoc
         public static CancellationToken systoken = new CancellationToken();
         public static int PoolingInterval = 250;
         public static int PoolingIntervalSlow = 1000;
+        public static int PoolingIntervalDefault = 250;
+        public static int PoolingIntervalSlowDefault = 1000;
         public static uint defBitMask = 0;
         public static uint newBitMask = 0;
         public static uint defFullBitMask = 0;

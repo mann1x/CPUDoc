@@ -94,6 +94,8 @@ You can compile with Visual Studio 2019 and .NET Core 5.
 
 ## Changelog:
 
+- v1.0.7 Beta
+    - New: Option to select manual ThreadBooster pooling rate
 - v1.0.6 Beta
     - New: Automatic updates notification toggle
     - New: Reset Settings button

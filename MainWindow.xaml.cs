@@ -39,7 +39,7 @@ namespace CPUDoc
         static DispatcherTimer uitimer;
         static bool AutoStartTask;
 
-        static appConfigs pcurrent;
+        public static appConfigs pcurrent;
         public string WinTitle
         {
             get { return (string)GetValue(WinTitleProperty); }
@@ -68,6 +68,8 @@ namespace CPUDoc
             App.LogDebug($"SourceInit Window Initialized {WindowSettings.Default.Initialized}");
             App.systemInfo.WinMaxSize = System.Windows.SystemParameters.WorkArea.Height;
 
+            pcurrent = App.AppConfigs[0];
+
             if (WindowSettings.Default.Initialized)
             {
                 App.LogDebug($"Restoring Window Position {WindowSettings.Default.Top} {WindowSettings.Default.Left} {WindowSettings.Default.Height} {WindowSettings.Default.Width} {WindowSettings.Default.Maximized}");
@@ -85,6 +87,7 @@ namespace CPUDoc
             }
             else
             {
+
                 double screenWidth = System.Windows.SystemParameters.PrimaryScreenWidth;
                 double screenHeight = System.Windows.SystemParameters.PrimaryScreenHeight;
                 double windowWidth = this.Width;
@@ -104,8 +107,8 @@ namespace CPUDoc
 
             if (App.tbtimer.Enabled) BtnThreadBoostLabel.Text = "Stop";
 
-            pcurrent = new appConfigs();
-            pcurrent = App.AppConfigs[0];
+            //pcurrent = new appConfigs();
+            //appConfigs.Init();
 
             cbTBAutoStart.IsChecked = pcurrent.ThreadBooster ? true : false;
             cbNumaZero.IsChecked = pcurrent.NumaZero ? true : false;
@@ -115,6 +118,8 @@ namespace CPUDoc
             cbTraceDebug.IsChecked = App.AppSettings.LogTrace ? true : false;
             cbAUNotifications.IsChecked = App.AppSettings.AUNotifications ? true : false;
             listNumaZeroType.SelectedIndex = pcurrent.NumaZeroType;
+            cbPoolingRate.IsChecked = pcurrent.ManualPoolingRate ? true : false;
+            listPoolingRate.SelectedIndex = pcurrent.PoolingRate;
 
             SSHStatus.Text = App.pactive.SysSetHack ? "Enabled" : "Disabled";
             PSAStatus.Text = App.pactive.PowerSaverActive ? "Enabled" : "Disabled";
@@ -629,11 +634,30 @@ namespace CPUDoc
                 pcurrent.NumaZero = false;
             }
         }
+        private void PoolingRate_Click(object sender, RoutedEventArgs e)
+        {
+            CheckBox cb = sender as CheckBox;
 
+            if (cb.IsChecked == true)
+            {
+                pcurrent.ManualPoolingRate = true;
+            }
+            else
+            {
+                pcurrent.ManualPoolingRate = false;
+            }
+        }
         private void NumaZeroType_Select(object sender, SelectionChangedEventArgs e)
         {
             ComboBox cb = sender as ComboBox;
-            pcurrent.NumaZeroType = cb.SelectedIndex;
+            //App.LogDebug($"NumaZeroType {pcurrent.NumaZeroType} {pcurrent.NumaZeroType.GetType()}");
+            if (pcurrent != null) pcurrent.NumaZeroType = cb.SelectedIndex;
+        }
+        private void PoolingRate_Select(object sender, SelectionChangedEventArgs e)
+        {
+            ComboBox cb = sender as ComboBox;
+            //App.LogDebug($"PoolingRate {pcurrent.PoolingRate} {pcurrent.PoolingRate.GetType()}");
+            if (pcurrent != null) pcurrent.PoolingRate = cb.SelectedIndex;
         }
         private void SaveConfig_Click(object sender, RoutedEventArgs e)
         {

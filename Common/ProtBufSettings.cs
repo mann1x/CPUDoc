@@ -78,6 +78,10 @@ namespace CPUDoc
         public int PSABiasBalHysteresis { get; set; }
         [ProtoMember(22)]
         public int PSABiasBalThreshold { get; set; }
+        [ProtoMember(23)]
+        public bool ManualPoolingRate { get; set; }
+        [ProtoMember(24)]
+        public int PoolingRate { get; set; }
         /*
         public static T DeepClone<T>(this T obj)
         {
@@ -112,6 +116,8 @@ namespace CPUDoc
             PSABiasBalHysteresis = 10;
             PSABiasBalThreshold = 25;
             COStandbySafe = true;
+            ManualPoolingRate = false;
+            PoolingRate = 3;
         }
 
     }

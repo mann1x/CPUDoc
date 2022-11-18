@@ -239,7 +239,24 @@
                                     <ComboBoxItem Tag="4">First 2 Cores</ComboBoxItem>
                                 </ComboBox>
 
-                                <Button Grid.Column="0" Grid.Row="10" Name="SaveConfig" Click="SaveConfig_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Left" Margin="10 4 10 4">
+                                <CheckBox Grid.Column="0" Grid.Row="10" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="PoolingRate_Click" x:Name="cbPoolingRate">
+                                    Manual ThreadBooster pooling
+                                </CheckBox>
+
+                                <TextBlock Grid.Column="1" Grid.Row="10" HorizontalAlignment="Right" VerticalAlignment="Center">Rate:</TextBlock>
+                                <ComboBox Grid.Column="2" Grid.Row="10" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="PoolingRate_Select" x:Name="listPoolingRate">
+
+                                    <ComboBoxItem Tag="0">Very Slow</ComboBoxItem>
+                                    <ComboBoxItem Tag="1">Slow</ComboBoxItem>
+                                    <ComboBoxItem Tag="2">Slower</ComboBoxItem>
+                                    <ComboBoxItem Tag="3" IsSelected="true">Default</ComboBoxItem>
+                                    <ComboBoxItem Tag="4">Faster</ComboBoxItem>
+                                    <ComboBoxItem Tag="5">Fast</ComboBoxItem>
+                                    <ComboBoxItem Tag="6">Very Fast</ComboBoxItem>
+                                    <ComboBoxItem Tag="7">Crazy Fast</ComboBoxItem>
+                                </ComboBox>
+
+                                <Button Grid.Column="0" Grid.Row="11" Name="SaveConfig" Click="SaveConfig_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Left" Margin="10 4 10 4">
                                     <TextBlock Margin="{adonisUi:Space}" Text="Save config">
                                     </TextBlock>
                                 </Button>
