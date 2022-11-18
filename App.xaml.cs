@@ -170,6 +170,9 @@ namespace CPUDoc
         public static appConfigs pactive;
         public static List<appConfigs> AppConfigs = new List<appConfigs>();
         public static appProfiles AppProfiles;
+        
+        public static DispatcherTimer autimer;
+
         internal struct LASTINPUTINFO
         {
             public uint cbSize;
@@ -732,8 +735,8 @@ namespace CPUDoc
                 AutoUpdater.Synchronous = false;
                 AutoUpdater.ParseUpdateInfoEvent += AutoUpdaterOnParseUpdateInfoEvent;
 
-                var autimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-                autimer.Start();
+                autimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+                AUNotifications(App.AppSettings.AUNotifications);
                 autimer.Tick += (sender, args) =>
                 {
                     autimer.Interval = TimeSpan.FromSeconds(3600);
@@ -809,6 +812,11 @@ namespace CPUDoc
             {
                 LogExError($"OnStartup exception: {ex.Message}", ex);
             }
+        }
+        public static void AUNotifications(bool enable)
+        {
+            if (enable) autimer.Start();
+            if (!enable) autimer.Stop();
         }
         public void PSAInit()
         {
@@ -1615,7 +1623,11 @@ namespace CPUDoc
             }
 
             if (n0disabledT0.Count() > 0 || n0disabledT1.Count() > 0 && pactive.NumaZero) numazero_b = true;
-            
+
+            App.systemInfo.SetSSHStatus(pactive.SysSetHack);
+            App.systemInfo.SetPSAStatus(pactive.PowerSaverActive);
+            App.systemInfo.SetN0Status(pactive.NumaZero);
+
             App.LogDebug($"N0={pactive.NumaZero} N0Active={numazero_b} HT={systemInfo.HyperThreading}");
 
             ThreadBooster.bInit = false;

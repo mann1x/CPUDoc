@@ -188,7 +188,7 @@
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
@@ -302,17 +302,22 @@
                                         </TextBlock>
                                     </Button>
                                 </Grid>
-                                
-                                <CheckBox Grid.Column="0" Grid.Row="8" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TraceInfoCheckBox_Click" x:Name="cbTraceInfo">
+
+                                <CheckBox Grid.Column="0" Grid.Row="8" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="AUNotificationsCheckBox_Click" x:Name="cbAUNotifications">
+                                    Automatic updates notification
+                                </CheckBox>
+
+                                <CheckBox Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TraceInfoCheckBox_Click" x:Name="cbTraceInfo">
                                     Write Trace Information log
                                 </CheckBox>
 
-                                <CheckBox Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TraceDebugCheckBox_Click" x:Name="cbTraceDebug">
+                                <CheckBox Grid.Column="0" Grid.Row="10" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TraceDebugCheckBox_Click" x:Name="cbTraceDebug">
                                     Write Debug Trace log
                                 </CheckBox>
 
-                                <Grid Grid.Column="0" Grid.Row="10" Grid.ColumnSpan="4" Margin="4 4 4 4">
+                                <Grid Grid.Column="0" Grid.Row="11" Grid.ColumnSpan="4" Margin="4 4 4 4">
                                     <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
@@ -320,6 +325,10 @@
                                     </Grid.ColumnDefinitions>
                                     <Button Grid.Column="0" Grid.Row="0" Name="BtnLogsFolder" Click="ButtonLogsFolder" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4">
                                         <TextBlock Margin="{adonisUi:Space}" Text="Open Logs folder">
+                                        </TextBlock>
+                                    </Button>
+                                    <Button Grid.Column="0" Grid.Row="1" Name="BtnResetSettings" Click="ResetSettings_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4">
+                                        <TextBlock Margin="{adonisUi:Space}" Text="Reset settings">
                                         </TextBlock>
                                     </Button>
 

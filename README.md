@@ -94,6 +94,11 @@ You can compile with Visual Studio 2019 and .NET Core 5.
 
 ## Changelog:
 
+- v1.0.6 Beta
+    - New: Automatic updates notification toggle
+    - New: Reset Settings button
+    - Fix: Saving settings now works, it was broke
+    - Fix: SetSysHack - fix status display when stopped
 - v1.0.5 Beta
     - Fix: Start button for ThreadBooster not in sync with the status
     - New: PowerSaveActive - new dynamic settings based on load

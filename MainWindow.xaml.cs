@@ -113,7 +113,7 @@ namespace CPUDoc
             cbSysSetHack.IsChecked = pcurrent.SysSetHack ? true : false;
             cbTraceInfo.IsChecked = App.AppSettings.LogInfo ? true : false;
             cbTraceDebug.IsChecked = App.AppSettings.LogTrace ? true : false;
-
+            cbAUNotifications.IsChecked = App.AppSettings.AUNotifications ? true : false;
             listNumaZeroType.SelectedIndex = pcurrent.NumaZeroType;
 
             SSHStatus.Text = App.pactive.SysSetHack ? "Enabled" : "Disabled";
@@ -134,8 +134,6 @@ namespace CPUDoc
                 cbPSA.IsEnabled = false;
                 listNumaZeroType.IsEnabled = false;
             }
-
-            cbSysSetHack.IsChecked = pcurrent.SysSetHack ? true : false;
 
             AutoStartTask = CheckStartTask();
 
@@ -562,6 +560,21 @@ namespace CPUDoc
             App.TraceLogging(App.AppSettings.LogTrace);
             ProtBufSettings.WriteSettings();
         }
+        private void AUNotificationsCheckBox_Click(object sender, RoutedEventArgs e)
+        {
+            CheckBox cb = sender as CheckBox;
+
+            if (cb.IsChecked == true)
+            {
+                App.AppSettings.AUNotifications = true;
+            }
+            else
+            {
+                App.AppSettings.AUNotifications = false;
+            }
+            App.AUNotifications(App.AppSettings.AUNotifications);
+            ProtBufSettings.WriteSettings();
+        }
         private void TraceInfoCheckBox_Click(object sender, RoutedEventArgs e)
         {
             CheckBox cb = sender as CheckBox;
@@ -626,11 +639,23 @@ namespace CPUDoc
         {
             //App.LogInfo($"NumaZeroType Index={cb.SelectedIndex} {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
             //App.LogInfo($"NumaZeroType {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
-            App.AppConfigs[pcurrent.id] = pcurrent;
-            ProtBufSettings.WriteSettings();
-            ProtBufSettings.ReadSettings();
+            //App.AppConfigs[pcurrent.id] = pcurrent;
+            App.AppConfigs[0] = pcurrent;
             App.SetActiveConfig(pcurrent.id);
-            App.LogDebug($"Config[{App.pactive.id}] TBA={App.pactive.ThreadBooster} PSA={App.pactive.PowerSaverActive} SSH={App.pactive.SysSetHack} N0={App.pactive.NumaZero}:{App.pactive.NumaZeroType}");
+            ProtBufSettings.WriteSettings();
+            //App.LogDebug($"Wr Config[{App.pactive.id}] TBA={App.pactive.ThreadBooster} SSH={App.AppConfigs[0].SysSetHack}:{pcurrent.SysSetHack}:{App.pactive.SysSetHack} PSA={App.pactive.PowerSaverActive} N0={App.pactive.NumaZero}:{App.pactive.NumaZeroType}");
+            ProtBufSettings.ReadSettings();
+            //App.LogDebug($"Rd Config[{App.pactive.id}] TBA={App.AppConfigs[App.pactive.id].ThreadBooster} SSH={App.AppConfigs[App.pactive.id].SysSetHack}:{App.pactive.SysSetHack} PSA={App.AppConfigs[App.pactive.id].PowerSaverActive} N0={App.pactive.NumaZero}:{App.AppConfigs[App.pactive.id].NumaZero}:{App.AppConfigs[App.pactive.id].NumaZeroType}");
+        }
+        private void ResetSettings_Click(object sender, RoutedEventArgs e)
+        {
+            //App.LogInfo($"NumaZeroType Index={cb.SelectedIndex} {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
+            //App.LogInfo($"NumaZeroType {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
+            //App.AppConfigs[pcurrent.id] = pcurrent;
+            ProtBufSettings.ResetSettings();
+            ProtBufSettings.ReadSettings();
+            App.SetActiveConfig(0);
+            ProtBufSettings.WriteSettings();
         }
         private void BtnAutoStartTask_Click(object sender, RoutedEventArgs e)
         {

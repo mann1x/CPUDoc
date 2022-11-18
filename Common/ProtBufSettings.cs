@@ -18,12 +18,15 @@ namespace CPUDoc
         public bool LogInfo { get; set; }
         [ProtoMember(3)]
         public bool LogTrace { get; set; }
-        public appSettings()
+        [ProtoMember(4)]
+        public bool AUNotifications { get; set; }
+        public void Init()
         {
 
             BootType = 1;
             LogInfo = false;
             LogTrace = false;
+            AUNotifications = true;
 
         }
 
@@ -88,7 +91,7 @@ namespace CPUDoc
             }
         }
         */
-        public appConfigs() 
+        public void Init() 
         {
             WHEASuppressor = false;
             ThreadBooster = true;
@@ -131,10 +134,6 @@ namespace CPUDoc
         [ProtoMember(7)]
         public bool Factory { get; set; }
 
-        public appProfiles()
-        {
-
-        }
     }
     class ProtBufSettings
     {
@@ -171,6 +170,13 @@ namespace CPUDoc
                 return false;
             }
         }
+        public static void ResetSettings()
+        {
+            if (File.Exists(AppSettingsPath)) File.Delete(AppSettingsPath);
+            if (File.Exists(AppConfigsPath)) File.Delete(AppConfigsPath);
+            if (File.Exists(AppProfilesPath)) File.Delete(AppProfilesPath);
+        }
+
         public static void ReadSettings()
         {
             try
@@ -178,6 +184,7 @@ namespace CPUDoc
                 if (!File.Exists(AppSettingsPath))
                 {
                     App.AppSettings = new appSettings();
+                    App.AppSettings.Init();
                     using (var file = File.Create(AppSettingsPath))
                     {
                         Serializer.Serialize(file, App.AppSettings);
@@ -193,6 +200,7 @@ namespace CPUDoc
                 if (!File.Exists(AppConfigsPath))
                 {
                     App.AddConfig(0, true);
+                    App.AppConfigs[0].Init();
                     using (var file = File.Create(AppConfigsPath))
                     {
                         Serializer.Serialize(file, App.AppConfigs);
@@ -225,6 +233,8 @@ namespace CPUDoc
             catch (Exception ex)
             {
                 App.AppSettings = new appSettings();
+                App.AppProfiles = new appProfiles();
+                App.AddConfig(0, true);
                 App.LogExError("ReadSettings exception:", ex);
             }
         }
