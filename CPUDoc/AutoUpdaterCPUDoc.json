@@ -1,14 +1,14 @@
 {
-  "version": "1.0.7",
-  "url": "https://github.com/mann1x/CPUDoc/releases/download/v1.0.7/CPUDoc-v1.0.7.zip",
-  "changelog": "https://github.com/mann1x/CPUDoc/releases/v1.0.7",
+  "version": "1.0.8",
+  "url": "https://github.com/mann1x/CPUDoc/releases/download/v1.0.8/CPUDoc-v1.0.8.zip",
+  "changelog": "https://github.com/mann1x/CPUDoc/releases/v1.0.8",
   "mandatory": {
     "value": true,
-    "minVersion": "1.0.7",
+    "minVersion": "1.0.8",
     "mode": 1
   },
   "checksum": {
-    "value": "a3c38a4c663067eaf682ce868ed090b81dac6afb84b36b02d3c17c965cc3a02c",
+    "value": "db60fc4352a0518c98f79418d020a94a7f3a4a77798ffb520d5b0aa30ffa2e2a",
     "hashingAlgorithm": "SHA256"
   }
 }

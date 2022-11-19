@@ -38,6 +38,8 @@ namespace CPUDoc
         public static DateTime prevIncreaseStamp = DateTime.MinValue;
         public static DateTime prevFullcoresStamp = DateTime.MinValue;
         public static TimeSpan _deltaStamp;
+        public static DateTime tbpoolingStamp = DateTime.MinValue;
+        public static TimeSpan _deltaPooling;
         public static TimeSpan _deltaUA;
         public static TimeSpan _deltaHPX;
         public static TimeSpan _deltaBAL;
@@ -123,6 +125,15 @@ namespace CPUDoc
                 tbtoken = new CancellationToken();
                 tbtoken = (CancellationToken)App.tbcts.Token;
                 _cpuTotalLoad = ProcessorInfo.cpuTotalLoad;
+
+                if (tbpoolingStamp != DateTime.MinValue)
+                {
+                    _deltaPooling = DateTime.Now - tbpoolingStamp;
+                    int _pooling = (int)_deltaPooling.TotalMilliseconds;
+                    App.TBPoolingAverage.Push(_pooling);
+                    //App.LogDebug($"POOLING={_pooling}ms UTILITY={App.TBPoolingAverage.Current-ThreadBooster.PoolingInterval:0}ms MAX={App.TBPoolingAverage.GetMax}ms");
+                }
+                tbpoolingStamp = DateTime.Now;
 
                 //Process.GetCurrentProcess().PriorityBoostEnabled = true;
 

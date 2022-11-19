@@ -133,6 +133,8 @@ namespace CPUDoc
         public static MovingAverage cpuTotalLoad;
         public static MovingAverage cpuTotalLoadLong;
 
+        public static MovingAverage TBPoolingAverage;
+
         public static bool reapplyProfile = false;
 
         public static List<HWSensorItem> hwsensors;
@@ -661,6 +663,8 @@ namespace CPUDoc
 
                 InitNLog();
 
+                Ring0.Open();
+
                 WindowsIdentity identity = WindowsIdentity.GetCurrent();
                 WindowsPrincipal principal = new WindowsPrincipal(identity);
 
@@ -697,6 +701,7 @@ namespace CPUDoc
 
                 cpuTotalLoad = new MovingAverage(4);
                 cpuTotalLoadLong = new MovingAverage(16);
+                TBPoolingAverage = new MovingAverage(64);
 
                 bool cpuloadperfcount = ProcessorInfo.CpuLoadInit();
                 LogInfo($"CPULoad using Performance Counters: {cpuloadperfcount}");
@@ -947,10 +952,12 @@ namespace CPUDoc
 
             if (enable)
             {
+                App.pactive.ThreadBooster = true;
                 tbtimer.Enabled = true;
             }
             else
             {
+                App.pactive.ThreadBooster = false;
                 tbtimer.Enabled = false;
                 Thread.Sleep(500);
                 SetSysCpuSet();
@@ -1231,6 +1238,7 @@ namespace CPUDoc
                 syscts?.Dispose();
                 tbIcon.Dispose();
 
+                Ring0.Close();
             }
             catch (Exception ex)
             {
@@ -1635,8 +1643,41 @@ namespace CPUDoc
             ThreadBooster.bInit = false;
 
         }
+
+        public static bool ReadMsr(uint msr, ref uint eax, ref uint edx)
+        {
+            return Ring0.Rdmsr(msr, out eax, out edx);
+        }
+
+        public static bool ReadMsrTx(uint msr, ref uint eax, ref uint edx, uint index)
+        {
+            GroupAffinity affinity = GroupAffinity.Single(0, (int)index);
+
+            return Ring0.RdmsrTx(msr, out eax, out edx, affinity);
+        }
+
+        public static bool WriteMsr(uint msr, uint eax, uint edx)
+        {
+            bool res = true;
+
+            for (var i = 0; i < ProcessorInfo.LogicalCoresCount; i++)
+            {
+                res = Ring0.WrmsrTx(msr, eax, edx, GroupAffinity.Single(0, i));
+            }
+
+            return res;
+        }
+        public static bool WriteMsrTx(uint msr, uint eax, uint edx, uint index)
+        {
+            bool res = true;
+            res = Ring0.WrmsrTx(msr, eax, edx, GroupAffinity.Single(0, (int)index));
+
+            return res;
+        }
+
         public static void SetPoolingRate(int rate = -1)
         {
+            TBPoolingAverage = new MovingAverage(64);
             switch (rate)
             {
                 case 0: //Very Slow
@@ -1645,6 +1686,7 @@ namespace CPUDoc
                     HWMonitor.MonitoringPoolingFast = 500;
                     cpuTotalLoad = new MovingAverage(3);
                     cpuTotalLoadLong = new MovingAverage(12);
+
                     return;
                 case 1:
                     ThreadBooster.PoolingInterval = 500;
