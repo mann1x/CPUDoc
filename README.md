@@ -94,6 +94,8 @@ You can compile with Visual Studio 2019 and .NET Core 5.
 
 ## Changelog:
 
+- v1.0.9 Beta
+    - New: Display System CpuSet Mask; fix initialization
 - v1.0.8 Beta
     - New: Display running System CpuSet Mask; green allocated, red unallocated, black disabled.
 - v1.0.7 Beta

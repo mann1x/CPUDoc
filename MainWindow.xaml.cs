@@ -128,87 +128,97 @@ namespace CPUDoc
             var gridLength1 = new GridLength(1.1, GridUnitType.Star);
             var gridLength2 = new GridLength(1, GridUnitType.Star);
 
-            Grid _gridblock = current_cpumask;
 
-            current_cpumask.HorizontalAlignment = HorizontalAlignment.Left;
-            Thickness curcpugirmar = new Thickness(4, 4, 4, 4);
-            current_cpumask.Margin = curcpugirmar;
-            int _col = 0;
-
-            int threads = ProcessorInfo.HardwareCores.Length;
-
-            int _maxrow = threads > 7 ? 7 : threads;
-            if (threads == 12 || threads == 24 || threads == 48) _maxrow = 5;
-            if (threads == 8) _maxrow = 3;
-
-            int _row = 0;
-
-            Thickness curcpupad = new Thickness(1, 0, 1, 0);
-            Thickness curcpumar = new Thickness(1, 2, 1, 2);
-
-            for (int c = 0; c < threads; ++c)
+            try
             {
-                int len = 0;
-                int t0 = -1;
-                int t1 = -1;
-                if (c < ProcessorInfo.HardwareCores.Length)
+                Grid _gridblock = current_cpumask;
+
+                current_cpumask.HorizontalAlignment = HorizontalAlignment.Left;
+                Thickness curcpugirmar = new Thickness(4, 4, 4, 4);
+                current_cpumask.Margin = curcpugirmar;
+                int _col = 0;
+
+                int threads = ProcessorInfo.HardwareCores.Length;
+
+                int _maxrow = threads > 7 ? 7 : threads;
+                if (threads == 12 || threads == 24 || threads == 48) _maxrow = 5;
+                if (threads == 8) _maxrow = 3;
+
+                int _row = 0;
+
+                Thickness curcpupad = new Thickness(1, 0, 1, 0);
+                Thickness curcpumar = new Thickness(1, 2, 1, 2);
+
+                for (int c = 0; c < threads; ++c)
                 {
-                    len = ProcessorInfo.HardwareCores[c].LogicalCores.Length;
-                    t0 = ProcessorInfo.HardwareCores[c].LogicalCores[0];
-                    t1 = ProcessorInfo.HardwareCores[c].LogicalCores[1];
+                    int len = 0;
+                    int t0 = -1;
+                    int t1 = -1;
+                    if (c < ProcessorInfo.HardwareCores.Length)
+                    {
+                        len = ProcessorInfo.HardwareCores[c].LogicalCores.Length;
+                        t0 = ProcessorInfo.HardwareCores[c].LogicalCores[0];
+                        t1 = ProcessorInfo.HardwareCores[c].LogicalCores[1];
+                    }
+                    //App.LogDebug($"C{c} T0-{t0} T1-{t1}");
+                    Button btnCore = new Button { VerticalAlignment = VerticalAlignment.Center, Content = $"C{c}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                    Button btnT0 = new Button { VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Content = $"T0", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                    Button btnT1 = new Button { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Tag = $"{t1}", Content = $"T1", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                    Button btnSpace = new Button { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Content = $"TX", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                    App.LogDebug($"C{c} {_col} {_row} {threads}");
+                    _gridblock.Children.Add(btnCore);
+                    Grid.SetColumn(btnCore, _col);
+                    Grid.SetRow(btnCore, _row);
+                    if (len > 0)
+                    {
+                        _gridblock.Children.Add(btnT0);
+                        Grid.SetColumn(btnT0, _col + 1);
+                        Grid.SetRow(btnT0, _row);
+                        _gridblock.Children.Add(btnT1);
+                        Grid.SetColumn(btnT1, _col + 2);
+                        Grid.SetRow(btnT1, _row);
+                    }
+                    _gridblock.Children.Add(btnSpace);
+                    Grid.SetColumn(btnSpace, _col + 3);
+                    Grid.SetRow(btnSpace, _row);
+                    if (len > 1) btnT1.Visibility = Visibility.Visible;
+                    _row++;
+                    _col = _row > _maxrow ? _col + 4 : _col;
+                    _row = _row > _maxrow ? 0 : _row;
                 }
-                App.LogDebug($"C{c} T0-{t0} T1-{t1}");
-                Button btnCore = new Button { VerticalAlignment = VerticalAlignment.Center, Content = $"C{c}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                Button btnT0 = new Button { VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Content = $"T0", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                Button btnT1 = new Button { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Tag = $"{t1}", Content = $"T1", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                Button btnSpace = new Button { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Content = $"TX", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                App.LogDebug($"C{c} {_col} {_row} {threads}");
-                _gridblock.Children.Add(btnCore);
-                Grid.SetColumn(btnCore, _col);
-                Grid.SetRow(btnCore, _row);
-                if (len > 0) {
-                    _gridblock.Children.Add(btnT0);
-                    Grid.SetColumn(btnT0, _col+1);
-                    Grid.SetRow(btnT0, _row);
-                    _gridblock.Children.Add(btnT1);
-                    Grid.SetColumn(btnT1, _col+2);
-                    Grid.SetRow(btnT1, _row);
+
+                if (cbTBAutoStart.IsChecked == true)
+                {
+                    cbNumaZero.IsEnabled = true;
+                    cbSysSetHack.IsEnabled = true;
+                    cbPSA.IsEnabled = true;
+                    listNumaZeroType.IsEnabled = true;
                 }
-                _gridblock.Children.Add(btnSpace);
-                Grid.SetColumn(btnSpace, _col+3);
-                Grid.SetRow(btnSpace, _row);
-                if (len > 1) btnT1.Visibility = Visibility.Visible;
-                _row++;
-                _col = _row > _maxrow ? _col + 4 : _col;
-                _row = _row > _maxrow ? 0 : _row;
-            }
+                else
+                {
+                    cbNumaZero.IsEnabled = false;
+                    cbSysSetHack.IsEnabled = false;
+                    cbPSA.IsEnabled = false;
+                    listNumaZeroType.IsEnabled = false;
+                }
 
-            if (cbTBAutoStart.IsChecked == true)
+                /*
+                uint eax = 0;
+                uint edx = 0;
+
+
+                App.LogDebug($"MSR");
+                if (App.ReadMsrTx(0xc001029a, ref eax, ref edx, 0))
+                    App.LogDebug($"ENERGY={eax:X8} {edx:X8}");
+                if (App.ReadMsr(0xc00102b2, ref eax, ref edx))
+                    App.LogDebug($"CPPC ENABLE={eax:X8} {edx:X8}");
+                */
+
+            }
+            catch (Exception ex)
             {
-                cbNumaZero.IsEnabled = true;
-                cbSysSetHack.IsEnabled = true;
-                cbPSA.IsEnabled = true;
-                listNumaZeroType.IsEnabled = true;
+                App.LogDebug($"current cpu exception: {ex}");
             }
-            else
-            {
-                cbNumaZero.IsEnabled = false;
-                cbSysSetHack.IsEnabled = false;
-                cbPSA.IsEnabled = false;
-                listNumaZeroType.IsEnabled = false;
-            }
-
-            /*
-            uint eax = 0;
-            uint edx = 0;
-
-    
-            App.LogDebug($"MSR");
-            if (App.ReadMsrTx(0xc001029a, ref eax, ref edx, 0))
-                App.LogDebug($"ENERGY={eax:X8} {edx:X8}");
-            if (App.ReadMsr(0xc00102b2, ref eax, ref edx))
-                App.LogDebug($"CPPC ENABLE={eax:X8} {edx:X8}");
-            */
 
             AutoStartTask = CheckStartTask();
 
