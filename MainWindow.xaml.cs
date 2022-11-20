@@ -97,13 +97,9 @@ namespace CPUDoc
                 WindowStartupLocation = WindowStartupLocation.CenterScreen;
                 App.LogDebug($"SizeChanged Set Center and Save");
                 WindowSettings.Default.Initialized = true;
+                this.UpdateLayout();
                 SaveWinPos();
             }
-
-            SizeToContent = SizeToContent.WidthAndHeight;
-            SetValue(MinWidthProperty, ActualWidth);
-            SetValue(MinHeightProperty, ActualHeight);
-            ClearValue(SizeToContentProperty);
 
             if (App.tbtimer.Enabled) BtnThreadBoostLabel.Text = "Stop";
 
@@ -163,7 +159,16 @@ namespace CPUDoc
                     //App.LogDebug($"C{c} T0-{t0} T1-{t1}");
                     Button btnCore = new Button { VerticalAlignment = VerticalAlignment.Center, Content = $"C{c}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
                     Button btnT0 = new Button { VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Content = $"T0", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                    ProgressBar loadT0 = new ProgressBar { Name = "tload", Maximum = 100, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
                     Button btnT1 = new Button { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Tag = $"{t1}", Content = $"T1", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                    ProgressBar loadT1 = new ProgressBar { Name = "tload", Maximum = 100, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t1}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                    loadT0.Width = 16;
+                    loadT1.Width = 16;
+                    loadT0.Height = 14;
+                    loadT1.Height = 14;
+                    loadT0.MaxWidth = 16;
+                    loadT1.MaxWidth = 16;
+
                     Button btnSpace = new Button { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Content = $"TX", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
                     App.LogDebug($"C{c} {_col} {_row} {threads}");
                     _gridblock.Children.Add(btnCore);
@@ -174,16 +179,26 @@ namespace CPUDoc
                         _gridblock.Children.Add(btnT0);
                         Grid.SetColumn(btnT0, _col + 1);
                         Grid.SetRow(btnT0, _row);
+                        _gridblock.Children.Add(loadT0);
+                        Grid.SetColumn(loadT0, _col + 2);
+                        Grid.SetRow(loadT0, _row);
                         _gridblock.Children.Add(btnT1);
-                        Grid.SetColumn(btnT1, _col + 2);
+                        Grid.SetColumn(btnT1, _col + 3);
                         Grid.SetRow(btnT1, _row);
+                        _gridblock.Children.Add(loadT1);
+                        Grid.SetColumn(loadT1, _col + 4);
+                        Grid.SetRow(loadT1, _row);
                     }
                     _gridblock.Children.Add(btnSpace);
-                    Grid.SetColumn(btnSpace, _col + 3);
+                    Grid.SetColumn(btnSpace, _col + 5);
                     Grid.SetRow(btnSpace, _row);
-                    if (len > 1) btnT1.Visibility = Visibility.Visible;
+                    if (len > 1)
+                    {
+                        btnT1.Visibility = Visibility.Visible;
+                    }
+
                     _row++;
-                    _col = _row > _maxrow ? _col + 4 : _col;
+                    _col = _row > _maxrow ? _col + 6 : _col;
                     _row = _row > _maxrow ? 0 : _row;
                 }
 
@@ -213,6 +228,8 @@ namespace CPUDoc
                 if (App.ReadMsr(0xc00102b2, ref eax, ref edx))
                     App.LogDebug($"CPPC ENABLE={eax:X8} {edx:X8}");
                 */
+                this.UpdateLayout();
+                SaveWinPos();
 
             }
             catch (Exception ex)
@@ -223,6 +240,11 @@ namespace CPUDoc
             AutoStartTask = CheckStartTask();
 
             if (AutoStartTask) BtnAutoStartTaskLabel.Text = "Delete AutoStart Task";
+
+            SizeToContent = SizeToContent.WidthAndHeight;
+            SetValue(MinWidthProperty, ActualWidth);
+            SetValue(MinHeightProperty, ActualHeight);
+            ClearValue(SizeToContentProperty);
 
             App.uitimer.Enabled = true;
 
@@ -383,6 +405,12 @@ namespace CPUDoc
                             btn.Background = Brushes.DarkRed;
                         }
                     }
+                }
+                IEnumerable<ProgressBar> elements2 = FindVisualChildren<ProgressBar>(this).Where(x => x.Name == "tload");
+                foreach (ProgressBar bar in elements2)
+                {
+                    int _coreload = (int)ProcessorInfo.Load(Convert.ToInt32(bar.Tag));
+                    bar.Value = _coreload;
                 }
             }
         }

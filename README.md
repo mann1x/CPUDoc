@@ -94,6 +94,8 @@ You can compile with Visual Studio 2019 and .NET Core 5.
 
 ## Changelog:
 
+- v1.1.2 Beta
+    - New: Show real time thread load
 - v1.1.1 Beta
     - Fix: Correct order with E-Cores
     - Fix: NumaZero initialization

@@ -1042,8 +1042,11 @@ namespace CPUDoc
                 //App.LogDebug("HWM MONITOR CPULOAD");
 
                 if (!ProcessorInfo.CpuLoadPerfCounter) ProcessorInfo._cpuLoad.Update();
-                if (App.pactive.SysSetHack || App.pactive.PowerSaverActive) ProcessorInfo.CpuTotalLoadUpdate();
-                if (App.pactive.SysSetHack) ProcessorInfo.CpuLoadUpdate();
+                //if (App.pactive.SysSetHack || App.pactive.PowerSaverActive) ProcessorInfo.CpuTotalLoadUpdate();
+                //if (App.pactive.SysSetHack) ProcessorInfo.CpuLoadUpdate();
+                
+                ProcessorInfo.CpuTotalLoadUpdate();
+                ProcessorInfo.CpuLoadUpdate();
                 App.cpuTotalLoad.Push(ProcessorInfo.cpuTotalLoad);
                 App.cpuTotalLoadLong.Push(ProcessorInfo.cpuTotalLoad);
 

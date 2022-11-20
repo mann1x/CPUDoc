@@ -92,19 +92,19 @@
                             <TextBlock Grid.Column="0" Grid.Row="2" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center" >System CpuSet Mask:</TextBlock>
                             <Grid Grid.Column="1" Grid.Row="2" x:Name="current_cpumask">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="32" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
-                                    <ColumnDefinition Width="32" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
-                                    <ColumnDefinition Width="32" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
-                                    <ColumnDefinition Width="32" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>

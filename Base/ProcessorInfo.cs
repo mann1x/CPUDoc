@@ -587,6 +587,14 @@ namespace CPUDoc
         }
 
         /// <summary>
+        /// Load for Logical
+        /// </summary>
+        public static int Load(int logical)
+        {
+            if (logical < 0 || logical > HardwareCpuSets.Count()) return 0;
+            return (int)HardwareCpuSets[logical].Load;
+        }
+        /// <summary>
         /// CpuSet ID for Logical
         /// </summary>
         public static int? CpuSetID(int logical)
