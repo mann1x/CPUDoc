@@ -94,6 +94,9 @@ You can compile with Visual Studio 2019 and .NET Core 5.
 
 ## Changelog:
 
+- v1.1.1 Beta
+    - Fix: Correct order with E-Cores
+    - Fix: NumaZero initialization
 - v1.1.0 Beta
     - Fix: wrong version
 - v1.0.9 Beta
