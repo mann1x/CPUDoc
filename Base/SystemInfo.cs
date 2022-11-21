@@ -1699,7 +1699,7 @@ namespace CPUDoc
 
                         uint cores_t = ZenCore_Layout;
 
-                        ZenCCDTotal = (int)App.systemInfo.Zen.info.topology.ccds;
+                        ZenCCDTotal = (int)Zen.info.topology.ccds;
 
                         App.LogInfo($"ZenCCD_Total {ZenCCD_Total:X2}");
                         App.LogInfo($"ZenCCD_Total2 {ZenCCD_Total2:X2}");

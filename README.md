@@ -94,6 +94,8 @@ You can compile with Visual Studio 2019 and .NET Core 5.
 
 ## Changelog:
 
+- v1.1.4 Beta
+    - Fix: Bug in Zen Initialization
 - v1.1.3 Beta
     - New: ZenControl; first implemenation of Zen Automatic Control (for now only sets PBO Limits PPT/TDC/EDC)
     - New: PowerSaveActive; improvements with more dynamic settings (HE policy)
