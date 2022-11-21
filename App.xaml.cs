@@ -834,24 +834,60 @@ namespace CPUDoc
         }
         public void PSAInit()
         {
-            boot_ppname = powerManager.GetActivePlanFriendlyName();
-            boot_ppguid = powerManager.GetActiveGuid();
-            App.LogDebug($"Power Plan at boot: {boot_ppname}");
-        }
-        public static void PSAPlanDisable()
-        {
-            if (psact_plan)
+            try
             {
-                bool isactive = powerManager.SetActiveGuid(boot_ppguid);
-                psact_plan = false;
-                if (isactive)
+                boot_ppname = powerManager.GetActivePlanFriendlyName();
+                boot_ppguid = powerManager.GetActiveGuid();
+
+                if (Win11)
                 {
-                    App.LogDebug($"PSA Disabled Power Plan set back to: {boot_ppname}");
+                    ThreadBooster.hepfg = 5;
+                    ThreadBooster.hepbg = 2;
                 }
                 else
                 {
-                    App.LogDebug($"PSA Disabled Power Plan failed to set back to original, active is: {powerManager.GetActivePlanFriendlyName()}");
+                    if (!systemInfo.Zen3)
+                    {
+                        ThreadBooster.hepfg = 2;
+                        ThreadBooster.hepbg = 4;
+                    }
+                    else
+                    {
+                        ThreadBooster.hepfg = 5;
+                        ThreadBooster.hepbg = 5;
+                    }
                 }
+                ThreadBooster.hepfgdeep = 4;
+                ThreadBooster.hepbgdeep = 4;
+
+                App.LogDebug($"Power Plan at boot: {boot_ppname}");
+            }
+            catch (Exception ex)
+            {
+                App.LogExError("PSAInit Exception:", ex);
+            }
+        }
+        public static void PSAPlanDisable()
+        {
+            try
+            {
+                if (psact_plan)
+                {
+                    bool isactive = powerManager.SetActiveGuid(boot_ppguid);
+                    psact_plan = false;
+                    if (isactive)
+                    {
+                        App.LogDebug($"PSA Disabled Power Plan set back to: {boot_ppname}");
+                    }
+                    else
+                    {
+                        App.LogDebug($"PSA Disabled Power Plan failed to set back to original, active is: {powerManager.GetActivePlanFriendlyName()}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogExError("PSAPlanDisable Exception:", ex);
             }
         }
         public static void PSAEnable()
@@ -998,7 +1034,7 @@ namespace CPUDoc
                 systemInfo.CPPCActiveLabel = systemInfo.CPPCLabel;
 
                 systemInfo.bECores = CPUDoc.Properties.Settings.Default.ECores;
-                systemInfo.bECoresLast = CPUDoc.Properties.Settings.Default.ECoresLast;
+                systemInfo.bECoresLast = false;
 
                 List<int> _runlogicals = new();
                 List<int> _runcores = new();
@@ -1242,10 +1278,13 @@ namespace CPUDoc
 
                 HWMonitor.Close();
                 ThreadBooster.Close();
+
                 hwmcts?.Dispose();
                 tbcts?.Dispose();
                 syscts?.Dispose();
                 tbIcon.Dispose();
+
+                if (ThreadBooster.zencontrol_b) ThreadBooster.ZenControlPBO("hpx");
 
                 Ring0.Close();
             }
@@ -1540,7 +1579,7 @@ namespace CPUDoc
                     {
                         for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
                         {
-                            int[][] _cores = ProcessorInfo.CoresNumaZero();
+                            int[][] _cores = ProcessorInfo.LogicalsNumaZero();
                             if (_cores.Count() > 0)
                             {
                                 for (int c = 0; c < _cores.Count(); ++c)
@@ -1551,11 +1590,12 @@ namespace CPUDoc
                                         {
                                             if (logicalsT1.Contains(i)) n0enabledT1.Add(i);
                                             if (logicalsT0.Contains(i)) n0enabledT0.Add(i);
+                                            App.LogDebug($"N0 ENABLED CoresN0={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
                                         }
                                     }
                                 }
                             }
-                            _cores = ProcessorInfo.CoresEfficient();
+                            _cores = ProcessorInfo.LogicalsEfficient();
                             if (_cores.Count() > 0)
                             {
                                 for (int c = 0; c < _cores.Count(); ++c)
@@ -1572,7 +1612,7 @@ namespace CPUDoc
                                     }
                                 }
                             }
-                            _cores = ProcessorInfo.CoresCache();
+                            _cores = ProcessorInfo.LogicalsCache();
                             if (_cores.Count() > 0)
                             {
                                 for (int c = 0; c < _cores.Count(); ++c)
@@ -1589,7 +1629,7 @@ namespace CPUDoc
                                     }
                                 }
                             }
-                            _cores = ProcessorInfo.CoresIndex();
+                            _cores = ProcessorInfo.LogicalsIndex();
                             if (_cores.Count() > 0)
                             {
                                 for (int c = 0; c < _cores.Count(); ++c)
@@ -1611,7 +1651,7 @@ namespace CPUDoc
 
                     if (_found > 0) numazero_b = true;
                     App.LogDebug($"N0={pactive.NumaZero} N0Type={pactive.NumaZeroType} CORES={ProcessorInfo.PhysicalCoresCount - _found}/{ProcessorInfo.PhysicalCoresCount}[{_found}] HT={systemInfo.HyperThreading}");
-                    App.LogDebug($"NO={ProcessorInfo.CoresNumaZero().Count()} INDEX={ProcessorInfo.CoresIndex().Count()} CACHE={ProcessorInfo.CoresCache().Count()} E-CORES={ProcessorInfo.CoresEfficient().Count()}");
+                    App.LogDebug($"NO={ProcessorInfo.LogicalsNumaZero().Count()} INDEX={ProcessorInfo.LogicalsIndex().Count()} CACHE={ProcessorInfo.LogicalsCache().Count()} E-CORES={ProcessorInfo.LogicalsEfficient().Count()}");
 
                     if (pactive.NumaZeroType > 0 || _found < 1)
                     {

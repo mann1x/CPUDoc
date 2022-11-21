@@ -25,6 +25,8 @@ using Newtonsoft.Json;
 using System.Windows.Threading;
 using Hardcodet.Wpf.TaskbarNotification;
 using Microsoft.Win32.TaskScheduler;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace CPUDoc
 {
@@ -109,6 +111,7 @@ namespace CPUDoc
             cbTBAutoStart.IsChecked = pcurrent.ThreadBooster ? true : false;
             cbNumaZero.IsChecked = pcurrent.NumaZero ? true : false;
             cbPSA.IsChecked = pcurrent.PowerSaverActive ? true : false;
+            cbZC.IsChecked = pcurrent.ZenControl ? true : false;
             cbSysSetHack.IsChecked = pcurrent.SysSetHack ? true : false;
             cbTraceInfo.IsChecked = App.AppSettings.LogInfo ? true : false;
             cbTraceDebug.IsChecked = App.AppSettings.LogTrace ? true : false;
@@ -120,6 +123,29 @@ namespace CPUDoc
             SSHStatus.Text = App.pactive.SysSetHack ? "Enabled" : "Disabled";
             PSAStatus.Text = App.pactive.PowerSaverActive ? "Enabled" : "Disabled";
             N0Status.Text = App.pactive.NumaZero ? "Enabled" : "Disabled";
+
+            cbPPT.IsChecked = pcurrent.ZenControlPPTAuto ? true : false;
+            cbTDC.IsChecked = pcurrent.ZenControlTDCAuto ? true : false;
+            cbEDC.IsChecked = pcurrent.ZenControlEDCAuto ? true : false;
+
+            PPThpx.IsEnabled = !cbPPT.IsChecked == true;
+            TDChpx.IsEnabled = !cbTDC.IsChecked == true;
+            EDChpx.IsEnabled = !cbEDC.IsChecked == true;
+
+            if (App.systemInfo.ZenStates)
+            {
+                if (App.systemInfo.ZenMaxPPT > 0) cbPPT.Content = $"Auto PPT (Max: {App.systemInfo.ZenMaxPPT})";
+                if (App.systemInfo.ZenMaxTDC > 0) cbTDC.Content = $"Auto TDC (Max: {App.systemInfo.ZenMaxTDC})";
+                if (App.systemInfo.ZenMaxEDC > 0) cbEDC.Content = $"Auto EDC (Max: {App.systemInfo.ZenMaxEDC})";
+            }
+
+            if (pcurrent.ZenControlPPThpx.ToString() == "" || pcurrent.ZenControlPPThpx == 0) pcurrent.ZenControlPPThpx = App.systemInfo.ZenMaxPPT;
+            if (pcurrent.ZenControlTDChpx.ToString() == "" || pcurrent.ZenControlTDChpx == 0) pcurrent.ZenControlTDChpx = App.systemInfo.ZenMaxTDC;
+            if (pcurrent.ZenControlEDChpx.ToString() == "" || pcurrent.ZenControlEDChpx == 0) pcurrent.ZenControlEDChpx = App.systemInfo.ZenMaxEDC;
+
+            PPThpx.Text = pcurrent.ZenControlPPThpx.ToString();
+            TDChpx.Text = pcurrent.ZenControlTDChpx.ToString();
+            EDChpx.Text = pcurrent.ZenControlEDChpx.ToString();
 
             var gridLength1 = new GridLength(1.1, GridUnitType.Star);
             var gridLength2 = new GridLength(1, GridUnitType.Star);
@@ -134,7 +160,7 @@ namespace CPUDoc
                 current_cpumask.Margin = curcpugirmar;
                 int _col = 0;
 
-                int threads = ProcessorInfo.HardwareCores.Length;
+                int threads = ProcessorInfo.HardwareCpuSets.Length;
 
                 int _maxrow = threads > 7 ? 7 : threads;
                 if (threads == 12 || threads == 24 || threads == 48) _maxrow = 5;
@@ -145,61 +171,77 @@ namespace CPUDoc
                 Thickness curcpupad = new Thickness(1, 0, 1, 0);
                 Thickness curcpumar = new Thickness(1, 2, 1, 2);
 
+                int len = 0;
+                int t0 = -1;
+                int t1 = -1;
+
+                int pcore = 0;
+
                 for (int c = 0; c < threads; ++c)
                 {
-                    int len = 0;
-                    int t0 = -1;
-                    int t1 = -1;
-                    if (c < ProcessorInfo.HardwareCores.Length)
+                    len = 0;
+                    if (t1 != ProcessorInfo.HardwareCpuSets[c].LogicalProcessorIndex)
                     {
-                        len = ProcessorInfo.HardwareCores[c].LogicalCores.Length;
-                        t0 = ProcessorInfo.HardwareCores[c].LogicalCores[0];
-                        t1 = ProcessorInfo.HardwareCores[c].LogicalCores[1];
-                    }
-                    //App.LogDebug($"C{c} T0-{t0} T1-{t1}");
-                    Button btnCore = new Button { VerticalAlignment = VerticalAlignment.Center, Content = $"C{c}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                    Button btnT0 = new Button { VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Content = $"T0", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                    ProgressBar loadT0 = new ProgressBar { Name = "tload", Maximum = 100, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                    Button btnT1 = new Button { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Tag = $"{t1}", Content = $"T1", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                    ProgressBar loadT1 = new ProgressBar { Name = "tload", Maximum = 100, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t1}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                    loadT0.Width = 16;
-                    loadT1.Width = 16;
-                    loadT0.Height = 14;
-                    loadT1.Height = 14;
-                    loadT0.MaxWidth = 16;
-                    loadT1.MaxWidth = 16;
+                        if (c < ProcessorInfo.HardwareCpuSets.Length)
+                        {
+                            t0 = ProcessorInfo.HardwareCpuSets[c].LogicalProcessorIndex;
+                            len = 1;
+                            if (c <= threads - 1)
+                            {
+                                if (ProcessorInfo.HardwareCpuSets[c].CoreIndex == ProcessorInfo.HardwareCpuSets[c + 1].CoreIndex)
+                                {
+                                    len = 2;
+                                    t1 = ProcessorInfo.HardwareCpuSets[c + 1].LogicalProcessorIndex;
+                                }
+                            }
+                        }
+                        //App.LogDebug($"C{c} T0-{t0} T1-{t1}");
+                        Button btnCore = new Button { Width=32, VerticalAlignment = VerticalAlignment.Center, Content = $"C{pcore}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        Button btnT0 = new Button { Width = 16, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Content = $"T0", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        ProgressBar loadT0 = new ProgressBar { Name = "tload", Maximum = 100, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        Button btnT1 = new Button { Width = 16, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Tag = $"{t1}", Content = $"T1", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        ProgressBar loadT1 = new ProgressBar { Name = "tload", Maximum = 100, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t1}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        loadT0.Width = 16;
+                        loadT1.Width = 16;
+                        loadT0.Height = 14;
+                        loadT1.Height = 14;
+                        loadT0.MaxWidth = 16;
+                        loadT1.MaxWidth = 16;
 
-                    Button btnSpace = new Button { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Content = $"TX", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                    App.LogDebug($"C{c} {_col} {_row} {threads}");
-                    _gridblock.Children.Add(btnCore);
-                    Grid.SetColumn(btnCore, _col);
-                    Grid.SetRow(btnCore, _row);
-                    if (len > 0)
-                    {
-                        _gridblock.Children.Add(btnT0);
-                        Grid.SetColumn(btnT0, _col + 1);
-                        Grid.SetRow(btnT0, _row);
-                        _gridblock.Children.Add(loadT0);
-                        Grid.SetColumn(loadT0, _col + 2);
-                        Grid.SetRow(loadT0, _row);
-                        _gridblock.Children.Add(btnT1);
-                        Grid.SetColumn(btnT1, _col + 3);
-                        Grid.SetRow(btnT1, _row);
-                        _gridblock.Children.Add(loadT1);
-                        Grid.SetColumn(loadT1, _col + 4);
-                        Grid.SetRow(loadT1, _row);
-                    }
-                    _gridblock.Children.Add(btnSpace);
-                    Grid.SetColumn(btnSpace, _col + 5);
-                    Grid.SetRow(btnSpace, _row);
-                    if (len > 1)
-                    {
-                        btnT1.Visibility = Visibility.Visible;
+                        Button btnSpace = new Button { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Content = $"TX", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        App.LogDebug($"C{c} {_col} {_row} {threads}");
+                        _gridblock.Children.Add(btnCore);
+                        Grid.SetColumn(btnCore, _col);
+                        Grid.SetRow(btnCore, _row);
+                        if (len > 0)
+                        {
+                            _gridblock.Children.Add(btnT0);
+                            Grid.SetColumn(btnT0, _col + 1);
+                            Grid.SetRow(btnT0, _row);
+                            _gridblock.Children.Add(loadT0);
+                            Grid.SetColumn(loadT0, _col + 2);
+                            Grid.SetRow(loadT0, _row);
+                            _gridblock.Children.Add(btnT1);
+                            Grid.SetColumn(btnT1, _col + 3);
+                            Grid.SetRow(btnT1, _row);
+                            _gridblock.Children.Add(loadT1);
+                            Grid.SetColumn(loadT1, _col + 4);
+                            Grid.SetRow(loadT1, _row);
+                        }
+                        _gridblock.Children.Add(btnSpace);
+                        Grid.SetColumn(btnSpace, _col + 5);
+                        Grid.SetRow(btnSpace, _row);
+                        if (t1 != -1)
+                        {
+                            btnT1.Visibility = Visibility.Visible;
+                        }
+
+                        pcore++;
+                        _row++;
+                        _col = _row > _maxrow ? _col + 6 : _col;
+                        _row = _row > _maxrow ? 0 : _row;
                     }
 
-                    _row++;
-                    _col = _row > _maxrow ? _col + 6 : _col;
-                    _row = _row > _maxrow ? 0 : _row;
                 }
 
                 if (cbTBAutoStart.IsChecked == true)
@@ -207,6 +249,7 @@ namespace CPUDoc
                     cbNumaZero.IsEnabled = true;
                     cbSysSetHack.IsEnabled = true;
                     cbPSA.IsEnabled = true;
+                    cbZC.IsEnabled = true;
                     listNumaZeroType.IsEnabled = true;
                 }
                 else
@@ -214,6 +257,7 @@ namespace CPUDoc
                     cbNumaZero.IsEnabled = false;
                     cbSysSetHack.IsEnabled = false;
                     cbPSA.IsEnabled = false;
+                    cbZC.IsEnabled = false;
                     listNumaZeroType.IsEnabled = false;
                 }
 
@@ -371,6 +415,8 @@ namespace CPUDoc
                 App.systemInfo.SetSSHStatus(App.pactive.SysSetHack);
                 App.systemInfo.SetPSAStatus(App.pactive.PowerSaverActive);
                 App.systemInfo.SetN0Status(App.pactive.NumaZero);
+
+                App.systemInfo.RefreshLabels();
 
                 currentcpu_update();
 
@@ -763,6 +809,73 @@ namespace CPUDoc
                 pcurrent.PowerSaverActive = false;
             }
         }
+        private void ZC_Click(object sender, RoutedEventArgs e)
+        {
+            CheckBox cb = sender as CheckBox;
+
+            if (cb.IsChecked == true)
+            {
+                pcurrent.ZenControl = true;
+            }
+            else
+            {
+                pcurrent.ZenControl = false;
+            }
+        }
+        private void ZCPPT_Click(object sender, RoutedEventArgs e)
+        {
+            CheckBox cb = sender as CheckBox;
+
+            if (cb.IsChecked == true)
+            {
+                pcurrent.ZenControlPPTAuto = true;
+                PPThpx.IsEnabled = false;
+            }
+            else
+            {
+                pcurrent.ZenControlPPTAuto = false;
+                PPThpx.IsEnabled = true;
+            }
+        }
+        private void ZCTDC_Click(object sender, RoutedEventArgs e)
+        {
+            CheckBox cb = sender as CheckBox;
+
+            if (cb.IsChecked == true)
+            {
+                pcurrent.ZenControlTDCAuto = true;
+                TDChpx.IsEnabled = false;
+            }
+            else
+            {
+                pcurrent.ZenControlTDCAuto = false;
+                TDChpx.IsEnabled = true;
+            }
+        }
+        private void ZCEDC_Click(object sender, RoutedEventArgs e)
+        {
+            CheckBox cb = sender as CheckBox;
+
+            if (cb.IsChecked == true)
+            {
+                pcurrent.ZenControlEDCAuto = true;
+                EDChpx.IsEnabled = false;
+            }
+            else
+            {
+                pcurrent.ZenControlEDCAuto = false;
+                EDChpx.IsEnabled = true;
+            }
+        }
+        private void pbolimit_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            Regex regex = new Regex("[^0-9]+");
+            if (regex.IsMatch(e.Text))
+            {
+                MessageBox.Show("Only positive numbers allowed for PBO Limits!");
+            }
+        }
+        
         private void NumaZero_Click(object sender, RoutedEventArgs e)
         {
             CheckBox cb = sender as CheckBox;
@@ -801,17 +914,74 @@ namespace CPUDoc
             //App.LogDebug($"PoolingRate {pcurrent.PoolingRate} {pcurrent.PoolingRate.GetType()}");
             if (pcurrent != null) pcurrent.PoolingRate = cb.SelectedIndex;
         }
+
+        private bool isNumericText(string strValue)
+        {
+            int intVal = 0;
+            return int.TryParse(strValue, out intVal);
+        }
+        private bool ValidateLimit(string _itemdesc, TextBox _textbox)
+        {
+            bool _valid = true;
+            if (!isNumericText(_textbox.Text)) _valid = false;
+            if (_valid) {
+                if (Int32.Parse(_textbox.Text) < 1) _valid = false;
+            }
+            if (!_valid) MessageBox.Show($"Only positive numbers allowed for {_itemdesc}!");
+            return true;
+        }
+
         private void SaveConfig_Click(object sender, RoutedEventArgs e)
         {
-            //App.LogInfo($"NumaZeroType Index={cb.SelectedIndex} {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
-            //App.LogInfo($"NumaZeroType {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
-            //App.AppConfigs[pcurrent.id] = pcurrent;
-            App.AppConfigs[0] = pcurrent;
-            App.SetActiveConfig(pcurrent.id);
-            ProtBufSettings.WriteSettings();
-            //App.LogDebug($"Wr Config[{App.pactive.id}] TBA={App.pactive.ThreadBooster} SSH={App.AppConfigs[0].SysSetHack}:{pcurrent.SysSetHack}:{App.pactive.SysSetHack} PSA={App.pactive.PowerSaverActive} N0={App.pactive.NumaZero}:{App.pactive.NumaZeroType}");
-            ProtBufSettings.ReadSettings();
-            //App.LogDebug($"Rd Config[{App.pactive.id}] TBA={App.AppConfigs[App.pactive.id].ThreadBooster} SSH={App.AppConfigs[App.pactive.id].SysSetHack}:{App.pactive.SysSetHack} PSA={App.AppConfigs[App.pactive.id].PowerSaverActive} N0={App.pactive.NumaZero}:{App.AppConfigs[App.pactive.id].NumaZero}:{App.AppConfigs[App.pactive.id].NumaZeroType}");
+            try
+            {
+                //App.LogInfo($"NumaZeroType Index={cb.SelectedIndex} {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
+                //App.LogInfo($"NumaZeroType {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
+                //App.AppConfigs[pcurrent.id] = pcurrent;
+                bool validated = true;
+
+                if (!ValidateLimit("PPT Default", PPThpx)) validated = false;
+                if (!ValidateLimit("TDC Default", TDChpx)) validated = false;
+                if (!ValidateLimit("EDC Default", EDChpx)) validated = false;
+
+                pcurrent.ZenControlPPThpx = Convert.ToInt32(PPThpx.Text.ToString().Trim());
+                pcurrent.ZenControlTDChpx = Convert.ToInt32(TDChpx.Text.ToString().Trim());
+                pcurrent.ZenControlEDChpx = Convert.ToInt32(EDChpx.Text.ToString().Trim());
+
+                if (validated)
+                {
+                    pcurrent.ZenControlPPTAuto = cbPPT.IsChecked == true ? true : false;
+                    pcurrent.ZenControlTDCAuto = cbTDC.IsChecked == true ? true : false;
+                    pcurrent.ZenControlEDCAuto = cbEDC.IsChecked == true ? true : false;
+
+                    pcurrent.ZenControlPPTAuto = cbPPT.IsChecked == true ? true : false;
+                    pcurrent.ZenControlTDCAuto = cbTDC.IsChecked == true ? true : false;
+                    pcurrent.ZenControlEDCAuto = cbEDC.IsChecked == true ? true : false;
+
+                    pcurrent.ThreadBooster = cbTBAutoStart.IsChecked == true ? true : false;
+                    pcurrent.NumaZero = cbNumaZero.IsChecked == true ? true : false;
+                    pcurrent.PowerSaverActive = cbPSA.IsChecked == true ? true : false;
+                    pcurrent.ZenControl = cbZC.IsChecked == true ? true : false;
+                    pcurrent.SysSetHack = cbSysSetHack.IsChecked == true ? true : false;
+                    App.AppSettings.LogInfo = cbTraceInfo.IsChecked == true ? true : false;
+                    App.AppSettings.LogTrace = cbTraceDebug.IsChecked == true ? true : false;
+                    App.AppSettings.AUNotifications = cbAUNotifications.IsChecked == true ? true : false;
+                    pcurrent.NumaZeroType = listNumaZeroType.SelectedIndex;
+                    pcurrent.ManualPoolingRate = cbPoolingRate.IsChecked == true ? true : false;
+                    pcurrent.PoolingRate = listPoolingRate.SelectedIndex;
+                    
+                    App.AppConfigs[0] = pcurrent;
+                    App.SetActiveConfig(pcurrent.id);
+                    ProtBufSettings.WriteSettings();
+                    //App.LogDebug($"Wr Config[{App.pactive.id}] TBA={App.pactive.ThreadBooster} SSH={App.AppConfigs[0].SysSetHack}:{pcurrent.SysSetHack}:{App.pactive.SysSetHack} PSA={App.pactive.PowerSaverActive} N0={App.pactive.NumaZero}:{App.pactive.NumaZeroType}");
+                    ProtBufSettings.ReadSettings();
+                    //App.LogDebug($"Rd Config[{App.pactive.id}] TBA={App.AppConfigs[App.pactive.id].ThreadBooster} SSH={App.AppConfigs[App.pactive.id].SysSetHack}:{App.pactive.SysSetHack} PSA={App.AppConfigs[App.pactive.id].PowerSaverActive} N0={App.pactive.NumaZero}:{App.AppConfigs[App.pactive.id].NumaZero}:{App.AppConfigs[App.pactive.id].NumaZeroType}");
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo("SaveConfig_Click exception:", ex);
+            }
         }
         private void ResetSettings_Click(object sender, RoutedEventArgs e)
         {
@@ -889,6 +1059,41 @@ namespace CPUDoc
         private void AdonisWindow_Activated(object sender, EventArgs e)
         {
             App.systemInfo.RefreshLabels();
+        }
+
+    }
+    public class NumericValidationRule : ValidationRule
+    {
+        public Type ValidationType { get; set; }
+        public override ValidationResult Validate(object value, CultureInfo cultureInfo)
+        {
+            string strValue = Convert.ToString(value);
+
+            if (string.IsNullOrEmpty(strValue))
+                return new ValidationResult(false, $"Value cannot be coverted to string.");
+            bool canConvert = false;
+            switch (ValidationType.Name)
+            {
+
+                case "Boolean":
+                    bool boolVal = false;
+                    canConvert = bool.TryParse(strValue, out boolVal);
+                    return canConvert ? new ValidationResult(true, null) : new ValidationResult(false, $"Input should be type of boolean");
+                case "Int32":
+                    int intVal = 0;
+                    canConvert = int.TryParse(strValue, out intVal);
+                    return canConvert ? new ValidationResult(true, null) : new ValidationResult(false, $"Input should be type of Int32");
+                case "Double":
+                    double doubleVal = 0;
+                    canConvert = double.TryParse(strValue, out doubleVal);
+                    return canConvert ? new ValidationResult(true, null) : new ValidationResult(false, $"Input should be type of Double");
+                case "Int64":
+                    long longVal = 0;
+                    canConvert = long.TryParse(strValue, out longVal);
+                    return canConvert ? new ValidationResult(true, null) : new ValidationResult(false, $"Input should be type of Int64");
+                default:
+                    throw new InvalidCastException($"{ValidationType.Name} is not supported");
+            }
         }
     }
 }

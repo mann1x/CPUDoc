@@ -89,6 +89,7 @@ namespace CPUDoc
         public string CPUSensorsSource { get; set; }
         public bool Zen1X { get; set; }
         public bool ZenPlus { get; set; }
+        public bool Zen3 { get; set; }
 
         public bool IntelAVX512 { get; set; }
         public bool IntelHybrid { get; set; }
@@ -1536,7 +1537,7 @@ namespace CPUDoc
         {
             try
             {
-                if (CPUSocket == "AM4")
+                if (CPUSocket == "AM4" || CPUSocket == "AM5")
                 {
                     bool smucheck = false;
                     try
@@ -1575,6 +1576,8 @@ namespace CPUDoc
 
                         smucheck = Zen.smu.Version != 0U;
 
+                        if (Zen.info.family == Cpu.Family.FAMILY_19H) Zen3 = true;
+
                         if (!Zen.info.family.Equals(Cpu.Family.UNSUPPORTED) && !Zen.info.codeName.Equals(Cpu.CodeName.Unsupported))
                         {
                             App.LogInfo($"Zen Name: {Zen.info.cpuName}");
@@ -1584,6 +1587,7 @@ namespace CPUDoc
                             App.LogInfo($"Zen BaseModel: {Zen.info.baseModel}");
                             App.LogInfo($"Zen ExtModel: {Zen.info.extModel}");
                             App.LogInfo($"Zen Socket: {Zen.info.packageType}");
+                            App.LogInfo($"Zen Zen3 flag (Family 19h): {Zen3}");
                             App.LogInfo($"Zen CpuID: {Zen.info.cpuid:X8}");
                             App.LogInfo($"Zen SVI2: {Zen.info.svi2.coreAddress:X8}:{Zen.info.svi2.socAddress:X8}");
                             App.LogInfo($"Zen Test SMU: {smucheck}");
@@ -1681,9 +1685,9 @@ namespace CPUDoc
                         uint ZenCore_Fuse1 = Zen.ReadDword(core_fuse1a);
                         uint ZenCore_Fuse2 = Zen.ReadDword(core_fuse2a);
                         uint ZenCCDS_Total = BitSlice(ZenCCD_Fuse1, 22, 23);
-                        uint ZenCCD_Disabled = BitSlice(ZenCCD_Fuse1, 30, 31);
+                        uint ZenCCDS_Disabled = BitSlice(ZenCCD_Fuse1, 30, 31);
                         uint ZenCCDS_Total2 = BitSlice(ZenCCD_Fuse2, 22, 23);
-                        uint ZenCCD_Disabled2 = BitSlice(ZenCCD_Fuse2, 30, 31);
+                        uint ZenCCDS_Disabled2 = BitSlice(ZenCCD_Fuse2, 30, 31);
                         uint ZenCCD1_Fuse = BitSlice(ZenCore_Fuse1, 0, 7);
                         uint ZenCCD2_Fuse = BitSlice(ZenCore_Fuse2, 0, 7);
 
@@ -1691,17 +1695,18 @@ namespace CPUDoc
                         int ZenCores_per_ccd = (ZenCCD1_Fuse == 0 || ZenCCD2_Fuse == 0) ? 8 : 6;
                         int ZenCCD_Total = CountSetBits(ZenCCDS_Total);
                         int ZenCCD_Total2 = CountSetBits(ZenCCDS_Total2);
+                        int ZenCCD_Disabled = CountSetBits(ZenCCDS_Disabled);
 
                         uint cores_t = ZenCore_Layout;
 
-                        ZenCCDTotal = (int)ZenCCDS_Total - (int)ZenCCD_Disabled;
+                        ZenCCDTotal = (int)App.systemInfo.Zen.info.topology.ccds;
 
                         App.LogInfo($"ZenCCD_Total {ZenCCD_Total:X2}");
                         App.LogInfo($"ZenCCD_Total2 {ZenCCD_Total2:X2}");
                         App.LogInfo($"ZenCore_Fuse1 {ZenCore_Fuse1:X8}");
                         App.LogInfo($"ZenCore_Fuse2 {ZenCore_Fuse2:X8}");
-                        App.LogInfo($"ZenCCD_Disabled {ZenCCD_Disabled:X2}");
-                        App.LogInfo($"ZenCCD_Disabled2 {ZenCCD_Disabled2:X2}");
+                        App.LogInfo($"ZenCCD_Disabled {ZenCCDS_Disabled:X2}");
+                        App.LogInfo($"ZenCCD_Disabled2 {ZenCCDS_Disabled2:X2}");
                         App.LogInfo($"ZenCCD_Fuse1 {ZenCCD_Fuse1:X8}");
                         App.LogInfo($"ZenCCD_Fuse2 {ZenCCD_Fuse2:X8}");
                         App.LogInfo($"ZenCCD1_Fuse {ZenCCD1_Fuse:X8}");
@@ -2330,9 +2335,9 @@ namespace CPUDoc
 
                             App.LogInfo($"Zen Boost: {ZenBoost}/{ZenMaxBoost}");
                             App.LogInfo($"Zen PPT: {ZenPPT}/{ZenMaxPPT}");
-                            App.LogInfo($"Zen TDC: {ZenTDC}/{ZenMaxTDC} ({Zen.info.TDCSupported})");
-                            App.LogInfo($"Zen EDC: {ZenEDC}/{ZenMaxEDC} ({Zen.info.EDCSupported})");
-                            App.LogInfo($"Zen THM: {ZenTHM}/{ZenMaxTHM} ({Zen.info.THMSupported})");
+                            App.LogInfo($"Zen TDC: {ZenTDC}/{ZenMaxTDC} Supported?({Zen.info.TDCSupported})");
+                            App.LogInfo($"Zen EDC: {ZenEDC}/{ZenMaxEDC} Supported?({Zen.info.EDCSupported})");
+                            App.LogInfo($"Zen THM: {ZenTHM}/{ZenMaxTHM} Supported?({Zen.info.THMSupported})");
 
                         }
                         else

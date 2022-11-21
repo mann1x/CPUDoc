@@ -222,13 +222,26 @@
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="*"/>
@@ -259,12 +272,86 @@
                                     PowerSaverActive
                                 </CheckBox>
 
-                                <CheckBox Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="NumaZero_Click" x:Name="cbNumaZero">
+                                <CheckBox Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="ZC_Click" x:Name="cbZC">
+                                    ZenControl
+                                </CheckBox>
+
+                                <Grid Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="3" Grid.RowSpan="10" Margin = "20 0 0 0" x:Name="ZCGrid">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center">Mode</TextBlock>
+                                    <TextBlock Grid.Column="1" Grid.Row="0" HorizontalAlignment="Center">Default</TextBlock>
+                                    
+                                    <CheckBox Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="ZCPPT_Click" x:Name="cbPPT" IsChecked="True">
+                                        Auto PPT
+                                    </CheckBox>
+
+                                    <TextBox Grid.Column="1" Grid.Row="1" Width="64" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="PPThpx" PreviewTextInput="pbolimit_PreviewTextInput">
+                                    </TextBox>
+
+                                    <CheckBox Grid.Column="0" Grid.Row="2" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="ZCTDC_Click" x:Name="cbTDC" IsChecked="True">
+                                        Auto TDC
+                                    </CheckBox>
+
+                                    <TextBox Grid.Column="1" Grid.Row="2" Width="64" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="TDChpx" PreviewTextInput="pbolimit_PreviewTextInput">
+                                    </TextBox>
+
+                                    <CheckBox Grid.Column="0" Grid.Row="3" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="ZCEDC_Click" x:Name="cbEDC" IsChecked="True">
+                                        Auto EDC
+                                    </CheckBox>
+
+                                    <TextBox Grid.Column="1" Grid.Row="3" Width="64" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="EDChpx" PreviewTextInput="pbolimit_PreviewTextInput">
+                                    </TextBox>
+                                </Grid>
+                               
+
+                                <CheckBox Grid.Column="0" Grid.Row="20" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="NumaZero_Click" x:Name="cbNumaZero">
                                     NumaZero
                                 </CheckBox>
 
-                                <TextBlock Grid.Column="1" Grid.Row="9" HorizontalAlignment="Right" VerticalAlignment="Center">Type:</TextBlock> 
-                                <ComboBox Grid.Column="2" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroType_Select" x:Name="listNumaZeroType">
+                                <TextBlock Grid.Column="1" Grid.Row="20" HorizontalAlignment="Right" VerticalAlignment="Center">Type:</TextBlock> 
+                                <ComboBox Grid.Column="2" Grid.Row="20" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroType_Select" x:Name="listNumaZeroType">
                                     
                                     <ComboBoxItem Tag="0">Auto</ComboBoxItem>
                                     <ComboBoxItem Tag="1">First 8 Cores</ComboBoxItem>
@@ -273,12 +360,12 @@
                                     <ComboBoxItem Tag="4">First 2 Cores</ComboBoxItem>
                                 </ComboBox>
 
-                                <CheckBox Grid.Column="0" Grid.Row="10" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="PoolingRate_Click" x:Name="cbPoolingRate">
+                                <CheckBox Grid.Column="0" Grid.Row="21" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="PoolingRate_Click" x:Name="cbPoolingRate">
                                     Manual ThreadBooster pooling
                                 </CheckBox>
 
-                                <TextBlock Grid.Column="1" Grid.Row="10" HorizontalAlignment="Right" VerticalAlignment="Center">Rate:</TextBlock>
-                                <ComboBox Grid.Column="2" Grid.Row="10" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="PoolingRate_Select" x:Name="listPoolingRate">
+                                <TextBlock Grid.Column="1" Grid.Row="21" HorizontalAlignment="Right" VerticalAlignment="Center">Rate:</TextBlock>
+                                <ComboBox Grid.Column="2" Grid.Row="21" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="PoolingRate_Select" x:Name="listPoolingRate">
 
                                     <ComboBoxItem Tag="0">Very Slow</ComboBoxItem>
                                     <ComboBoxItem Tag="1">Slow</ComboBoxItem>
@@ -290,7 +377,7 @@
                                     <ComboBoxItem Tag="7">Crazy Fast</ComboBoxItem>
                                 </ComboBox>
 
-                                <Button Grid.Column="0" Grid.Row="11" Name="SaveConfig" Click="SaveConfig_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Left" Margin="10 4 10 4">
+                                <Button Grid.Column="0" Grid.Row="24" Name="SaveConfig" Click="SaveConfig_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Left" Margin="10 4 10 4">
                                     <TextBlock Margin="{adonisUi:Space}" Text="Save config">
                                     </TextBlock>
                                 </Button>

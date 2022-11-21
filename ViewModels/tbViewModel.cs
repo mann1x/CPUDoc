@@ -18,7 +18,11 @@ namespace CPUDoc
         /// </summary>
         public ICommand ShowWindowCommand => new DelegateCommand
         {
-            CanExecuteFunc = () => Application.Current.MainWindow == null,
+            //CanExecuteFunc = () => Application.Current.MainWindow == null,
+            CanExecuteFunc = () =>
+            {
+                return true;
+            },
             CommandAction = () =>
             {
                 Application.Current.MainWindow = new MainWindow();

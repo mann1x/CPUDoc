@@ -417,34 +417,32 @@ namespace CPUDoc
             return coresbyeff;
         }
         /// <summary>
-        /// Get Thread Cores only EfficiencyClass = 1
+        /// Get Logicals E-Cores only (EfficiencyClass = 0 if EfficiencyClass = 1 > 0)
         /// </summary>
-        public static int[][] CoresEfficient()
+        public static int[][] LogicalsEfficient()
         {
             var coresbyeff = new int[HardwareCores.Length][];
             int count = 0;
-            var cpusetsbyeff = HardwareCpuSets.Where(x => x.EfficiencyClass > 0);
-            int _prev = -1;
-            foreach (HardwareCpuSet cpuset in cpusetsbyeff)
+            var cpusetsbyperf = HardwareCpuSets.Where(x => x.EfficiencyClass == 1);
+            var cpusetsbyeff = HardwareCpuSets.Where(x => x.EfficiencyClass == 0);
+            if (cpusetsbyperf.Count() > 0)
             {
-                int _pcore = cpuset.LogicalProcessorIndex;
-                //System.Diagnostics.App.LogDebug($"Logical={cpuset.LogicalProcessorIndex} Physical={_pcore} Prev={_prev} ");
-                if (_pcore != _prev)
+                foreach (HardwareCpuSet cpuset in cpusetsbyeff)
                 {
+                    //System.Diagnostics.App.LogDebug($"Logical={cpuset.LogicalProcessorIndex} Physical={_pcore} Prev={_prev} ");
                     //System.Diagnostics.App.LogDebug($"Add Physical={_pcore} Count={count} ");
                     coresbyeff[count] = new int[2];
-                    coresbyeff[count][0] = _pcore;
+                    coresbyeff[count][0] = cpuset.LogicalProcessorIndex;
                     coresbyeff[count][1] = cpuset.EfficiencyClass;
                     count++;
                 }
-                _prev = _pcore;
             }
             return coresbyeff;
         }
         /// <summary>
-        /// Get Cores only LastLevelCacheIndex > 0
+        /// Get Logicals only LastLevelCacheIndex > 0
         /// </summary>
-        public static int[][] CoresCache()
+        public static int[][] LogicalsCache()
         {
             var coresbycache = new int[HardwareCores.Length][];
             int count = 0;
@@ -467,9 +465,9 @@ namespace CPUDoc
             return coresbycache;
         }
         /// <summary>
-        /// Get Cores onnly NumaZero
+        /// Get Logicals only NumaZero
         /// </summary>
-        public static int[][] CoresNumaZero()
+        public static int[][] LogicalsNumaZero()
         {
             var coresbyn0 = new int[HardwareCores.Length][];
             int count = 0;
@@ -492,9 +490,9 @@ namespace CPUDoc
             return coresbyn0;
         }
         /// <summary>
-        /// Get Cores only NumaNodeIndex > 0
+        /// Get Logicals only NumaNodeIndex > 0
         /// </summary>
-        public static int[][] CoresIndex()
+        public static int[][] LogicalsIndex()
         {
             var coresbyindex = new int[HardwareCores.Length][];
             int count = 0;

@@ -94,6 +94,11 @@ You can compile with Visual Studio 2019 and .NET Core 5.
 
 ## Changelog:
 
+- v1.1.3 Beta
+    - New: ZenControl; first implemenation of Zen Automatic Control (for now only sets PBO Limits PPT/TDC/EDC)
+    - New: PowerSaveActive; improvements with more dynamic settings (HE policy)
+    - Fix: Disabled whitelist CpuSet mask for processes as can cause rare and random system unresponsive
+    - Fix: Display and selection of Intel E-Cores
 - v1.1.2 Beta
     - New: Show real time thread load
 - v1.1.1 Beta

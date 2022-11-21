@@ -9,7 +9,7 @@
         reuse the same context menu (which is a resource) again (which will have its DataContext set to the old TaskbarIcon)
   -->
     <ContextMenu x:Shared="false" x:Key="SysTrayMenu">
-        <MenuItem Header="{Binding Version}" />
+        <MenuItem Header="{Binding Version}" Command="{Binding ShowWindowCommand}"/>
         <Separator />
         <MenuItem Header="Toggle SysSetHack" Command="{Binding ToggleSSH}" />
         <MenuItem Header="Toggle PowerSaveActive" Command="{Binding TogglePSA}" />

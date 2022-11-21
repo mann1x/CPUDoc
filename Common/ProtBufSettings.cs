@@ -82,6 +82,44 @@ namespace CPUDoc
         public bool ManualPoolingRate { get; set; }
         [ProtoMember(24)]
         public int PoolingRate { get; set; }
+        [ProtoMember(25)]
+        public bool ZenControl { get; set; }
+        [ProtoMember(26)]
+        public bool ZenControlPPTAuto { get; set; }
+        [ProtoMember(27)]
+        public int ZenControlPPThpx { get; set; }
+        [ProtoMember(28)]
+        public int ZenControlPPTbal { get; set; }
+        [ProtoMember(29)]
+        public int ZenControlPPTlow { get; set; }
+        [ProtoMember(30)]
+        public int ZenControlPPTlight { get; set; }
+        [ProtoMember(31)]
+        public int ZenControlPPTdeep { get; set; }
+        [ProtoMember(32)]
+        public bool ZenControlEDCAuto { get; set; }
+        [ProtoMember(33)]
+        public int ZenControlEDChpx { get; set; }
+        [ProtoMember(34)]
+        public int ZenControlEDCbal { get; set; }
+        [ProtoMember(35)]
+        public int ZenControlEDClow { get; set; }
+        [ProtoMember(36)]
+        public int ZenControlEDClight { get; set; }
+        [ProtoMember(37)]
+        public int ZenControlEDCdeep { get; set; }
+        [ProtoMember(38)]
+        public bool ZenControlTDCAuto { get; set; }
+        [ProtoMember(39)]
+        public int ZenControlTDChpx { get; set; }
+        [ProtoMember(40)]
+        public int ZenControlTDCbal { get; set; }
+        [ProtoMember(41)]
+        public int ZenControlTDClow { get; set; }
+        [ProtoMember(42)]
+        public int ZenControlTDClight { get; set; }
+        [ProtoMember(43)]
+        public int ZenControlTDCdeep { get; set; }
         /*
         public static T DeepClone<T>(this T obj)
         {
@@ -118,6 +156,10 @@ namespace CPUDoc
             COStandbySafe = true;
             ManualPoolingRate = false;
             PoolingRate = 3;
+            ZenControl = false;
+            ZenControlPPTAuto = true;
+            ZenControlTDCAuto = true;
+            ZenControlEDCAuto = true;
         }
 
     }
