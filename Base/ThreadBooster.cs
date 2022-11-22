@@ -367,12 +367,16 @@ namespace CPUDoc
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("06cadf0e-64ed-448a-8927-ce7bf90eb35d"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Processor performance increase threshold for Processor Power Efficiency Class 1
-            _value = (uint)((id == 0) ? 95 : (id == 1) ? 60 : 60);
+            _value = (uint)((id == 0) ? 85 : (id == 1) ? 60 : 30);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("06cadf0e-64ed-448a-8927-ce7bf90eb35e"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Minimum processor state
             _value = (uint)((id == 0) ? 80 : (id == 1) ? 100 : 100);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("893dee8e-2bef-41e0-89c6-b55d0929964c"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Minimum processor state for Processor Power Efficiency Class 1
+            _value = (uint)((id == 0) ? 80 : (id == 1) ? 100 : 100);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("893dee8e-2bef-41e0-89c6-b55d0929964d"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Processor idle promote threshold
             _value = (uint)((id == 0) ? 45 : (id == 1) ? 60 : 60);
@@ -385,6 +389,10 @@ namespace CPUDoc
             //Processor performance decrease time
             _value = (uint)((id == 0) ? 1 : (id == 1) ? 5 : 5);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("d8edeb9b-95cf-4f95-a73c-b061973693c8"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor performance decrease time for Processor Power Efficiency Class 1
+            _value = (uint)((id == 0) ? 1 : (id == 1) ? 5 : 5);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("d8edeb9b-95cf-4f95-a73c-b061973693c9"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Processor idle time check
             _value = (uint)((id == 0) ? 20000 : (id == 1) ? 30000 : 50000);
@@ -421,6 +429,10 @@ namespace CPUDoc
             //Processor performance decrease policy
             _value = (uint)((id == 0) ? 0 : (id == 1) ? 1 : 1);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("40fbefc7-2e9d-4d25-a185-0cfd8574bac6"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor performance decrease policy for Processor Power Efficiency Class 1
+            _value = (uint)((id == 0) ? 0 : (id == 1) ? 1 : 1);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("40fbefc7-2e9d-4d25-a185-0cfd8574bac7"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Processor performance autonomous mode
             _value = (uint)((id == 0) ? 0 : (id == 1) ? 1 : 1);
@@ -687,6 +699,10 @@ namespace CPUDoc
             _value = (uint)(enable ? 1 : 2);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("465e1f50-b610-473a-ab58-00d1077dc418"), PowerManagerAPI.PowerMode.AC, _value);
 
+            //Processor performance increase policy for Processor Power Efficiency Class 1
+            _value = (uint)(enable ? 1 : 2);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("465e1f50-b610-473a-ab58-00d1077dc419"), PowerManagerAPI.PowerMode.AC, _value);
+
             //Processor performance decrease policy
             _value = (uint)(enable ? 0 : 1);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("40fbefc7-2e9d-4d25-a185-0cfd8574bac6"), PowerManagerAPI.PowerMode.AC, _value);
@@ -722,6 +738,10 @@ namespace CPUDoc
             //Processor performance decrease time
             _value = (uint)(enable ? 1 : 5);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("d8edeb9b-95cf-4f95-a73c-b061973693c8"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Processor performance decrease time for Processor Power Efficiency Class 1
+            _value = (uint)(enable ? 1 : 5);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("7f2492b6-60b1-45e5-ae55-773f8cd5caec"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Processor idle time check
             _value = (uint)(enable ? 5000 : 50000);
@@ -767,25 +787,37 @@ namespace CPUDoc
             _value = (uint)(enable ? 90 : 25);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("36687f9e-e3a5-4dbf-b1dc-15eb381c6863"), PowerManagerAPI.PowerMode.AC, _value);
 
+            //Processor energy performance preference policy for Processor Power Efficiency Class 1
+            _value = (uint)(enable ? 90 : 25);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("36687f9e-e3a5-4dbf-b1dc-15eb381c6864"), PowerManagerAPI.PowerMode.AC, _value);
+
             //Processor performance boost policy
             _value = (uint)(enable ? 40 : 60);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("45bcc044-d885-43e2-8605-ee0ec6e96b59"), PowerManagerAPI.PowerMode.AC, _value);
-
-            //Processor energy performance preference policy for Processor Power Efficiency Class 1
-            _value = (uint)(enable ? 95 : 25);
-            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("36687f9e-e3a5-4dbf-b1dc-15eb381c6864"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Maximum processor state
             _value = (uint)(enable ? 99 : 100);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("bc5038f7-23e0-4960-96da-33abaf5935ec"), PowerManagerAPI.PowerMode.AC, _value);
 
+            //Maximum processor state for Processor Power Efficiency Class 1
+            _value = (uint)(enable ? 99 : 100);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("bc5038f7-23e0-4960-96da-33abaf5935ed"), PowerManagerAPI.PowerMode.AC, _value);
+
             //Processor performance increase time
             _value = (uint)(enable ? 3 : 1);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("984cf492-3bed-4488-a8f9-4286c97bf5aa"), PowerManagerAPI.PowerMode.AC, _value);
 
+            //Processor performance increase time for Processor Power Efficiency Class 1
+            _value = (uint)(enable ? 3 : 1);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("4009efa7-e72d-4cba-9edf-91084ea8cbc3"), PowerManagerAPI.PowerMode.AC, _value);
+
             //Latency sensitivity hint processor performance
             _value = (uint)(enable ? 85 : 99);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("619b7505-003b-4e82-b7a6-4dd29c300971"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Latency sensitivity hint processor performance for Processor Power Efficiency Class 1
+            _value = (uint)(enable ? 85 : 99);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("619b7505-003b-4e82-b7a6-4dd29c300972"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Core parking
 
@@ -794,8 +826,12 @@ namespace CPUDoc
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("0cc5b647-c1df-4637-891a-dec35c318583"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Processor performance core parking min cores for Processor Power Efficiency Class 1
-            //_value = (uint)(enable ? 0 : 100);
-            //App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("0cc5b647-c1df-4637-891a-dec35c318584"), PowerManagerAPI.PowerMode.AC, _value);
+            _value = (uint)(enable ? 10 : 100);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("0cc5b647-c1df-4637-891a-dec35c318584"), PowerManagerAPI.PowerMode.AC, _value);
+
+            //Initial performance for Processor Power Efficiency Class 1 when unparked
+            _value = (uint)(enable ? 50 : 100);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("1facfc65-a930-4bc5-9f38-504ec097bbc0"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Processor performance core parking concurrency threshold
             _value = (uint)(enable ? 80 : 97);

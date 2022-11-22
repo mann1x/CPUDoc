@@ -774,7 +774,7 @@ namespace CPUDoc
                 OnChange("BoardLabel");
                 OnChange("ProcessorsLabel");
                 OnChange("MemoryLabel");
-                App.LogDebug($"RefreshLabels done");
+                //App.LogDebug($"RefreshLabels done");
             }
             catch (Exception ex)
             {

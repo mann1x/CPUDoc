@@ -1579,70 +1579,61 @@ namespace CPUDoc
                     {
                         for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
                         {
-                            int[][] _cores = ProcessorInfo.LogicalsNumaZero();
+                            List<int> _cores = ProcessorInfo.LogicalsNumaZero();
                             if (_cores.Count() > 0)
                             {
-                                for (int c = 0; c < _cores.Count(); ++c)
+                                for (int c = 0; c < _cores.Count; ++c)
                                 {
-                                    if (_cores[c] != null)
+                                    if (_cores[c] == i)
                                     {
-                                        if (_cores[c][0] == i)
-                                        {
-                                            if (logicalsT1.Contains(i)) n0enabledT1.Add(i);
-                                            if (logicalsT0.Contains(i)) n0enabledT0.Add(i);
-                                            App.LogDebug($"N0 ENABLED CoresN0={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
-                                        }
+                                        if (logicalsT1.Contains(i)) n0enabledT1.Add(i);
+                                        if (logicalsT0.Contains(i)) n0enabledT0.Add(i);
+                                        App.LogDebug($"N0 ENABLED CoresN0={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
                                     }
                                 }
                             }
+                            _cores.Clear();
                             _cores = ProcessorInfo.LogicalsEfficient();
                             if (_cores.Count() > 0)
                             {
                                 for (int c = 0; c < _cores.Count(); ++c)
                                 {
-                                    if (_cores[c] != null)
+                                    if (_cores[c] == i)
                                     {
-                                        if (_cores[c][0] == i)
-                                        {
-                                            _found++;
-                                            if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
-                                            if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
-                                            App.LogDebug($"N0 DISABLED CoresEfficient={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
-                                        }
+                                        _found++;
+                                        if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
+                                        if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
+                                        App.LogDebug($"N0 DISABLED CoresEfficient={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
                                     }
                                 }
                             }
+                            _cores.Clear();
                             _cores = ProcessorInfo.LogicalsCache();
                             if (_cores.Count() > 0)
                             {
                                 for (int c = 0; c < _cores.Count(); ++c)
                                 {
-                                    if (_cores[c] != null)
+                                    if (_cores[c] == i)
                                     {
-                                        if (_cores[c][0] == i)
-                                        {
-                                            _found++;
-                                            if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
-                                            if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
-                                            App.LogDebug($"N0 DISABLED CoresCache={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
-                                        }
+                                        _found++;
+                                        if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
+                                        if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
+                                        App.LogDebug($"N0 DISABLED CoresCache={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
                                     }
                                 }
                             }
+                            _cores.Clear();
                             _cores = ProcessorInfo.LogicalsIndex();
                             if (_cores.Count() > 0)
                             {
                                 for (int c = 0; c < _cores.Count(); ++c)
                                 {
-                                    if (_cores[c] != null)
+                                    if (_cores[c] == i)
                                     {
-                                        if (_cores[c][0] == i)
-                                        {
-                                            _found++;
-                                            if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
-                                            if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
-                                            App.LogDebug($"N0 DISABLED CoresIndex={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
-                                        }
+                                        _found++;
+                                        if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
+                                        if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
+                                        App.LogDebug($"N0 DISABLED CoresIndex={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
                                     }
                                 }
                             }
@@ -1650,8 +1641,8 @@ namespace CPUDoc
                     }
 
                     if (_found > 0) numazero_b = true;
-                    App.LogDebug($"N0={pactive.NumaZero} N0Type={pactive.NumaZeroType} CORES={ProcessorInfo.PhysicalCoresCount - _found}/{ProcessorInfo.PhysicalCoresCount}[{_found}] HT={systemInfo.HyperThreading}");
-                    App.LogDebug($"NO={ProcessorInfo.LogicalsNumaZero().Count()} INDEX={ProcessorInfo.LogicalsIndex().Count()} CACHE={ProcessorInfo.LogicalsCache().Count()} E-CORES={ProcessorInfo.LogicalsEfficient().Count()}");
+                    App.LogDebug($"N0={pactive.NumaZero} N0Type={pactive.NumaZeroType} CORES={ProcessorInfo.LogicalCoresCount - _found}/{ProcessorInfo.LogicalCoresCount}[{_found}] HT={systemInfo.HyperThreading}");
+                    App.LogDebug($"N0_ENABLED={n0enabledT0.Count+n0enabledT1.Count} N0_DISABLED={n0disabledT0.Count + n0disabledT1.Count} E-CORES={App.systemInfo.Ecores.Count}");
 
                     if (pactive.NumaZeroType > 0 || _found < 1)
                     {

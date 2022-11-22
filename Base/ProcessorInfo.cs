@@ -419,22 +419,16 @@ namespace CPUDoc
         /// <summary>
         /// Get Logicals E-Cores only (EfficiencyClass = 0 if EfficiencyClass = 1 > 0)
         /// </summary>
-        public static int[][] LogicalsEfficient()
+        public static List<int> LogicalsEfficient()
         {
-            var coresbyeff = new int[HardwareCores.Length][];
-            int count = 0;
+            var coresbyeff = new List<int>();
             var cpusetsbyperf = HardwareCpuSets.Where(x => x.EfficiencyClass == 1);
             var cpusetsbyeff = HardwareCpuSets.Where(x => x.EfficiencyClass == 0);
             if (cpusetsbyperf.Count() > 0)
             {
                 foreach (HardwareCpuSet cpuset in cpusetsbyeff)
                 {
-                    //System.Diagnostics.App.LogDebug($"Logical={cpuset.LogicalProcessorIndex} Physical={_pcore} Prev={_prev} ");
-                    //System.Diagnostics.App.LogDebug($"Add Physical={_pcore} Count={count} ");
-                    coresbyeff[count] = new int[2];
-                    coresbyeff[count][0] = cpuset.LogicalProcessorIndex;
-                    coresbyeff[count][1] = cpuset.EfficiencyClass;
-                    count++;
+                    coresbyeff.Add(cpuset.LogicalProcessorIndex);
                 }
             }
             return coresbyeff;
@@ -442,75 +436,42 @@ namespace CPUDoc
         /// <summary>
         /// Get Logicals only LastLevelCacheIndex > 0
         /// </summary>
-        public static int[][] LogicalsCache()
+        public static List<int> LogicalsCache()
         {
-            var coresbycache = new int[HardwareCores.Length][];
-            int count = 0;
+            var coresbycache = new List<int>();
             var cpusetsbycache = HardwareCpuSets.Where(x => x.LastLevelCacheIndex > 0);
-            int _prev = -1;
             foreach (HardwareCpuSet cpuset in cpusetsbycache)
             {
-                int _pcore = cpuset.LogicalProcessorIndex;
-                //System.Diagnostics.App.LogDebug($"Logical={cpuset.LogicalProcessorIndex} Physical={_pcore} Prev={_prev} ");
-                if (_pcore != _prev)
-                {
-                    //System.Diagnostics.App.LogDebug($"Add Physical={_pcore} Count={count} ");
-                    coresbycache[count] = new int[2];
-                    coresbycache[count][0] = _pcore;
-                    coresbycache[count][1] = cpuset.LastLevelCacheIndex;
-                    count++;
-                }
-                _prev = _pcore;
+                coresbycache.Add(cpuset.LogicalProcessorIndex);
             }
             return coresbycache;
         }
         /// <summary>
         /// Get Logicals only NumaZero
         /// </summary>
-        public static int[][] LogicalsNumaZero()
+        public static List<int> LogicalsNumaZero()
         {
-            var coresbyn0 = new int[HardwareCores.Length][];
-            int count = 0;
-            var cpusetsbyn0 = HardwareCpuSets.Where(x => x.LastLevelCacheIndex == 0 && x.NumaNodeIndex == 0 && x.EfficiencyClass == 0).OrderByDescending(x => x.SchedulingClass);
-            int _prev = -1;
+            var coresbyn0 = new List<int>();
+            var cpusetsbyperf = HardwareCpuSets.Where(x => x.EfficiencyClass == 1);
+            int effclass = (cpusetsbyperf.Count() > 0) ? 1 : 0;
+            if (cpusetsbyperf.Count() > 0) effclass = 1;
+            var cpusetsbyn0 = HardwareCpuSets.Where(x => x.LastLevelCacheIndex == 0 && x.NumaNodeIndex == 0 && x.EfficiencyClass == effclass).OrderByDescending(x => x.SchedulingClass);
             foreach (HardwareCpuSet cpuset in cpusetsbyn0)
             {
-                int _pcore = cpuset.LogicalProcessorIndex;
-                //System.Diagnostics.App.LogDebug($"Logical={cpuset.LogicalProcessorIndex} Physical={_pcore} Prev={_prev} ");
-                if (_pcore != _prev)
-                {
-                    //System.Diagnostics.App.LogDebug($"Add Physical={_pcore} Count={count} ");
-                    coresbyn0[count] = new int[2];
-                    coresbyn0[count][0] = _pcore;
-                    coresbyn0[count][1] = cpuset.SchedulingClass;
-                    count++;
-                }
-                _prev = _pcore;
+                coresbyn0.Add(cpuset.LogicalProcessorIndex);
             }
             return coresbyn0;
         }
         /// <summary>
         /// Get Logicals only NumaNodeIndex > 0
         /// </summary>
-        public static int[][] LogicalsIndex()
+        public static List<int> LogicalsIndex()
         {
-            var coresbyindex = new int[HardwareCores.Length][];
-            int count = 0;
+            var coresbyindex = new List<int>();
             var cpusetsbyindex = HardwareCpuSets.Where(x => x.NumaNodeIndex > 0);
-            int _prev = -1;
             foreach (HardwareCpuSet cpuset in cpusetsbyindex)
             {
-                int _pcore = cpuset.LogicalProcessorIndex;
-                //System.Diagnostics.App.LogDebug($"Logical={cpuset.LogicalProcessorIndex} Physical={_pcore} Prev={_prev} ");
-                if (_pcore != _prev)
-                {
-                    //System.Diagnostics.App.LogDebug($"Add Physical={_pcore} Count={count} ");
-                    coresbyindex[count] = new int[2];
-                    coresbyindex[count][0] = _pcore;
-                    coresbyindex[count][1] = PhysicalCore(_pcore);
-                    count++;
-                }
-                _prev = _pcore;
+                    coresbyindex.Add(cpuset.LogicalProcessorIndex);
             }
             return coresbyindex;
         }

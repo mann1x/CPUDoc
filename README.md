@@ -94,6 +94,11 @@ You can compile with Visual Studio 2019 and .NET Core 5.
 
 ## Changelog:
 
+- v1.1.6 Beta
+    - Fix: CPU Status Display and NumaZero threads selection
+- v1.1.5 Beta
+    - Fix: Display and selection of Intel E-Cores
+    - Fix: PSA Power Plan optimization for Hybrid
 - v1.1.4 Beta
     - Fix: Bug in Zen Initialization
 - v1.1.3 Beta

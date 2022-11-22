@@ -67,182 +67,89 @@ namespace CPUDoc
         }
         private void Window_SourceInitialized(object sender, EventArgs e)
         {
-            App.LogDebug($"SourceInit Window Initialized {WindowSettings.Default.Initialized}");
-            App.systemInfo.WinMaxSize = System.Windows.SystemParameters.WorkArea.Height;
-
-            pcurrent = App.AppConfigs[0];
-
-            if (WindowSettings.Default.Initialized)
-            {
-                App.LogDebug($"Restoring Window Position {WindowSettings.Default.Top} {WindowSettings.Default.Left} {WindowSettings.Default.Height} {WindowSettings.Default.Width} {WindowSettings.Default.Maximized}");
-                App.LogDebug($"Restoring Window WorkArea {SystemParameters.WorkArea.Top} {SystemParameters.WorkArea.Left} {SystemParameters.WorkArea.Height} {SystemParameters.WorkArea.Width}");
-
-                WindowState = WindowState.Normal;
-                Top = WindowSettings.Default.Top < SystemParameters.WorkArea.Top ? SystemParameters.WorkArea.Top : WindowSettings.Default.Top;
-                Left = WindowSettings.Default.Left < SystemParameters.WorkArea.Left ? SystemParameters.WorkArea.Left : WindowSettings.Default.Left;
-                Height = WindowSettings.Default.Height > SystemParameters.WorkArea.Height ? SystemParameters.WorkArea.Height : WindowSettings.Default.Height;
-                Width = WindowSettings.Default.Width > SystemParameters.WorkArea.Width ? SystemParameters.WorkArea.Width : WindowSettings.Default.Width;
-                if (WindowSettings.Default.Maximized)
-                {
-                    WindowState = WindowState.Maximized;
-                }
-            }
-            else
-            {
-
-                double screenWidth = System.Windows.SystemParameters.PrimaryScreenWidth;
-                double screenHeight = System.Windows.SystemParameters.PrimaryScreenHeight;
-                double windowWidth = this.Width;
-                double windowHeight = this.Height;
-                this.Left = (screenWidth / 2) - (windowWidth / 2);
-                this.Top = (screenHeight / 2) - (windowHeight / 2);
-                WindowStartupLocation = WindowStartupLocation.CenterScreen;
-                App.LogDebug($"SizeChanged Set Center and Save");
-                WindowSettings.Default.Initialized = true;
-                this.UpdateLayout();
-                SaveWinPos();
-            }
-
-            if (App.tbtimer.Enabled) BtnThreadBoostLabel.Text = "Stop";
-
-            //pcurrent = new appConfigs();
-            //appConfigs.Init();
-
-            cbTBAutoStart.IsChecked = pcurrent.ThreadBooster ? true : false;
-            cbNumaZero.IsChecked = pcurrent.NumaZero ? true : false;
-            cbPSA.IsChecked = pcurrent.PowerSaverActive ? true : false;
-            cbZC.IsChecked = pcurrent.ZenControl ? true : false;
-            cbSysSetHack.IsChecked = pcurrent.SysSetHack ? true : false;
-            cbTraceInfo.IsChecked = App.AppSettings.LogInfo ? true : false;
-            cbTraceDebug.IsChecked = App.AppSettings.LogTrace ? true : false;
-            cbAUNotifications.IsChecked = App.AppSettings.AUNotifications ? true : false;
-            listNumaZeroType.SelectedIndex = pcurrent.NumaZeroType;
-            cbPoolingRate.IsChecked = pcurrent.ManualPoolingRate ? true : false;
-            listPoolingRate.SelectedIndex = pcurrent.PoolingRate;
-
-            SSHStatus.Text = App.pactive.SysSetHack ? "Enabled" : "Disabled";
-            PSAStatus.Text = App.pactive.PowerSaverActive ? "Enabled" : "Disabled";
-            N0Status.Text = App.pactive.NumaZero ? "Enabled" : "Disabled";
-
-            cbPPT.IsChecked = pcurrent.ZenControlPPTAuto ? true : false;
-            cbTDC.IsChecked = pcurrent.ZenControlTDCAuto ? true : false;
-            cbEDC.IsChecked = pcurrent.ZenControlEDCAuto ? true : false;
-
-            PPThpx.IsEnabled = !cbPPT.IsChecked == true;
-            TDChpx.IsEnabled = !cbTDC.IsChecked == true;
-            EDChpx.IsEnabled = !cbEDC.IsChecked == true;
-
-            if (App.systemInfo.ZenStates)
-            {
-                if (App.systemInfo.ZenMaxPPT > 0) cbPPT.Content = $"Auto PPT (Max: {App.systemInfo.ZenMaxPPT})";
-                if (App.systemInfo.ZenMaxTDC > 0) cbTDC.Content = $"Auto TDC (Max: {App.systemInfo.ZenMaxTDC})";
-                if (App.systemInfo.ZenMaxEDC > 0) cbEDC.Content = $"Auto EDC (Max: {App.systemInfo.ZenMaxEDC})";
-            }
-
-            if (pcurrent.ZenControlPPThpx.ToString() == "" || pcurrent.ZenControlPPThpx == 0) pcurrent.ZenControlPPThpx = App.systemInfo.ZenMaxPPT;
-            if (pcurrent.ZenControlTDChpx.ToString() == "" || pcurrent.ZenControlTDChpx == 0) pcurrent.ZenControlTDChpx = App.systemInfo.ZenMaxTDC;
-            if (pcurrent.ZenControlEDChpx.ToString() == "" || pcurrent.ZenControlEDChpx == 0) pcurrent.ZenControlEDChpx = App.systemInfo.ZenMaxEDC;
-
-            PPThpx.Text = pcurrent.ZenControlPPThpx.ToString();
-            TDChpx.Text = pcurrent.ZenControlTDChpx.ToString();
-            EDChpx.Text = pcurrent.ZenControlEDChpx.ToString();
-
-            var gridLength1 = new GridLength(1.1, GridUnitType.Star);
-            var gridLength2 = new GridLength(1, GridUnitType.Star);
-
-
             try
             {
-                Grid _gridblock = current_cpumask;
+                App.LogDebug($"SourceInit Window Initialized {WindowSettings.Default.Initialized}");
+                App.systemInfo.WinMaxSize = System.Windows.SystemParameters.WorkArea.Height;
 
-                current_cpumask.HorizontalAlignment = HorizontalAlignment.Left;
-                Thickness curcpugirmar = new Thickness(4, 4, 4, 4);
-                current_cpumask.Margin = curcpugirmar;
-                int _col = 0;
+                pcurrent = App.AppConfigs[0];
 
-                int threads = ProcessorInfo.HardwareCpuSets.Length;
-
-                int _maxrow = threads > 7 ? 7 : threads;
-                if (threads == 12 || threads == 24 || threads == 48) _maxrow = 5;
-                if (threads == 8) _maxrow = 3;
-
-                int _row = 0;
-
-                Thickness curcpupad = new Thickness(1, 0, 1, 0);
-                Thickness curcpumar = new Thickness(1, 2, 1, 2);
-
-                int len = 0;
-                int t0 = -1;
-                int t1 = -1;
-
-                int pcore = 0;
-
-                for (int c = 0; c < threads; ++c)
+                if (WindowSettings.Default.Initialized)
                 {
-                    len = 0;
-                    if (t1 != ProcessorInfo.HardwareCpuSets[c].LogicalProcessorIndex)
+                    App.LogDebug($"Restoring Window Position {WindowSettings.Default.Top} {WindowSettings.Default.Left} {WindowSettings.Default.Height} {WindowSettings.Default.Width} {WindowSettings.Default.Maximized}");
+                    App.LogDebug($"Restoring Window WorkArea {SystemParameters.WorkArea.Top} {SystemParameters.WorkArea.Left} {SystemParameters.WorkArea.Height} {SystemParameters.WorkArea.Width}");
+
+                    WindowState = WindowState.Normal;
+                    Top = WindowSettings.Default.Top < SystemParameters.WorkArea.Top ? SystemParameters.WorkArea.Top : WindowSettings.Default.Top;
+                    Left = WindowSettings.Default.Left < SystemParameters.WorkArea.Left ? SystemParameters.WorkArea.Left : WindowSettings.Default.Left;
+                    Height = WindowSettings.Default.Height > SystemParameters.WorkArea.Height ? SystemParameters.WorkArea.Height : WindowSettings.Default.Height;
+                    Width = WindowSettings.Default.Width > SystemParameters.WorkArea.Width ? SystemParameters.WorkArea.Width : WindowSettings.Default.Width;
+                    if (WindowSettings.Default.Maximized)
                     {
-                        if (c < ProcessorInfo.HardwareCpuSets.Length)
-                        {
-                            t0 = ProcessorInfo.HardwareCpuSets[c].LogicalProcessorIndex;
-                            len = 1;
-                            if (c <= threads - 1)
-                            {
-                                if (ProcessorInfo.HardwareCpuSets[c].CoreIndex == ProcessorInfo.HardwareCpuSets[c + 1].CoreIndex)
-                                {
-                                    len = 2;
-                                    t1 = ProcessorInfo.HardwareCpuSets[c + 1].LogicalProcessorIndex;
-                                }
-                            }
-                        }
-                        //App.LogDebug($"C{c} T0-{t0} T1-{t1}");
-                        Button btnCore = new Button { Width=32, VerticalAlignment = VerticalAlignment.Center, Content = $"C{pcore}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                        Button btnT0 = new Button { Width = 16, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Content = $"T0", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                        ProgressBar loadT0 = new ProgressBar { Name = "tload", Maximum = 100, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                        Button btnT1 = new Button { Width = 16, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Tag = $"{t1}", Content = $"T1", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                        ProgressBar loadT1 = new ProgressBar { Name = "tload", Maximum = 100, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t1}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                        loadT0.Width = 16;
-                        loadT1.Width = 16;
-                        loadT0.Height = 14;
-                        loadT1.Height = 14;
-                        loadT0.MaxWidth = 16;
-                        loadT1.MaxWidth = 16;
-
-                        Button btnSpace = new Button { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Content = $"TX", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                        App.LogDebug($"C{c} {_col} {_row} {threads}");
-                        _gridblock.Children.Add(btnCore);
-                        Grid.SetColumn(btnCore, _col);
-                        Grid.SetRow(btnCore, _row);
-                        if (len > 0)
-                        {
-                            _gridblock.Children.Add(btnT0);
-                            Grid.SetColumn(btnT0, _col + 1);
-                            Grid.SetRow(btnT0, _row);
-                            _gridblock.Children.Add(loadT0);
-                            Grid.SetColumn(loadT0, _col + 2);
-                            Grid.SetRow(loadT0, _row);
-                            _gridblock.Children.Add(btnT1);
-                            Grid.SetColumn(btnT1, _col + 3);
-                            Grid.SetRow(btnT1, _row);
-                            _gridblock.Children.Add(loadT1);
-                            Grid.SetColumn(loadT1, _col + 4);
-                            Grid.SetRow(loadT1, _row);
-                        }
-                        _gridblock.Children.Add(btnSpace);
-                        Grid.SetColumn(btnSpace, _col + 5);
-                        Grid.SetRow(btnSpace, _row);
-                        if (t1 != -1)
-                        {
-                            btnT1.Visibility = Visibility.Visible;
-                        }
-
-                        pcore++;
-                        _row++;
-                        _col = _row > _maxrow ? _col + 6 : _col;
-                        _row = _row > _maxrow ? 0 : _row;
+                        WindowState = WindowState.Maximized;
                     }
-
                 }
+                else
+                {
+
+                    double screenWidth = System.Windows.SystemParameters.PrimaryScreenWidth;
+                    double screenHeight = System.Windows.SystemParameters.PrimaryScreenHeight;
+                    double windowWidth = this.Width;
+                    double windowHeight = this.Height;
+                    this.Left = (screenWidth / 2) - (windowWidth / 2);
+                    this.Top = (screenHeight / 2) - (windowHeight / 2);
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                    App.LogDebug($"SizeChanged Set Center and Save");
+                    WindowSettings.Default.Initialized = true;
+                    this.UpdateLayout();
+                    SaveWinPos();
+                }
+
+                if (App.tbtimer.Enabled) BtnThreadBoostLabel.Text = "Stop";
+
+                //pcurrent = new appConfigs();
+                //appConfigs.Init();
+
+                cbTBAutoStart.IsChecked = pcurrent.ThreadBooster ? true : false;
+                cbNumaZero.IsChecked = pcurrent.NumaZero ? true : false;
+                cbPSA.IsChecked = pcurrent.PowerSaverActive ? true : false;
+                cbZC.IsChecked = pcurrent.ZenControl ? true : false;
+                cbSysSetHack.IsChecked = pcurrent.SysSetHack ? true : false;
+                cbTraceInfo.IsChecked = App.AppSettings.LogInfo ? true : false;
+                cbTraceDebug.IsChecked = App.AppSettings.LogTrace ? true : false;
+                cbAUNotifications.IsChecked = App.AppSettings.AUNotifications ? true : false;
+                listNumaZeroType.SelectedIndex = pcurrent.NumaZeroType;
+                cbPoolingRate.IsChecked = pcurrent.ManualPoolingRate ? true : false;
+                listPoolingRate.SelectedIndex = pcurrent.PoolingRate;
+
+                SSHStatus.Text = App.pactive.SysSetHack ? "Enabled" : "Disabled";
+                PSAStatus.Text = App.pactive.PowerSaverActive ? "Enabled" : "Disabled";
+                N0Status.Text = App.pactive.NumaZero ? "Enabled" : "Disabled";
+
+                cbPPT.IsChecked = pcurrent.ZenControlPPTAuto ? true : false;
+                cbTDC.IsChecked = pcurrent.ZenControlTDCAuto ? true : false;
+                cbEDC.IsChecked = pcurrent.ZenControlEDCAuto ? true : false;
+
+                PPThpx.IsEnabled = !cbPPT.IsChecked == true;
+                TDChpx.IsEnabled = !cbTDC.IsChecked == true;
+                EDChpx.IsEnabled = !cbEDC.IsChecked == true;
+
+                if (App.systemInfo.ZenStates)
+                {
+                    if (App.systemInfo.ZenMaxPPT > 0) cbPPT.Content = $"Auto PPT (Max: {App.systemInfo.ZenMaxPPT})";
+                    if (App.systemInfo.ZenMaxTDC > 0) cbTDC.Content = $"Auto TDC (Max: {App.systemInfo.ZenMaxTDC})";
+                    if (App.systemInfo.ZenMaxEDC > 0) cbEDC.Content = $"Auto EDC (Max: {App.systemInfo.ZenMaxEDC})";
+                }
+
+                if (pcurrent.ZenControlPPThpx.ToString() == "" || pcurrent.ZenControlPPThpx == 0) pcurrent.ZenControlPPThpx = App.systemInfo.ZenMaxPPT;
+                if (pcurrent.ZenControlTDChpx.ToString() == "" || pcurrent.ZenControlTDChpx == 0) pcurrent.ZenControlTDChpx = App.systemInfo.ZenMaxTDC;
+                if (pcurrent.ZenControlEDChpx.ToString() == "" || pcurrent.ZenControlEDChpx == 0) pcurrent.ZenControlEDChpx = App.systemInfo.ZenMaxEDC;
+
+                PPThpx.Text = pcurrent.ZenControlPPThpx.ToString();
+                TDChpx.Text = pcurrent.ZenControlTDChpx.ToString();
+                EDChpx.Text = pcurrent.ZenControlEDChpx.ToString();
+
+                Create_CpuDisplay();
 
                 if (cbTBAutoStart.IsChecked == true)
                 {
@@ -275,24 +182,134 @@ namespace CPUDoc
                 this.UpdateLayout();
                 SaveWinPos();
 
+                AutoStartTask = CheckStartTask();
+
             }
             catch (Exception ex)
             {
-                App.LogDebug($"current cpu exception: {ex}");
+                App.LogDebug($"Window_SourceInit exception: {ex}");
+            }
+            finally
+            {
+                if (AutoStartTask) BtnAutoStartTaskLabel.Text = "Delete AutoStart Task";
+
+                SizeToContent = SizeToContent.WidthAndHeight;
+                SetValue(MinWidthProperty, ActualWidth);
+                SetValue(MinHeightProperty, ActualHeight);
+                ClearValue(SizeToContentProperty);
+
+                App.uitimer.Enabled = true;
+
+                WinLoaded = true;
             }
 
-            AutoStartTask = CheckStartTask();
+        }
 
-            if (AutoStartTask) BtnAutoStartTaskLabel.Text = "Delete AutoStart Task";
+        private void Create_CpuDisplay()
+        {
+            try
+            {
+                var gridLength1 = new GridLength(1.1, GridUnitType.Star);
+                var gridLength2 = new GridLength(1, GridUnitType.Star);
 
-            SizeToContent = SizeToContent.WidthAndHeight;
-            SetValue(MinWidthProperty, ActualWidth);
-            SetValue(MinHeightProperty, ActualHeight);
-            ClearValue(SizeToContentProperty);
+                Grid _gridblock = current_cpumask;
 
-            App.uitimer.Enabled = true;
+                current_cpumask.HorizontalAlignment = HorizontalAlignment.Left;
+                Thickness curcpugirmar = new Thickness(4, 4, 4, 4);
+                current_cpumask.Margin = curcpugirmar;
+                int _col = 0;
 
-            WinLoaded = true;
+                int threads = ProcessorInfo.HardwareCpuSets.Length;
+
+                int _maxrow = threads > 7 ? 7 : threads;
+                if (threads == 12 || threads == 20 || threads == 24 || threads == 48) _maxrow = 5;
+                if (threads == 8) _maxrow = 3;
+
+                int _row = 0;
+
+                Thickness curcpupad = new Thickness(1, 0, 1, 0);
+                Thickness curcpumar = new Thickness(1, 2, 1, 2);
+
+                int len = 0;
+                int t0 = -1;
+                int t1 = -1;
+
+                int pcore = 0;
+
+                for (int c = 0; c < threads ; ++c)
+                {
+                    len = 0;
+                    if (t1 != ProcessorInfo.HardwareCpuSets[c].LogicalProcessorIndex || (c == threads && len == 1))
+                    {
+                        t1 = -1;
+                        if (c < ProcessorInfo.HardwareCpuSets.Length)
+                        {
+                            t0 = ProcessorInfo.HardwareCpuSets[c].LogicalProcessorIndex;
+                            len = 1;
+                            if (c < threads - 1)
+                            {
+                                if (ProcessorInfo.HardwareCpuSets[c].CoreIndex == ProcessorInfo.HardwareCpuSets[c + 1].CoreIndex)
+                                {
+                                    len = 2;
+                                    t1 = ProcessorInfo.HardwareCpuSets[c + 1].LogicalProcessorIndex;
+                                }
+                            }
+                        }
+                        //App.LogDebug($"C{c} T0-{t0} T1-{t1}");
+                        Button btnCore = new Button { Width = 32, VerticalAlignment = VerticalAlignment.Center, Content = $"C{pcore}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        Button btnT0 = new Button { Width = 16, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Content = $"T0", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        ProgressBar loadT0 = new ProgressBar { Name = "tload", Maximum = 100, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        Button btnT1 = new Button { Width = 16, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Tag = $"{t1}", Content = $"T1", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        ProgressBar loadT1 = new ProgressBar { Name = "tload", Maximum = 100, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Tag = $"{t1}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        loadT0.Width = 16;
+                        loadT1.Width = 16;
+                        loadT0.Height = 14;
+                        loadT1.Height = 14;
+                        loadT0.MaxWidth = 16;
+                        loadT1.MaxWidth = 16;
+
+                        Button btnSpace = new Button { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Content = $"TX", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        App.LogDebug($"C{pcore} {t0} {t1} {_col} {_row} {threads}");
+                        _gridblock.Children.Add(btnCore);
+                        Grid.SetColumn(btnCore, _col);
+                        Grid.SetRow(btnCore, _row);
+                        if (len > 0)
+                        {
+                            _gridblock.Children.Add(btnT0);
+                            Grid.SetColumn(btnT0, _col + 1);
+                            Grid.SetRow(btnT0, _row);
+                            _gridblock.Children.Add(loadT0);
+                            Grid.SetColumn(loadT0, _col + 2);
+                            Grid.SetRow(loadT0, _row);
+                            _gridblock.Children.Add(btnT1);
+                            Grid.SetColumn(btnT1, _col + 3);
+                            Grid.SetRow(btnT1, _row);
+                            _gridblock.Children.Add(loadT1);
+                            Grid.SetColumn(loadT1, _col + 4);
+                            Grid.SetRow(loadT1, _row);
+                        }
+                        _gridblock.Children.Add(btnSpace);
+                        Grid.SetColumn(btnSpace, _col + 5);
+                        Grid.SetRow(btnSpace, _row);
+                        if (t1 != -1)
+                        {
+                            btnT1.Visibility = Visibility.Visible;
+                            loadT1.Visibility = Visibility.Visible;
+                        }
+
+                        pcore++;
+                        _row++;
+                        _col = _row > _maxrow ? _col + 6 : _col;
+                        _row = _row > _maxrow ? 0 : _row;
+                    }
+
+                }
+
+            }
+            catch (Exception ex)
+            {
+                App.LogExError($"Create_CpuDisplay exception:", ex);
+            }
         }
 
         private void Window_SizeChanged(object sender, EventArgs e)
@@ -940,9 +957,10 @@ namespace CPUDoc
                 //App.AppConfigs[pcurrent.id] = pcurrent;
                 bool validated = true;
 
-                if (!ValidateLimit("PPT Default", PPThpx)) validated = false;
-                if (!ValidateLimit("TDC Default", TDChpx)) validated = false;
-                if (!ValidateLimit("EDC Default", EDChpx)) validated = false;
+                
+                if (cbZC.IsChecked == true && cbPPT.IsChecked == false) if(!ValidateLimit("PPT Default", PPThpx)) validated = false;
+                if (cbZC.IsChecked == true && cbTDC.IsChecked == false) if (!ValidateLimit("TDC Default", TDChpx)) validated = false;
+                if (cbZC.IsChecked == true && cbEDC.IsChecked == false) if (!ValidateLimit("EDC Default", EDChpx)) validated = false;
 
                 pcurrent.ZenControlPPThpx = Convert.ToInt32(PPThpx.Text.ToString().Trim());
                 pcurrent.ZenControlTDChpx = Convert.ToInt32(TDChpx.Text.ToString().Trim());

@@ -74,7 +74,7 @@
                                     <RowDefinition Height="*"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                                <TextBlock Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center" >Thread Booster:</TextBlock>
+                                <TextBlock Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center" >ThreadBooster:</TextBlock>
                                 <Grid Grid.Column="1" Grid.Row="1">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
