@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
-using System.Linq.Expressions;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,6 +24,7 @@ namespace CPUDoc
         /// <param name="standardOutput"></param>
         /// <param name="standardError"></param>
         /// <returns></returns>
+
         public static int ExecuteProcess(
             string fileName,
             string arguments,
@@ -75,7 +75,7 @@ namespace CPUDoc
                     catch (ThreadAbortException)
                     {
                         // NOTE: to be able to "abort" the copy process and quit without additional exception we need to reset!
-                        Thread.ResetAbort();
+                        //Thread.ResetAbort();
                     }
                 }))
 

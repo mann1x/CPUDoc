@@ -115,6 +115,8 @@ namespace CPUDoc
             //cpuLoad = new CpuLoad();
             //cpuLoad.Update();
 
+            computer.Close();
+
         }
 
         public static void ReInit(bool _board = true, bool _gpu = false)
@@ -130,12 +132,16 @@ namespace CPUDoc
                 IsStorageEnabled = false
             };
             computer.Open();
+
+            computer.Close();
         }
 
         public static void UpdateZenSensors()
         {
             try
             {
+                if (object.ReferenceEquals(null, App.systemInfo.Zen)) App.systemInfo.ZenInit();
+
                 bool _refreshpt = App.systemInfo.ZenRefreshPowerTable();
                 App.systemInfo.Zen.RefreshSensors();
 
@@ -257,7 +263,7 @@ namespace CPUDoc
                 float? _cpupower = App.hwsensors.GetValue(HWSensorName.CPUPower);
                 App.systemInfo.UpdateLiveCPUClock($"{Math.Round((double)_cpuload, 0)}% CPU Load");
                 App.systemInfo.UpdateLiveCPUTemp($"{Math.Round((double)_cputemp, 1).ToString("0.0")}°C");
-                App.systemInfo.UpdateLiveCPUPower($"{Math.Round((double)_cpupower, 0)}W");
+                App.systemInfo.UpdateLiveCPUPower($"{Math.Round((double)(_cpupower ?? 0), 0)}W");
                 string _liveadditional = "";
                 if (_livevcore > 0) _liveadditional += $"vCore: {Math.Round((double)_livevcore, 4).ToString("0.000")}V\n";
                 if (_livetdc > 0) _liveadditional += $"TDC: {Math.Round((double)_livetdc, 0)}A ";
@@ -288,7 +294,7 @@ namespace CPUDoc
                 App.LogDebug($"HWM canceled");
             }
 
-            computer.Close();
+            //computer.Close();
 
         }
 
@@ -1009,6 +1015,7 @@ namespace CPUDoc
                     hwmtoken.ThrowIfCancellationRequested();
                 }
 
+                /*
                 if (!InitSensor)
                 {
                     App.LogDebug("HWM MONITOR INIT SENSORS");
@@ -1036,22 +1043,24 @@ namespace CPUDoc
                     InitSensor = true;
                 }
 
+                */
 
-                if (App.IsForegroundWwindowFullScreen()) App.UAStamp = DateTime.Now;
+                if (App.IsForegroundWindowFullScreen(false)) App.UAStamp = DateTime.Now;
 
                 //App.LogDebug("HWM MONITOR CPULOAD");
 
                 if (!ProcessorInfo.CpuLoadPerfCounter) ProcessorInfo._cpuLoad.Update();
                 //if (App.pactive.SysSetHack || App.pactive.PowerSaverActive) ProcessorInfo.CpuTotalLoadUpdate();
                 //if (App.pactive.SysSetHack) ProcessorInfo.CpuLoadUpdate();
-                
-                ProcessorInfo.CpuTotalLoadUpdate();
+
                 ProcessorInfo.CpuLoadUpdate();
+                ProcessorInfo.CpuTotalLoadUpdate();
                 App.cpuTotalLoad.Push(ProcessorInfo.cpuTotalLoad);
                 App.cpuTotalLoadLong.Push(ProcessorInfo.cpuTotalLoad);
 
                 //App.LogDebug($"TL={ProcessorInfo.cpuTotalLoad:0} AvgTL={App.cpuTotalLoad.Current:0} MaxTL={App.cpuTotalLoad.GetMax:0}");
-
+                
+                /*
                 if (MonitoringPooling == MonitoringPoolingSlow)
                 {
                     MonitoringPooling = App.cpuTotalLoad.GetMax > ThreadBooster.HighTotalLoadLowThreshold ? MonitoringPoolingSlow : MonitoringPoolingFast;
@@ -1107,10 +1116,7 @@ namespace CPUDoc
                         computer.Accept(new UpdateVisitor());
                         UpdateSensors(computer);
                     }
-                    */
                 }
-
-                /*
                 if (!MonitoringPause && !MonitoringStarted && MonitoringBenchStarted)
                 {
                     foreach (int _cpu in App.CurrentRun.RunLogicals)
@@ -1162,29 +1168,26 @@ namespace CPUDoc
                         App.systemInfo.DumpZenPowerTable();
                     }
                 }
-                */
 
                 if (MonitoringIdle)
                 {
                     App.LogDebug($"MonitoringIdle check CPU temp and load");
-                    int _cputemp = (int)App.hwsensors.GetValue(HWSensorName.CPUMBTemp);
+                    int _cputemp = (int)(App.hwsensors.GetValue(HWSensorName.CPUMBTemp) ?? 0);
                     if (App.hwsensors.IsEnabled(HWSensorName.CPUMBTemp) && _cputemp > 0)
                     {
                         IdleCurrentCPUTemp = _cputemp;
                     }
                     else
                     {
-                        _cputemp = (int)App.hwsensors.GetValue(HWSensorName.CPUTemp);
+                        _cputemp = (int)(App.hwsensors.GetValue(HWSensorName.CPUTemp) ?? 0);
                         if (_cputemp > 0) IdleCurrentCPUTemp = _cputemp;
                     }
-                    IdleCurrentCPULoad = (int)App.hwsensors.GetValue(HWSensorName.CPULoad);
+                    IdleCurrentCPULoad = (int)(App.hwsensors.GetValue(HWSensorName.CPULoad) ?? 0);
                     App.LogDebug($"MonitoringIdle current CPU Temp: {IdleCurrentCPUTemp} Load {IdleCurrentCPULoad}");
 
                     if (IdleCurrentCPUTemp == -99999) IdleCPUTempSensor = false;
 
                 }
-
-                /*
 
                 TimeSpan _delta = DateTime.Now - MonitoringStart;
                 //App.LogDebug($"Monitoring pause={MonitoringPause} bstarted={MonitoringBenchStarted} started={MonitoringStarted} stopped={MonitoringStopped} _delta={_delta.TotalSeconds}");

@@ -3,7 +3,6 @@
                     xmlns:tb="http://www.hardcodet.net/taskbar"
                     xmlns:local="clr-namespace:CPUDoc">
 
-    <!-- The taskbar context menu - the first row is a dummy to show off simple data binding -->
     <!--
         The "shared" directive is needed if we reopen the sample window a few times - WPF will otherwise
         reuse the same context menu (which is a resource) again (which will have its DataContext set to the old TaskbarIcon)
@@ -11,9 +10,9 @@
     <ContextMenu x:Shared="false" x:Key="SysTrayMenu">
         <MenuItem Header="{Binding Version}" Command="{Binding ShowWindowCommand}"/>
         <Separator />
-        <MenuItem Header="Toggle SysSetHack" Command="{Binding ToggleSSH}" />
-        <MenuItem Header="Toggle PowerSaveActive" Command="{Binding TogglePSA}" />
-        <MenuItem Header="Toggle NumaZero" Command="{Binding ToggleNumaZero}" />
+        <MenuItem Header="Toggle SysSetHack" Command="{Binding ToggleSSH}" x:Name="ToggleSSH"/>
+        <MenuItem Header="Toggle PowerSaverActive" Command="{Binding TogglePSA}" x:Name="TogglePSA"/>
+        <MenuItem Header="Toggle NumaZero" Command="{Binding ToggleNumaZero}" x:Name="ToggleN0"/>
         <Separator />
         <MenuItem Header="Exit" Command="{Binding ExitApplicationCommand}" />
     </ContextMenu>

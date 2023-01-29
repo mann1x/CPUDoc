@@ -1,0 +1,60 @@
+﻿<adonisControls:AdonisWindow x:Class="CPUDoc.Windows.SplashWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:adonisUi="clr-namespace:AdonisUI;assembly=AdonisUI"
+        xmlns:adonisControls="clr-namespace:AdonisUI.Controls;assembly=AdonisUI"
+        xmlns:adonisExtensions="clr-namespace:AdonisUI.Extensions;assembly=AdonisUI"
+        xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
+        mc:Ignorable="d"
+        Title="SplashWindow"
+        Height="96"
+        Width="280"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterScreen"
+        Topmost="True"
+        ResizeMode="NoResize"
+        Focusable="False"
+        WindowStyle="None"
+        Margin="0"
+        MaxHeight="96"
+        MaxWidth="280"
+        BorderThickness="1"
+        ScrollViewer.VerticalScrollBarVisibility="Disabled"
+        VerticalContentAlignment="Center"
+        ScrollViewer.CanContentScroll="False"
+        SnapsToDevicePixels="True"
+        AllowsTransparency="True"
+        Padding="0"
+        UseLayoutRounding="False"
+        Background="#FF2A2B34" Closing="AdonisWindow_Closing"
+        >
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="64"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="64"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Image HorizontalAlignment="Left" Height="64" Width="64" Grid.Column="0" Grid.Row="0"
+        	   Source="/Images/CPUDoc.ico" Margin="2,0,0,0"
+               VerticalAlignment="Top" />
+        
+        <Label Name="name" Height="64" FontSize="52" Content="CPUDoc" FontWeight="Bold" Grid.Column="1" Grid.Row="0"
+               Foreground="#cdcdcd" Margin="6,-8,6,0" VerticalContentAlignment="Top" Panel.ZIndex="1"
+               HorizontalAlignment="Center" VerticalAlignment="Top" />
+        
+        <ProgressBar adonisExtensions:ProgressBarExtension.IsProgressAnimationEnabled="False" adonisExtensions:ProgressBarExtension.Content="Initializing..." Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2"
+             Minimum="0"
+             Value="0"
+             Maximum="100"
+             Padding="0, 0"
+             x:Name="status"/>
+
+
+    </Grid>
+</adonisControls:AdonisWindow>

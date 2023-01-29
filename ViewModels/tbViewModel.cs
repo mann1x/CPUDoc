@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Drawing;
+using System.Linq;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Input;
@@ -13,6 +14,13 @@ namespace CPUDoc
     /// </summary>
     public class tbViewModel
     {
+        public static bool IsWindowOpen<T>(string name = "") where T : Window
+        {
+            return string.IsNullOrEmpty(name)
+               ? Application.Current.Windows.OfType<T>().Any()
+               : Application.Current.Windows.OfType<T>().Any(w => w.Name.Equals(name));
+        }
+
         /// <summary>
         /// Shows a window, if none is already open.
         /// </summary>
@@ -25,16 +33,21 @@ namespace CPUDoc
             },
             CommandAction = () =>
             {
-                Application.Current.MainWindow = new MainWindow();
-
-                Application.Current.MainWindow.DataContext = new
+                if (!IsWindowOpen<MainWindow>())
                 {
-                    settings = CPUDoc.Properties.Settings.Default,
-                    App.systemInfo
-                };
+                    Application.Current.MainWindow = new MainWindow();
 
+                    Application.Current.MainWindow.DataContext = new
+                    {
+                        settings = CPUDoc.Properties.Settings.Default,
+                        App.systemInfo,
+                    };
+                }
+
+                if (Application.Current.MainWindow.WindowState != WindowState.Normal) Application.Current.MainWindow.WindowState = WindowState.Normal;
                 Application.Current.MainWindow.Show();
                 Application.Current.MainWindow.Focus();
+                Application.Current.MainWindow.Activate();
             }
         };
 
@@ -75,7 +88,7 @@ namespace CPUDoc
                     },
                     CommandAction = () =>
                     {
-                        App.pactive.NumaZero = App.pactive.NumaZero ? false : true;
+                        App.pactive.NumaZero = (App.pactive.NumaZero ?? false) ? false : true;
                         App.SetActiveConfig();
                         App.LogDebug($"N0 Toggle: {App.pactive.NumaZero}");
                     }
@@ -99,7 +112,7 @@ namespace CPUDoc
                     },
                     CommandAction = () =>
                     {
-                        App.pactive.PowerSaverActive = App.pactive.PowerSaverActive ? false : true;
+                        App.pactive.PowerSaverActive = (App.pactive.PowerSaverActive ?? false) ? false : true;
                         App.SetActiveConfig();
                         App.LogDebug($"PSA Toggle: {App.pactive.PowerSaverActive}");
                     }
@@ -123,7 +136,7 @@ namespace CPUDoc
                     },
                     CommandAction = () =>
                     {
-                        App.pactive.SysSetHack = App.pactive.SysSetHack ? false : true;
+                        App.pactive.SysSetHack = (App.pactive.SysSetHack ?? false) ? false : true;
                         App.SetActiveConfig();
                         App.LogDebug($"SysSetHack Toggle: {App.pactive.SysSetHack}");
                     }

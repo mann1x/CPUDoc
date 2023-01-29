@@ -36,6 +36,7 @@ namespace CPUDoc
         string GetPowerPlanName(Guid guid);
         string GetActivePlanFriendlyName();
         bool PlanExists(Guid guid);
+        bool DeletePlan(Guid guid);
         bool SetActiveGuid(Guid guid);
         void SetDynamic(SettingSubgroup subgroup, Guid setting, PowerMode powerMode, uint value);
 
@@ -121,7 +122,15 @@ namespace CPUDoc
         }
         public bool PlanExists(Guid plan)
         {
-            return PowerManager.PlanExists(plan);
+            try
+            {
+                if (PowerManager.PlanExists(plan)) return true;
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public Guid GetActiveGuid()
@@ -171,6 +180,11 @@ namespace CPUDoc
             return PowerManager.GetPlanName(activePlanGuid);
         }
 
+        public bool DeletePlan(Guid plan)
+        {
+            PowerManager.DeletePlanIfExists(plan);
+            return !PowerManager.PlanExists(plan);
+        }
         public PowerPlan GetCurrentPlan()
         {
             Guid guid = GetActiveGuid();
@@ -198,7 +212,17 @@ namespace CPUDoc
 
         public string GetPowerPlanName(Guid guid)
         {
-            return PowerManager.GetPlanName(guid);
+            try
+            {
+                string name = string.Empty;
+                if (PowerManager.GetPlanName(guid).Length > 0) name = PowerManager.GetPlanName(guid);
+                return name;
+            }
+            catch (Exception ex)
+            {
+                App.LogExError($"GetPowerPlanName exception:", ex);
+                return "";
+            }
             /*
             string name = string.Empty;
             IntPtr lpszName = (IntPtr)null;

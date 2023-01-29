@@ -16,14 +16,15 @@ namespace CPUDoc
         private static IHardwareCore[] cores;
         private static IHardwareCpuSet[] cpuset;
         private static int[] logicalCores;
-        private static int LoadMediumThreshold = 20;
+        private static int LoadMediumThreshold = 40;
         private static int LoadLowThreshold = 20;
-        private static int LoadHighThreshold = 98;
+        private static int LoadHighThreshold = 95;
         private static PerformanceCounter TotalLoadCounter;
 
         public static bool CpuLoadPerfCounter = true;
         public static CpuLoad _cpuLoad = new CpuLoad();
         public static double cpuTotalLoad { get; set; }
+        public static double threadsTotalLoad { get; set; }
 
         /// <summary>
         /// Hardware core
@@ -235,6 +236,7 @@ namespace CPUDoc
         /// </summary>
         public static void CpuLoadUpdate()
         {
+            threadsTotalLoad = 0;
             for (var i = 0; i < LogicalCoresCount; ++i)
             {
                 float _Load;
@@ -252,8 +254,26 @@ namespace CPUDoc
                 int _loadzero = HardwareCpuSets[i].LoadZero > 40 ? 40 : HardwareCpuSets[i].LoadZero;
                 _loadzero = _Load == 0 ? _loadzero + 1 : _loadzero <= 2 ? 0 : _loadzero - 1;
                 HardwareCpuSets[i].LoadZero = _loadzero;
+                App.systemInfo.UpdateLoadThread(i, (int)_Load);
+                threadsTotalLoad += (int)_Load;
+            }
+            App.systemInfo.UpdateLoadThreads();
+        }
+
+        /// <summary>
+        /// Reset CpuLoad Threads
+        /// </summary>
+        public static void ResetLoadThreads()
+        {
+            for (var i = 0; i < LogicalCoresCount; ++i)
+            {
+                HardwareCpuSets[i].LoadHigh = 0;
+                HardwareCpuSets[i].LoadMedium = 0;
+                HardwareCpuSets[i].LoadLow = 0;
+                HardwareCpuSets[i].LoadZero = 0;
             }
         }
+
         /// <summary>
         /// Update Total CpuLoad
         /// </summary>
@@ -261,11 +281,14 @@ namespace CPUDoc
         {
             try
             {
-                cpuTotalLoad = CpuLoadPerfCounter ? TotalLoadCounter.NextValue() : _cpuLoad.GetTotalLoad();
+                //cpuTotalLoad = CpuLoadPerfCounter ? TotalLoadCounter.NextValue() : _cpuLoad.GetTotalLoad(); 
+                cpuTotalLoad = Math.Floor(threadsTotalLoad / App.systemInfo.CPULogicalProcessors);
+                // App.LogDebug($"[{cpuTotalLoad:0}] [{Math.Floor(threadsTotalLoad / App.systemInfo.CPULogicalProcessors):0}]");
             }
-            catch (System.InvalidOperationException)
+            catch (InvalidOperationException)
             {
-                cpuTotalLoad = CpuLoadPerfCounter ? TotalLoadCounter.NextValue() : _cpuLoad.GetTotalLoad();
+                cpuTotalLoad = Math.Floor(threadsTotalLoad / App.systemInfo.CPULogicalProcessors);
+                //cpuTotalLoad = CpuLoadPerfCounter ? TotalLoadCounter.NextValue() : _cpuLoad.GetTotalLoad();
             }
         }
 
@@ -697,6 +720,7 @@ namespace CPUDoc
             public int LoadHigh { get; set; }
             public bool ForcedEnable { get; set; }
             public DateTime ForcedWhen { get; set; }
+            
             public PerformanceCounter LoadCounter { get; set; }
         }
         enum SE_OBJECT_TYPE

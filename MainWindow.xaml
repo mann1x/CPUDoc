@@ -18,80 +18,107 @@
                             SourceInitialized="Window_SourceInitialized"
                             Loaded="MainWindow_Loaded"
                             SizeChanged="Window_SizeChanged"
-                            Closing="Window_Closing" Visibility="Visible" Activated="AdonisWindow_Activated"
+                            Closing="Window_Closing" Visibility="Visible" StateChanged="Window_StateChanged"
                             >
-        <StackPanel Margin="{adonisUi:Space}">
+
+    <Window.Resources>
+        <Style
+           TargetType="{x:Type ProgressBar}">
+            <Setter Property="adonisExtensions:ProgressBarExtension.IsProgressAnimationEnabled" Value="False"/>
+            <Setter Property="Background" Value="{DynamicResource {x:Static adonisUi:Brushes.Layer1BackgroundBrush}}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource {x:Static adonisUi:Brushes.Layer2BackgroundBrush}}"/>
+            <Setter Property="Foreground" Value="{DynamicResource {x:Static adonisUi:Brushes.Layer1InteractionBorderBrush}}"/>
+        </Style>
+    </Window.Resources>
+
+    <StackPanel Margin="{adonisUi:Space}">
 
         <tb:TaskbarIcon x:Name="tbIcon"
+            IconSource="/Images/CPUDoc.ico"
+            ToolTipText="CPUDoc"
             Visibility="Collapsed" />
 
         <Border Height="{Binding Path=TitleBarActualHeight, RelativeSource={RelativeSource AncestorType={x:Type adonisControls:AdonisWindow}}}" />
+        <Grid>
             <Grid>
-                <Grid>
-                    <TabControl>
-                        <TabControl.Resources>
-                            <Style TargetType="TextBlock" x:Key="HeaderTextBlockStyle">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TabItem}}" Value="True">
-                                        <Setter Property="FontWeight" Value="Bold"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TabControl.Resources>
-                        <TabItem MouseEnter="TabItemEnter">
-                            <TabItem.Header >
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Main" FontSize="15" Style="{StaticResource HeaderTextBlockStyle}"/>
-                                </StackPanel>
-                            </TabItem.Header>
-                            <Grid>
+                <TabControl>
+                    <TabControl.Resources>
+                        <Style TargetType="TextBlock" x:Key="HeaderTextBlockStyle">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TabItem}}" Value="True">
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TabControl.Resources>
+                    <TabItem MouseLeftButtonUp="TabItemEnter">
+                        <TabItem.Header >
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Main" FontSize="15" Style="{StaticResource HeaderTextBlockStyle}"/>
+                            </StackPanel>
+                        </TabItem.Header>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                <ColumnDefinition Width="*" adonisExtensions:LayerExtension.Layer="1"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center" >ThreadBooster:</TextBlock>
+                            <Grid Grid.Column="1" Grid.Row="1">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="*" adonisExtensions:LayerExtension.Layer="1"/>
                                 </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="*"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                                <TextBlock Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center" >ThreadBooster:</TextBlock>
-                                <Grid Grid.Column="1" Grid.Row="1">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
-                                        <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
-                                        <ColumnDefinition Width="*" adonisExtensions:LayerExtension.Layer="1"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Name="ConfigTag" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}"
+                                <TextBlock Grid.Column="0" Name="ConfigTag" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}"
                                     Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left"  VerticalAlignment="Center"
                                     Text="{Binding Path=systemInfo.ThreadBoosterStatus, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                    <Button Name="BtnThreadBoost" Grid.Column="1" VerticalAlignment="Center" Padding="3 0 3 0" Click="BtnThreadBoost_Click">
-                                    <TextBlock x:Name="BtnThreadBoostLabel" Margin="{adonisUi:Space}" Text="{Binding Path=systemInfo.ThreadBoosterButton, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                                        </TextBlock>
-                                    </Button>
-                                </Grid>
+                                <Button Name="BtnThreadBoost" Grid.Column="1" VerticalAlignment="Center" Padding="3 0 3 0" Click="BtnThreadBoost_Click">
+                                    <TextBlock x:Name="BtnThreadBoostLabel" Margin="{adonisUi:Space}" Text="{Binding Path=systemInfo.ThreadBoosterButton, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}">
+                                    </TextBlock>
+                                </Button>
+                            </Grid>
                             <TextBlock Grid.Column="0" Grid.Row="2" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center" >System CpuSet Mask:</TextBlock>
                             <Grid Grid.Column="1" Grid.Row="2" x:Name="current_cpumask">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
@@ -121,7 +148,7 @@
                                 </Grid.RowDefinitions>
 
                             </Grid>
-                                
+
                             <TextBlock Grid.Column="0" Grid.Row="3" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center" >SysSetHack:</TextBlock>
                             <TextBlock Grid.Column="1" Grid.Row="3" x:Name="SSHStatus" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}"
                                     Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left"  VerticalAlignment="Center"
@@ -136,31 +163,35 @@
                                     Text="{Binding Path=systemInfo.N0Status, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                             <TextBlock Grid.Column="0" Grid.Row="6" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Top"
                            Text="CPU:"/>
-                                <TextBlock Grid.Column="1" Grid.Row="6" Name="CPULabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
+                            <TextBlock Grid.Column="1" Grid.Row="6" Name="CPULabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
                            Text="{Binding systemInfo.CPULabel, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                <TextBlock Grid.Column="0" Grid.Row="7" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Top"
+                            <TextBlock Grid.Column="0" Grid.Row="7" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Top"
                            Text="Board:"/>
-                                <TextBlock Grid.Column="1" Grid.Row="7" Name="BoardLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
+                            <TextBlock Grid.Column="1" Grid.Row="7" Name="BoardLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
                            Text="{Binding systemInfo.BoardLabel, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                <TextBlock Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" 
+                            <TextBlock Grid.Column="0" Grid.Row="8" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Top"
+                           Text="System:"/>
+                            <TextBlock Grid.Column="1" Grid.Row="8" Name="SystemLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
+                           Text="{Binding systemInfo.SystemLabel, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" 
                            Text="Processors:"/>
-                                <TextBlock Grid.Column="1" Grid.Row="9" x:Name="ProcessorsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
+                            <TextBlock Grid.Column="1" Grid.Row="9" x:Name="ProcessorsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
                            Text="{Binding systemInfo.ProcessorsLabel, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                <TextBlock Grid.Column="0" Grid.Row="10" x:Name="MemoryRow" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" 
+                            <TextBlock Grid.Column="0" Grid.Row="10" x:Name="MemoryRow" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" 
                            Text="Memory:"/>
-                                <TextBlock Grid.Column="1" Grid.Row="10" x:Name="MemoryLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
+                            <TextBlock Grid.Column="1" Grid.Row="10" x:Name="MemoryLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" 
                            Text="{Binding systemInfo.MemoryLabel, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                <TextBlock Grid.Column="0" Grid.Row="11" x:Name="COCounts" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                            <TextBlock Grid.Column="0" Grid.Row="11" x:Name="COCounts" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center"
                            Text="CO Counts:" Visibility="Collapsed"/>
-                                <TextBlock Grid.Column="1" Grid.Row="11" x:Name="COCountsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Padding="5" VerticalAlignment="Center" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}" 
+                            <TextBlock Grid.Column="1" Grid.Row="11" x:Name="COCountsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Padding="5" VerticalAlignment="Center" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}" 
                            Text="{Binding systemInfo.ZenCOLabel, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" Visibility="Collapsed"/>
-                                <TextBlock Grid.Column="0" Grid.Row="12" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                            <TextBlock Grid.Column="0" Grid.Row="12" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center"
                            Text="Core Order:"/>
-                                <TextBlock Grid.Column="1" Grid.Row="12" Name="CPPCLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left"
+                            <TextBlock Grid.Column="1" Grid.Row="12" Name="CPPCLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left"
                            Text="{Binding systemInfo.CPPCLabel}"/>
-                                <TextBlock Grid.Column="0" Grid.Row="13" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                            <TextBlock Grid.Column="0" Grid.Row="13" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center"
                            Text="Perf Tags:"/>
-                                <TextBlock Grid.Column="1" Grid.Row="13" Name="CPPCTagsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Padding="5" VerticalAlignment="Center" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}"
+                            <TextBlock Grid.Column="1" Grid.Row="13" Name="CPPCTagsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Padding="5" VerticalAlignment="Center" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}"
                            Text="{Binding systemInfo.CPPCTagsLabel}"/>
 
                             <TextBlock x:Name="ECoresLabel" Grid.Column="0" Grid.Row="14" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right"  VerticalAlignment="Center" Text="E-Cores:" Visibility="Collapsed"/>
@@ -197,12 +228,12 @@
                                     <Grid.Resources>
                                     </Grid.Resources>
                                     <Button x:Name="BtnECoresEnable" Width="80" Grid.Column="0" VerticalAlignment="Center">
-                                    <RadioButton x:Name="RadioECoresEnable" GroupName="ECores" Tag="Enabled" Foreground="White" Checked="EcoresMode">
-                                        <TextBlock Text="ST + MT"></TextBlock>
-                                    </RadioButton>
+                                        <RadioButton x:Name="RadioECoresEnable" GroupName="ECores" Tag="Enabled" Foreground="White" Checked="EcoresMode">
+                                            <TextBlock Text="ST + MT"></TextBlock>
+                                        </RadioButton>
                                     </Button>
                                     <Button x:Name="BtnECoresDisable" Width="70" Grid.Column="2">
-                                    <RadioButton x:Name="RadioECoresDisable" GroupName="Ecores" Tag="Disabled" Foreground="White" Checked="EcoresMode">
+                                        <RadioButton x:Name="RadioECoresDisable" GroupName="Ecores" Tag="Disabled" Foreground="White" Checked="EcoresMode">
                                             <TextBlock Text="Custom"/>
                                         </RadioButton>
                                     </Button>
@@ -212,7 +243,7 @@
                         </Grid>
                     </TabItem>
 
-                    <TabItem MouseEnter="TabItemEnter">
+                    <TabItem MouseLeftButtonUp="TabItemEnter">
                         <TabItem.Header>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Configs" FontSize="15" Style="{StaticResource HeaderTextBlockStyle}" />
@@ -260,25 +291,21 @@
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
-                                <CheckBox Grid.Column="0" Grid.Row="6" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TBAutoStartCheckBox_Click" x:Name="cbTBAutoStart">
+                                <CheckBox Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TBAutoStartCheckBox_Click" x:Name="cbTBAutoStart">
                                     ThreadBooster
                                 </CheckBox>
 
-                                <CheckBox Grid.Column="0" Grid.Row="7" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="SysSetHack_Click" x:Name="cbSysSetHack">
+                                <CheckBox Grid.Column="0" Grid.Row="4" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="SysSetHack_Click" x:Name="cbSysSetHack">
                                     SysSetHack
                                 </CheckBox>
 
-                                <CheckBox Grid.Column="0" Grid.Row="8" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="PSA_Click" x:Name="cbPSA">
+                                <CheckBox Grid.Column="0" Grid.Row="6" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="PSA_Click" x:Name="cbPSA">
                                     PowerSaverActive
                                 </CheckBox>
 
-                                <CheckBox Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="ZC_Click" x:Name="cbZC">
-                                    ZenControl
-                                </CheckBox>
-
-                                <Grid Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="3" Grid.RowSpan="10" Margin = "20 0 0 0" x:Name="ZCGrid">
+                                <Grid Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="3" Grid.RowSpan="2" Margin = "20 0 0 0" x:Name="PSAGrid">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="25px"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="Auto"/>
@@ -320,39 +347,318 @@
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
-                                    <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Center">Mode</TextBlock>
-                                    <TextBlock Grid.Column="1" Grid.Row="0" HorizontalAlignment="Center">Default</TextBlock>
-                                    
-                                    <CheckBox Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="ZCPPT_Click" x:Name="cbPPT" IsChecked="True">
+                                    <TextBlock Grid.Column="1" Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="{adonisUi:Space}">PowerTweak:</TextBlock>
+
+                                    <RadioButton Grid.Column="2" Grid.Row="0" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Center" VerticalAlignment="Center" GroupName="PowerTweak" Tag="0" x:Name="PowerTweak_LowPo" IsChecked="False">
+                                        LowPower
+                                    </RadioButton>
+
+                                    <RadioButton Grid.Column="3" Grid.Row="0" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Center" VerticalAlignment="Center" GroupName="PowerTweak" Tag="1" x:Name="PowerTweak_AutoPo" IsChecked="True">
+                                        AutoPower
+                                    </RadioButton>
+
+                                    <RadioButton Grid.Column="4" Grid.Row="0" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Center" VerticalAlignment="Center" GroupName="PowerTweak" Tag="2" x:Name="PowerTweak_HighPo" IsChecked="False">
+                                        HighPower
+                                    </RadioButton>
+
+                                    <Path Fill="#FFFFFFFF"
+                                        Grid.ColumnSpan="3"
+                                        Grid.Column="2"
+                                        Grid.Row="1"
+                                        Stretch="Fill"
+                                        Margin="5,0,5,2"
+                                        VerticalAlignment="Top"
+                                        Height="1"
+                                        Data="M26,107 L220.04123,107"
+                                        SnapsToDevicePixels="True">
+                                        <Path.Stroke>
+                                            <LinearGradientBrush EndPoint="0.973,0.5"
+                                                 StartPoint="0.005,0.5">
+                                                    <GradientStop Color="LightGreen"
+                                                          Offset="0" />
+                                                <GradientStop Color="Red"
+                                                          Offset="1" />
+                                            </LinearGradientBrush>
+                                        </Path.Stroke>
+                                    </Path>
+
+                                    <TextBlock Grid.Column="1" Grid.Row="3" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="{adonisUi:Space}">Power Plan Personality:</TextBlock>
+
+                                    <RadioButton Grid.Column="2" Grid.Row="3" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Center" VerticalAlignment="Center" GroupName="Personality" Tag="0" x:Name="Persona_Auto" IsChecked="True">
+                                        Auto
+                                    </RadioButton>
+
+                                    <RadioButton Grid.Column="3" Grid.Row="3" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Center" VerticalAlignment="Center" GroupName="Personality" Tag="1" x:Name="Persona_Bala" IsChecked="False">
+                                        Balanced
+                                    </RadioButton>
+
+                                    <RadioButton Grid.Column="4" Grid.Row="3" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Center" VerticalAlignment="Center" GroupName="Personality" Tag="2" x:Name="Persona_Ulti" IsChecked="False">
+                                        Ultimate
+                                    </RadioButton>
+
+                                    <Path Fill="#FFFFFFFF"
+                                        Grid.ColumnSpan="2"
+                                        Grid.Column="3"
+                                        Grid.Row="4"
+                                        Stretch="Fill"
+                                        Margin="5,0,5,2"
+                                        VerticalAlignment="Top"
+                                        Height="1"
+                                        Data="M26,107 L220.04123,107"
+                                        SnapsToDevicePixels="True">
+                                        <Path.Stroke>
+                                            <LinearGradientBrush EndPoint="0.973,0.5"
+                                                 StartPoint="0.005,0.5">
+                                                <GradientStop Color="LightGreen"
+                                                          Offset="0" />
+                                                <GradientStop Color="Red"
+                                                          Offset="1" />
+                                            </LinearGradientBrush>
+                                        </Path.Stroke>
+                                    </Path>
+
+                                    <TextBlock Grid.Column="1" Grid.Row="6" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="{adonisUi:Space}">ActiveMode lowest PowerBias:</TextBlock>
+
+                                    <RadioButton Grid.Column="2" Grid.Row="6" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Center" VerticalAlignment="Center" GroupName="AMBias" Tag="-1" x:Name="AMBias_Auto" IsChecked="True">
+                                        Auto
+                                    </RadioButton>
+
+                                    <RadioButton Grid.Column="3" Grid.Row="6" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Center" VerticalAlignment="Center" GroupName="AMBias" Tag="0" x:Name="AMBias_Economizer" IsChecked="False">
+                                        Economizer
+                                    </RadioButton>
+
+                                    <RadioButton Grid.Column="4" Grid.Row="6" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Center" VerticalAlignment="Center" GroupName="AMBias" Tag="1" x:Name="AMBias_Standard" IsChecked="False">
+                                        Standard
+                                    </RadioButton>
+
+                                    <RadioButton Grid.Column="5" Grid.Row="6" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Center" VerticalAlignment="Center" GroupName="AMBias" Tag="2" x:Name="AMBias_Booster" IsChecked="False">
+                                        Booster
+                                    </RadioButton>
+
+                                    <Path Fill="#FFFFFFFF"
+                                        Grid.ColumnSpan="3"
+                                        Grid.Column="3"
+                                        Grid.Row="7"
+                                        Stretch="Fill"
+                                        Margin="5,0,5,2"
+                                        VerticalAlignment="Top"
+                                        Height="1"
+                                        Data="M26,107 L220.04123,107"
+                                        SnapsToDevicePixels="True">
+                                        <Path.Stroke>
+                                            <LinearGradientBrush EndPoint="0.973,0.5"
+                                                 StartPoint="0.005,0.5">
+                                                <GradientStop Color="LightGreen"
+                                                          Offset="0" />
+                                                <GradientStop Color="Red"
+                                                          Offset="1" />
+                                            </LinearGradientBrush>
+                                        </Path.Stroke>
+                                    </Path>
+
+                                    <TextBlock Grid.Column="1" Grid.Row="9" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="{adonisUi:Space}">GameMode lowest PowerBias:</TextBlock>
+
+                                    <RadioButton Grid.Column="2" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Center" VerticalAlignment="Center" GroupName="GMBias" Tag="-1" x:Name="GMBias_Auto" IsChecked="True">
+                                        Auto
+                                    </RadioButton>
+
+                                    <RadioButton Grid.Column="3" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Center" VerticalAlignment="Center" GroupName="GMBias" Tag="0" x:Name="GMBias_Economizer" IsChecked="False">
+                                        Economizer
+                                    </RadioButton>
+
+                                    <RadioButton Grid.Column="4" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Center" VerticalAlignment="Center" GroupName="GMBias" Tag="1" x:Name="GMBias_Standard" IsChecked="False">
+                                        Standard
+                                    </RadioButton>
+
+                                    <RadioButton Grid.Column="5" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Center" VerticalAlignment="Center" GroupName="GMBias" Tag="2" x:Name="GMBias_Booster" IsChecked="False">
+                                        Booster
+                                    </RadioButton>
+
+                                    <Path Fill="#FFFFFFFF"
+                                        Grid.ColumnSpan="3"
+                                        Grid.Column="3"
+                                        Grid.Row="10"
+                                        Stretch="Fill"
+                                        Margin="5,0,5,2"
+                                        VerticalAlignment="Top"
+                                        Height="1"
+                                        Data="M26,107 L220.04123,107"
+                                        SnapsToDevicePixels="True">
+                                        <Path.Stroke>
+                                            <LinearGradientBrush EndPoint="0.973,0.5"
+                                                 StartPoint="0.005,0.5">
+                                                <GradientStop Color="LightGreen"
+                                                          Offset="0" />
+                                                <GradientStop Color="Red"
+                                                          Offset="1" />
+                                            </LinearGradientBrush>
+                                        </Path.Stroke>
+                                    </Path>
+
+                                    <CheckBox Grid.Column="1" Grid.Row="12" Grid.ColumnSpan="5" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="GMDetect" IsChecked="True">
+                                        Enable GameMode detection
+                                    </CheckBox>
+
+                                    <CheckBox Grid.Column="1" Grid.Row="14" Grid.ColumnSpan="5" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="GMFocusAssist" IsChecked="True">
+                                        Use FocusAssist API for GameMode detection
+                                    </CheckBox>
+
+                                    <CheckBox Grid.Column="1" Grid.Row="16" Grid.ColumnSpan="5" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="GMUserNotification" IsChecked="True">
+                                        Use UserNotification API for GameMode detection
+                                    </CheckBox>
+
+                                    <CheckBox Grid.Column="1" Grid.Row="18" Grid.ColumnSpan="5" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="GMFGSecondary" IsChecked="False">
+                                        Use Foreground Window full-screen detection on Secondary monitors for GameMode
+                                    </CheckBox>
+
+                                    <TextBlock Grid.Column="1" Grid.Row="19" HorizontalAlignment="Right" VerticalAlignment="Center">How long before your system goes to sleep:</TextBlock>
+                                    <ComboBox Grid.Column="2" Grid.Row="19" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="SleepIdle_Select" x:Name="listSleepIdle">
+
+                                        <ComboBoxItem Tag="0">Never</ComboBoxItem>
+                                        <ComboBoxItem Tag="60">1 minute</ComboBoxItem>
+                                        <ComboBoxItem Tag="120">2 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="180">3 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="300">5 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="600">10 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="900">15 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="1200">20 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="1500">25 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="1800">30 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="2700">45 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="3600">1 hour</ComboBoxItem>
+                                        <ComboBoxItem Tag="7200">2 hours</ComboBoxItem>
+                                        <ComboBoxItem Tag="10800">3 hours</ComboBoxItem>
+                                        <ComboBoxItem Tag="14400">4 hours</ComboBoxItem>
+                                        <ComboBoxItem Tag="18000">5 hours</ComboBoxItem>
+                                    </ComboBox>
+                                    <TextBlock Grid.Column="3" Grid.Row="19" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{Binding Path=systemInfo.SleepAllowed, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                    <TextBlock Grid.Column="1" Grid.Row="20" HorizontalAlignment="Right" VerticalAlignment="Center">How long before your monitor goes to standby:</TextBlock>
+                                    <ComboBox Grid.Column="2" Grid.Row="20" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="MonitorIdle_Select" x:Name="listMonitorIdle">
+
+                                        <ComboBoxItem Tag="0">Never</ComboBoxItem>
+                                        <ComboBoxItem Tag="60">1 minute</ComboBoxItem>
+                                        <ComboBoxItem Tag="120">2 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="180">3 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="300">5 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="600">10 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="900">15 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="1200">20 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="1500">25 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="1800">30 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="2700">45 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="3600">1 hour</ComboBoxItem>
+                                        <ComboBoxItem Tag="7200">2 hours</ComboBoxItem>
+                                        <ComboBoxItem Tag="10800">3 hours</ComboBoxItem>
+                                        <ComboBoxItem Tag="14400">4 hours</ComboBoxItem>
+                                        <ComboBoxItem Tag="18000">5 hours</ComboBoxItem>
+                                    </ComboBox>
+
+                                    <TextBlock Grid.Column="1" Grid.Row="21" HorizontalAlignment="Right" VerticalAlignment="Center">How long before your system goes to hybernation:</TextBlock>
+                                    <ComboBox Grid.Column="2" Grid.Row="21" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="HyberIdle_Select" x:Name="listHyberIdle">
+
+                                        <ComboBoxItem Tag="0">Never</ComboBoxItem>
+                                        <ComboBoxItem Tag="60">1 minute</ComboBoxItem>
+                                        <ComboBoxItem Tag="120">2 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="180">3 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="300">5 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="600">10 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="900">15 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="1200">20 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="1500">25 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="1800">30 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="2700">45 minutes</ComboBoxItem>
+                                        <ComboBoxItem Tag="3600">1 hour</ComboBoxItem>
+                                        <ComboBoxItem Tag="7200">2 hours</ComboBoxItem>
+                                        <ComboBoxItem Tag="10800">3 hours</ComboBoxItem>
+                                        <ComboBoxItem Tag="14400">4 hours</ComboBoxItem>
+                                        <ComboBoxItem Tag="18000">5 hours</ComboBoxItem>
+                                    </ComboBox>
+                                    <TextBlock Grid.Column="3" Grid.Row="21" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{Binding Path=systemInfo.HiberAllowed, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                </Grid>
+
+                                <CheckBox Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="ZC_Click" x:Name="cbZC">
+                                    ZenControl
+                                </CheckBox>
+
+                                <Grid Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="3" Grid.RowSpan="10" Margin = "20 0 0 0" x:Name="ZCGrid">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="25px"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Column="1" Grid.Row="0" HorizontalAlignment="Center">Mode</TextBlock>
+                                    <TextBlock Grid.Column="2" Grid.Row="0" HorizontalAlignment="Center">Default</TextBlock>
+
+                                    <CheckBox Grid.Column="1" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="ZCPPT_Click" x:Name="cbPPT" IsChecked="True">
                                         Auto PPT
                                     </CheckBox>
 
-                                    <TextBox Grid.Column="1" Grid.Row="1" Width="64" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="PPThpx" PreviewTextInput="pbolimit_PreviewTextInput">
+                                    <TextBox Grid.Column="2" Grid.Row="1" Width="64" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="PPThpx" PreviewTextInput="pbolimit_PreviewTextInput">
                                     </TextBox>
 
-                                    <CheckBox Grid.Column="0" Grid.Row="2" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="ZCTDC_Click" x:Name="cbTDC" IsChecked="True">
+                                    <CheckBox Grid.Column="1" Grid.Row="2" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="ZCTDC_Click" x:Name="cbTDC" IsChecked="True">
                                         Auto TDC
                                     </CheckBox>
 
-                                    <TextBox Grid.Column="1" Grid.Row="2" Width="64" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="TDChpx" PreviewTextInput="pbolimit_PreviewTextInput">
+                                    <TextBox Grid.Column="2" Grid.Row="2" Width="64" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="TDChpx" PreviewTextInput="pbolimit_PreviewTextInput">
                                     </TextBox>
 
-                                    <CheckBox Grid.Column="0" Grid.Row="3" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="ZCEDC_Click" x:Name="cbEDC" IsChecked="True">
+                                    <CheckBox Grid.Column="1" Grid.Row="3" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="ZCEDC_Click" x:Name="cbEDC" IsChecked="True">
                                         Auto EDC
                                     </CheckBox>
 
-                                    <TextBox Grid.Column="1" Grid.Row="3" Width="64" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="EDChpx" PreviewTextInput="pbolimit_PreviewTextInput">
+                                    <TextBox Grid.Column="2" Grid.Row="3" Width="64" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="EDChpx" PreviewTextInput="pbolimit_PreviewTextInput">
                                     </TextBox>
                                 </Grid>
-                               
+
 
                                 <CheckBox Grid.Column="0" Grid.Row="20" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="NumaZero_Click" x:Name="cbNumaZero">
                                     NumaZero
                                 </CheckBox>
 
-                                <TextBlock Grid.Column="1" Grid.Row="20" HorizontalAlignment="Right" VerticalAlignment="Center">Type:</TextBlock> 
+                                <TextBlock Grid.Column="1" Grid.Row="20" HorizontalAlignment="Right" VerticalAlignment="Center">Type:</TextBlock>
                                 <ComboBox Grid.Column="2" Grid.Row="20" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroType_Select" x:Name="listNumaZeroType">
-                                    
+
                                     <ComboBoxItem Tag="0">Auto</ComboBoxItem>
                                     <ComboBoxItem Tag="1">First 8 Cores</ComboBoxItem>
                                     <ComboBoxItem Tag="2">First 6 Cores</ComboBoxItem>
@@ -388,7 +694,7 @@
 
                     </TabItem>
 
-                    <TabItem MouseEnter="TabItemEnter">
+                    <TabItem MouseLeftButtonUp="TabItemEnter">
                         <TabItem.Header>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Settings" FontSize="15" Style="{StaticResource HeaderTextBlockStyle}" />
@@ -397,6 +703,7 @@
                         <StackPanel>
                             <Grid>
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
@@ -419,11 +726,11 @@
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
-                                <Button Grid.Column="0" Grid.Row="5" x:Name="BtnAutoStartTask" Click="BtnAutoStartTask_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Right" Margin="10 4 10 4">
+                                <Button Grid.Column="1" Grid.Row="5" x:Name="BtnAutoStartTask" Click="BtnAutoStartTask_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Left" Margin="5,5,5,5">
                                     <TextBlock Margin="{adonisUi:Space}" x:Name="BtnAutoStartTaskLabel" Text="Create AutoStart Task">
                                     </TextBlock>
                                 </Button>
-                                <Grid Grid.Column="0" Grid.Row="7" Grid.ColumnSpan="4" Margin="4 4 4 4">
+                                <Grid Grid.Column="0" Grid.Row="7" Grid.ColumnSpan="2" Margin="4,4,4,4">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
@@ -441,19 +748,15 @@
                                     </Button>
                                 </Grid>
 
-                                <CheckBox Grid.Column="0" Grid.Row="8" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="AUNotificationsCheckBox_Click" x:Name="cbAUNotifications">
+                                <CheckBox Grid.Column="0" Grid.Row="8" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="AUNotificationsCheckBox_Click" x:Name="cbAUNotifications" Grid.ColumnSpan="2">
                                     Automatic updates notification
                                 </CheckBox>
 
-                                <CheckBox Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TraceInfoCheckBox_Click" x:Name="cbTraceInfo">
-                                    Write Trace Information log
+                                <CheckBox Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TraceInfoCheckBox_Click" x:Name="cbTraceInfo" Grid.ColumnSpan="2">
+                                    Diagnostic log (DON'T enable unless requested, will slow down!)
                                 </CheckBox>
 
-                                <CheckBox Grid.Column="0" Grid.Row="10" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TraceDebugCheckBox_Click" x:Name="cbTraceDebug">
-                                    Write Debug Trace log
-                                </CheckBox>
-
-                                <Grid Grid.Column="0" Grid.Row="11" Grid.ColumnSpan="4" Margin="4 4 4 4">
+                                <Grid Grid.Column="0" Grid.Row="11" Grid.ColumnSpan="2" Margin="4,4,4,4">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="*"/>
                                         <RowDefinition Height="*"/>
@@ -473,7 +776,7 @@
 
                                 </Grid>
 
-                                <Grid Grid.Column="0" Grid.Row="11" Grid.ColumnSpan="4" Margin="4 4 4 4">
+                                <Grid Grid.Column="0" Grid.Row="11" Grid.ColumnSpan="2" Margin="4,4,4,4">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
@@ -500,7 +803,7 @@
 
                     </TabItem>
 
-                    <TabItem MouseEnter="TabItemEnter">
+                    <TabItem MouseLeftButtonUp="TabItemEnter">
                         <TabItem.Header>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="About" FontSize="15" Style="{StaticResource HeaderTextBlockStyle}"/>

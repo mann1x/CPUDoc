@@ -16,6 +16,9 @@ using LibreHardwareMonitor.Hardware;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Security.Permissions;
+using OSVersionExtension;
+using AutoUpdaterDotNET;
+using Hardcodet.Wpf.TaskbarNotification.Interop;
 
 namespace CPUDoc
 {
@@ -40,6 +43,9 @@ namespace CPUDoc
         public int CPULogicalProcessors { get; set; }
         public string CPULabel { get; set; }
         public string BoardLabel { get; set; }
+        public string SystemLabel { get; set; }
+        public string PPlanLabel { get; set; }
+        public static Guid PPlanGuid { get; set; }
         public string ProcessorsLabel { get; set; }
         public string MemoryLabel { get; set; }
         public string WindowsLabel { get; set; }
@@ -55,6 +61,7 @@ namespace CPUDoc
         public string CPPCTagsLabel { get; set; }
         public string CPPCPerfLabel { get; set; }
         public Cpu Zen { get; set; }
+        public bool ZenDLLFail { get; set; }
         public bool ZenStates { get; set; }
         public string ZenSMUVer { get; set; }
         public int ZenPTVersion { get; set; }
@@ -98,18 +105,19 @@ namespace CPUDoc
         public List<int> Plogicals { get; set; }
         public List<int> Elogicals { get; set; }
 
-        public string LiveCPUTemp { get; set; }
-        public string LiveCPUClock { get; set; }
-        public string LiveCPUPower { get; set; }
-        public string LiveCPUAdditional { get; set; }
-        public string LiveFinished { get; set; }
-
+        private int[] cpuTload;
+        public int[] CpuTload { get { return cpuTload; } }
+        
         public event PropertyChangedEventHandler PropertyChanged;
+        
         public AsusWMI AsusWmi = new AsusWMI();
 
         public MemoryConfig MEMCFG = new MemoryConfig();
+
         public List<MemoryModule> modules = new List<MemoryModule>();
+
         public List<BiosACPIFunction> biosFunctions = new List<BiosACPIFunction>();
+
         public BiosMemController BMC;
         public List<String> MemPartNumbers { get; set; }
         public string MemVdimm { get; set; }
@@ -135,10 +143,24 @@ namespace CPUDoc
         public double TBLoopEvery { get; set; }
         public string ThreadBoosterStatus { get; set; }
         public string ThreadBoosterButton { get; set; }
+        public bool ThreadBoosterRunning { get; set; }
+
+        public string SleepAllowed { get; set; }
+        public string HiberAllowed { get; set; }
+
         public string PSABias { get; set; }
         public string PSAStatus { get; set; }
         public string SSHStatus { get; set; }
         public string N0Status { get; set; }
+        public string ToggleSSH { get; set; }
+        public string TogglePSA { get; set; }
+        public string ToggleN0 { get; set; }
+        public string LiveCPUTemp { get; set; }
+        public string LiveCPUClock { get; set; }
+        public string LiveCPUPower { get; set; }
+        public string LiveCPUAdditional { get; set; }
+        public string LiveFinished { get; set; }
+
 
         private int EmptyTags()
         {
@@ -203,6 +225,15 @@ namespace CPUDoc
             CPUThreads = ProcessorInfo.LogicalCoresCount;
             CPUSocket = "N/A";
             CPULogicalProcessors = ProcessorInfo.LogicalCoresCount;
+            PPlanGuid = new Guid("175B2BEF-94E4-43FF-B545-BD1F233E48BD");
+            PPlanLabel = "";
+
+            ToggleN0 = "Toggle NumaZero";
+            TogglePSA = "Toggle PowerSaverActive";
+            ToggleSSH = "Toggle SysSetHack";
+
+            cpuTload = new int[ProcessorInfo.LogicalCoresCount];
+
             CPUFamily = 0;
             BoardBIOS = "N/A";
             BoardManufacturer = "N/A";
@@ -286,6 +317,8 @@ namespace CPUDoc
 
             try
             {
+                PPlanGuid = App.powerManager.GetActiveGuid();
+                PPlanLabel = App.powerManager.GetActivePlanFriendlyName();
 
                 CPUSensorsSource = "LibreHardwareMonitor";
                 HWMonitor.CPUSource = HWSensorSource.Libre;
@@ -477,7 +510,13 @@ namespace CPUDoc
         {
             try
             {
-                SMU.Status? status = Zen.RefreshPowerTable();
+                SMU.Status? status = SMU.Status.UNKNOWN_CMD;
+
+                if (Ring0.WaitPciBusMutex(50))
+                {
+                    status = Zen.RefreshPowerTable();
+                    Ring0.ReleasePciBusMutex();
+                }
 
                 if (status != SMU.Status.OK)
                 {
@@ -648,10 +687,20 @@ namespace CPUDoc
             try
             {
                 CPULabel = $"{CPUName} [Socket {CPUSocket}]\n{CPUDescription} x{CPUBits}";
-                BoardLabel = $"{BoardModel} [BIOS Version {BoardBIOS}]\n{BoardManufacturer}";
+                BoardLabel = $"{BoardManufacturer}\n{BoardModel} [BIOS Version {BoardBIOS}]";
 
                 if (WindowsLabel.Length > 0)
-                    BoardLabel += $"{WindowsLabel}";
+                    SystemLabel = $"{WindowsLabel}";
+                SystemLabel = SystemLabel.Length > 0 ? SystemLabel + "\n" : "";
+
+                if (App.powerManager.GetActiveGuid() != PPlanGuid)
+                {
+                    PPlanLabel = App.powerManager.GetActivePlanFriendlyName();
+                    PPlanGuid = App.powerManager.GetActiveGuid();
+                }
+                if (PPlanLabel.Length > 0)
+                    SystemLabel += $"{PPlanLabel}";
+
                 ProcessorsLabel = $"{CPUCores}";
                 if (HyperThreading) ProcessorsLabel += $" [Threads: {CPULogicalProcessors}]";
                 if (IntelHybrid)
@@ -684,22 +733,39 @@ namespace CPUDoc
                 if (ZenStates)
                 {
                     if (_MemoryLabel2.Length > 0) _MemoryLabel2 += " ";
+                    if (_MemoryLabel2.Length == 0 && MEMCFG.Frequency > 0) _MemoryLabel2 += $"\n";
                     if (MEMCFG.Frequency > 0)
                         _MemoryLabel2 += $"Clock: {MEMCFG.Frequency} MHz";
                 }
 
                 MemoryLabel = _MemoryLabel1;
-                if (_MemoryLabel1.Length > 0) MemoryLabel += $"\n";
-                MemoryLabel += _MemoryLabel2;
+                if (_MemoryLabel1.Length > 0 && _MemoryLabel2.Length > 0) MemoryLabel += "\n";
+                if (_MemoryLabel2.Length > 0) MemoryLabel += $"{_MemoryLabel2}";
 
                 if (MemoryLabel.Length == 0) MemoryLabel = "N/A";
 
+                if (object.ReferenceEquals(null, Zen)) ZenInit();
+
                 if (ZenStates)
                 {
-                    Zen.RefreshPowerTable();
-                    ZenPPT = Zen.GetPPTLimit();
-                    ZenBoost = Zen.GetBoostLimit();
-                    ZenScalar = Zen.GetPBOScalar();
+
+                    for (int r = 0; r < 20; ++r)
+                    {
+                        if (Ring0.WaitPciBusMutex(50))
+                        {
+                            Zen.RefreshPowerTable();
+                            ZenPPT = Zen.GetPPTLimit();
+                            ZenBoost = Zen.GetBoostLimit();
+                            ZenScalar = Zen.GetPBOScalar();
+                            r = 99;
+                            Ring0.ReleasePciBusMutex();
+                        }
+                        else
+                        {
+                            Thread.Sleep(25);
+                        }
+                    }
+
                     string _CPULabel = "";
                     if (ZenPPT > 0 && ZenMaxPPT > 0 && ZenPPT != ZenMaxPPT)
                     {
@@ -772,6 +838,7 @@ namespace CPUDoc
                 }
                 OnChange("CPULabel");
                 OnChange("BoardLabel");
+                OnChange("SystemLabel");
                 OnChange("ProcessorsLabel");
                 OnChange("MemoryLabel");
                 //App.LogDebug($"RefreshLabels done");
@@ -782,7 +849,6 @@ namespace CPUDoc
             }
 
         }
-
         public void WmiBasics()
         {
             try
@@ -1126,7 +1192,15 @@ namespace CPUDoc
                 {
                     foreach (ManagementObject objMgmt in objOS.Get())
                     {
-                        WindowsLabel += $"\n{objMgmt.Properties["Caption"].Value}";
+                        string Win10Prop = "";
+                        string WinBuild = "";
+                        string WinLabel = "";
+                        if (OSVersion.MajorVersion10Properties().DisplayVersion.Length > 0) Win10Prop = $" {OSVersion.MajorVersion10Properties().DisplayVersion}";
+                        if (OSVersion.BuildNumber > 0) WinBuild = $" build {OSVersion.BuildNumber}";
+                        if (OSVersion.MajorVersion10Properties().UBR.Length > 0) WinBuild += $".{OSVersion.MajorVersion10Properties().UBR}";
+                        WinLabel += $"{objMgmt.Properties["Caption"].Value}{Win10Prop}{WinBuild}";
+                        WindowsLabel += $"{WinLabel}";
+                        App.LogInfo($"OS: {WinLabel} [{OSVersion.GetOSVersion().Version.Major}.{OSVersion.GetOSVersion().Version.Minor}.{OSVersion.GetOSVersion().Version.Build}]");
                     }
                 }
             }
@@ -1210,7 +1284,7 @@ namespace CPUDoc
                         }
                         catch (Exception ex)
                         {
-                            App.LogExWarn($"Error Reading Hybrid/Coretype: {ex.Message}", ex);
+                            App.LogExWarn($"Error Reading Hybrid/CoreType: {ex.Message}", ex);
                             hybridreg = 3;
                             coretypereg = 0;
                         }
@@ -1533,6 +1607,65 @@ namespace CPUDoc
                 App.LogExError($"CpuSetsInit Exception: {ex.Message}", ex);
             }
         }
+
+        public bool ZenInit(bool docheck = false)
+        {
+            try
+            {
+                if (!ZenDLLFail)
+                {
+                    ZenStates = false;
+                    Zen?.Dispose();
+                    Zen = null;
+                    Zen = new Cpu();
+                    bool smucheck = false;
+                    int retries = 0;
+                    smucheck = Zen.smu.Version != 0U;
+
+                    if ((!smucheck && docheck) || (!smucheck && ZenSMUVer != "N/A"))
+                    {
+                        for (int i = 0; i < 25; ++i)
+                        {
+                            if (Ring0.WaitPciBusMutex(10))
+                            {
+                                Thread.Sleep(25);
+                                smucheck = Zen.GetSmuVersion() != 0U;
+                                if (smucheck)
+                                {
+                                    Zen.Dispose();
+                                    Zen = null;
+                                    Zen = new Cpu();
+                                    smucheck = Zen.smu.Version != 0U;
+                                }
+                                Ring0.ReleasePciBusMutex();
+                            }
+                            if (smucheck)
+                            {
+                                retries = i;
+                                i = 100;
+                            }
+                            else
+                            {
+                                retries++;
+                            }
+                        }
+                    }
+                    if (Zen.Status == IOModule.LibStatus.OK) ZenStates = true;
+                    App.LogInfo($"ZenInit({docheck}) ZenStates={ZenStates} SMU Check is {smucheck} retries: {retries}");
+                    return smucheck;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogDebug($"ZenInit Exception: {ex.Message}");
+                if (ex.Message.Contains("inpoutx64.dll")) ZenDLLFail = true;
+                return false;
+            }
+        }
         public void ZenMainInit()
         {
             try
@@ -1540,41 +1673,12 @@ namespace CPUDoc
                 if (CPUSocket == "AM4" || CPUSocket == "AM5")
                 {
                     bool smucheck = false;
+
                     try
                     {
                         Zen = new Cpu();
 
-                        smucheck = Zen.smu.Version != 0U;
-
-                        if (!smucheck)
-                        {
-                            int retries = 0;
-                            for (int i = 0; i < 250; ++i)
-                            {
-
-                                if (Ring0.WaitPciBusMutex(100))
-                                {
-                                    Zen.GetSmuVersion();
-                                    Ring0.ReleasePciBusMutex();
-                                }
-                                smucheck = Zen.smu.Version != 0U;
-                                if (smucheck)
-                                {
-                                    i = 100;
-                                }
-                                else
-                                {
-                                    Thread.Sleep(20);
-                                    Zen.Dispose();
-                                    Zen = null;
-                                    Zen = new Cpu();
-                                    retries++;
-                                }
-                            }
-                            App.LogInfo($"Zen SMU Check retries: {retries}");
-                        }
-
-                        smucheck = Zen.smu.Version != 0U;
+                        smucheck = ZenInit();
 
                         if (Zen.info.family == Cpu.Family.FAMILY_19H) Zen3 = true;
 
@@ -1590,10 +1694,9 @@ namespace CPUDoc
                             App.LogInfo($"Zen Zen3 flag (Family 19h): {Zen3}");
                             App.LogInfo($"Zen CpuID: {Zen.info.cpuid:X8}");
                             App.LogInfo($"Zen SVI2: {Zen.info.svi2.coreAddress:X8}:{Zen.info.svi2.socAddress:X8}");
-                            App.LogInfo($"Zen Test SMU: {smucheck}");
                             App.LogInfo($"Zen SMU Type: {Zen.smu.SMU_TYPE}");
                             App.LogInfo($"Zen OCMode: {Zen.GetOcMode()}");
-                            App.LogInfo($"Zen Base Clock: {Zen.baseClock} MHz [x{Zen.baseMulti}]");
+                            //App.LogInfo($"Zen Base Clock: {Zen.baseClock} MHz [x{Zen.baseMulti}]");
                         }
                         else
                         {
@@ -1610,16 +1713,41 @@ namespace CPUDoc
                     {
                         ZenStates = true;
 
-                        Zen.RefreshSensors();
+                        bool _sensors = false;
+                        for (int r = 0; r < 20; ++r)
+                        {
+                            if (Ring0.WaitPciBusMutex(50))
+                            {
+                                _sensors = Zen.RefreshSensors();
+                                r = 99;
+                                Ring0.ReleasePciBusMutex();
+                            } 
+                            else
+                            {
+                                Thread.Sleep(25);
+                            }
+                        }
 
                         CpuBusClock = Zen.cpuBusClock;
 
-                        ZenMaxBoost = Zen.GetMaxBoostLimit();
-                        ZenMaxPPT = Zen.GetMaxPPTLimit();
-                        ZenMaxTDC = Zen.GetMaxTDCLimit();
-                        ZenMaxEDC = Zen.GetMaxEDCLimit();
-                        ZenMaxTHM = Zen.GetMaxTHMLimit();
-
+                        for (int r = 0; r < 20; ++r)
+                        {
+                            if (Ring0.WaitPciBusMutex(50))
+                            {
+                                ZenMaxBoost = Zen.GetMaxBoostLimit();
+                                ZenMaxPPT = Zen.GetMaxPPTLimit();
+                                ZenMaxTDC = Zen.GetMaxTDCLimit();
+                                ZenMaxEDC = Zen.GetMaxEDCLimit();
+                                ZenMaxTHM = Zen.GetMaxTHMLimit();
+                                r = 99;
+                                Ring0.ReleasePciBusMutex();
+                            }
+                            else
+                            {
+                                Thread.Sleep(25);
+                            }
+                        }
+                            
                         App.LogInfo($"Zen BCLK: {CpuBusClock}");
 
                         if (CpuBusClock <= 0) CpuBusClock = 100;
@@ -2333,6 +2461,7 @@ namespace CPUDoc
                             sb.Clear();
                             sb = null;
 
+                            App.LogInfo($"Zen PowerTable Known: {ZenPTKnown}");
                             App.LogInfo($"Zen Boost: {ZenBoost}/{ZenMaxBoost}");
                             App.LogInfo($"Zen PPT: {ZenPPT}/{ZenMaxPPT}");
                             App.LogInfo($"Zen TDC: {ZenTDC}/{ZenMaxTDC} Supported?({Zen.info.TDCSupported})");
@@ -2434,7 +2563,16 @@ namespace CPUDoc
 
             if (modules.Count > 0)
             {
-                ReadChannelsInfo();
+                bool rchan = ReadChannelsInfo();
+                if (!rchan) 
+                { 
+                    for (int i = 0; i <= 10; ++i)
+                    {
+                        Thread.Sleep(25);
+                        rchan = ReadChannelsInfo();
+                        if (rchan) i = 10;
+                    }
+                }
 
                 var totalCapacity = 0UL;
 
@@ -2541,7 +2679,7 @@ namespace CPUDoc
                 var vdimm = Convert.ToSingle(Convert.ToDecimal(BMC.Config.MemVddio) / 1000);
                 if (vdimm > 0)
                 {
-                    MemVdimm = $"{vdimm:F4}V";
+                    MemVdimm = $"{vdimm:F3}V";
                     App.LogInfo($"Zen ReadMemoryConfig VDIMM BMC {MemVdimm}");
                 }
                 else if (AsusWmi != null && AsusWmi.Status == 1)
@@ -2557,7 +2695,7 @@ namespace CPUDoc
                 var vtt = Convert.ToSingle(Convert.ToDecimal(BMC.Config.MemVtt) / 1000);
                 if (vtt > 0)
                 {
-                    MemVtt = $"{vtt:F4}V";
+                    MemVtt = $"{vtt:F3}V";
                     App.LogInfo($"Zen ReadMemoryConfig VTT BMC {MemVtt}");
                 }
 
@@ -2584,7 +2722,7 @@ namespace CPUDoc
             BMC.Dispose();
         }
 
-        private void ReadChannelsInfo()
+        private bool ReadChannelsInfo()
         {
             try
             {
@@ -2622,10 +2760,12 @@ namespace CPUDoc
                         }
                     }
                 }
+                return true;
             }
             catch (Exception ex)
             {
                 App.LogExError($"ReadChannelsInfo Exception: {ex.Message}", ex);
+                return false;
             }
         }
         private void ReadTimings(uint offset = 0)
@@ -2749,7 +2889,23 @@ namespace CPUDoc
         {
             return biosFunctions.Find(x => x.IDString == name);
         }
-
+        public void UpdateLoadThread(int _thread, int _value)
+        {
+            try
+            {
+                cpuTload[_thread] = _value;
+                //App.LogInfo($"{_value}");
+            }
+            catch { }
+        }
+        public void UpdateLoadThreads()
+        {
+            try
+            {
+                OnChange("CpuTload");
+            }
+            catch { }
+        }
         public void UpdateLiveCPUTemp(string _value)
         {
             try
@@ -2816,8 +2972,16 @@ namespace CPUDoc
             {
                 ThreadBoosterStatus = _value.Length > 0 ? _value : "N/A";
                 //App.LogInfo($"{_value}");
-                ThreadBoosterButton = "Start";
-                if (App.thrThreadBooster.ThreadState == System.Threading.ThreadState.Running || App.thrThreadBooster.ThreadState == System.Threading.ThreadState.Background || App.tbtimer.Enabled == true) ThreadBoosterButton = "Stop";
+                if (App.thrThreadBooster.ThreadState == System.Threading.ThreadState.Running || App.thrThreadBooster.ThreadState == System.Threading.ThreadState.Background || App.tbtimer.Enabled == true)
+                {
+                    ThreadBoosterButton = "Stop";
+                    ThreadBoosterRunning = true;
+                }
+                else
+                {
+                    ThreadBoosterButton = "Start";
+                    ThreadBoosterRunning = false;
+                }
                 OnChange("ThreadBoosterStatus");
                 OnChange("ThreadBoosterButton");
             }
@@ -2828,25 +2992,49 @@ namespace CPUDoc
         {
             try
             {
-                string sleep = "";
+                string sleep = "", mode = "";
                 if (_status)
                 {
+                    PSABias = (App.PSABiasCurrent == 0) ? " [Economizer]" : (App.PSABiasCurrent == 1) ? " [Standard]" : " [Booster]";
                     sleep = App.psact_deep_b ? " [Deep Sleep]" : App.psact_light_b ? " [Light Sleep]" : "";
+                    mode = ThreadBooster.GameMode ? " [GameMode]" : ThreadBooster.ActiveMode ? " [ActiveMode]" : "";
                 }
-                PSAStatus = _status ? $"Enabled {PSABias}{sleep}" : "Disabled";
+
+                if (App.PPImportErrStatus) sleep = "[Error Initialization]";
+                PSAStatus = _status ? $"Enabled {PSABias}{sleep}{mode}" : "Disabled";
+                TogglePSA = _status ? $"Toggle PowerSaverActive OFF" : "Toggle PowerSaverActive ON";
+                PSAStatus = ThreadBoosterRunning || !App.psact_b ? PSAStatus : $"<Inactive> {PSAStatus}";
                 OnChange("PSAStatus");
                 OnChange("PSABias");
+                OnChange("TogglePSA");
             }
             catch { }
         }
 
+        public void SetSleepsAllowed()
+        {
+            try
+            {
+                bool _sleep = App.IsPwrSuspendAllowed();
+                bool _hibern = App.IsPwrHibernateAllowed();
+                SleepAllowed = _sleep ? "System Standby is available" : "System Standby is disabled";
+                HiberAllowed = _hibern ? "Hibernation is available" : "Hibernation is disabled";
+
+                OnChange("SleepAllowed");
+                OnChange("HiberAllowed");
+            }
+            catch { }
+        }
         public void SetSSHStatus(bool _status)
         {
             try
             {
-                SSHStatus = _status ? $"Enabled" : "Disabled";
-                if (_status) SSHStatus = App.systimer.Enabled && App.pactive.SysSetHack ? $"{SSHStatus} {ThreadBooster.CountBits(App.lastSysCpuSetMask)}/{ThreadBooster.CountBits(ThreadBooster.defFullBitMask)}" : $"{SSHStatus} (Inactive)";
+                SSHStatus = _status == true ? $"Enabled" : "Disabled";
+                if (_status == true) SSHStatus = App.systimer.Enabled && (App.pactive.SysSetHack ?? false) ? $"{SSHStatus} {ThreadBooster.CountBits(App.lastSysCpuSetMask)}/{ThreadBooster.CountBits(ThreadBooster.defFullBitMask)}" : $"{SSHStatus} (Inactive)";
+                SSHStatus = ThreadBoosterRunning ? SSHStatus : $"<Inactive> {SSHStatus}";
+                TogglePSA = _status ? $"Toggle SysSetHack OFF" : "Toggle SysSetHack ON";
                 OnChange("SSHStatus");
+                OnChange("ToggleSSH");
             }
             catch { }
         }
@@ -2854,8 +3042,11 @@ namespace CPUDoc
         {
             try
             {
-                N0Status = _status ? $"Enabled" : "Disabled";
-                if (_status) N0Status = App.numazero_b ? $"{N0Status} Selected: {App.n0enabledT0.Count() + App.n0enabledT1.Count()}T Excluded: {App.n0disabledT0.Count() + App.n0disabledT1.Count()}T" : $"{N0Status} (Inactive)";
+                N0Status = _status == true ? $"Enabled" : "Disabled";
+                if (_status == true) N0Status = App.numazero_b ? $"{N0Status} Selected: {App.n0enabledT0.Count() + App.n0enabledT1.Count()}T Excluded: {App.n0disabledT0.Count() + App.n0disabledT1.Count()}T" : $"{N0Status} (Inactive)";
+                N0Status = ThreadBoosterRunning ? N0Status : $"<Inactive> {N0Status}";
+                ToggleN0 = _status ? $"Toggle NumaZero OFF" : "Toggle NumaZero ON";
+                OnChange("ToggleN0");
                 OnChange("N0Status");
             }
             catch { }

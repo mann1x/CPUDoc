@@ -1,6 +1,7 @@
 ﻿using AutoUpdaterDotNET;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Configuration;
@@ -25,13 +26,28 @@ using NLog.Targets;
 using System.Text;
 using NLog.Config;
 using System.Threading.Tasks;
-using Hardcodet.Wpf.TaskbarNotification;
 using System.Windows.Threading;
 using Gma.System.MouseKeyHook;
 using net.r_eg.Conari;
 using net.r_eg.Conari.Accessors;
 using net.r_eg.Conari.Types;
 using OSVersionExtension;
+using CPUDoc.Windows;
+using System.Management;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Shapes;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media.Imaging;
+using Hardcodet.Wpf.TaskbarNotification;
+using System.Security;
+using net.r_eg.Conari.Core;
+using System.ServiceProcess;
+using Microsoft.Extensions.Hosting.WindowsServices;
+using static LibreHardwareMonitor.Interop.AdvApi32;
+using Newtonsoft.Json.Linq;
+using PowerManagerAPI;
 
 namespace CPUDoc
 {
@@ -45,9 +61,9 @@ namespace CPUDoc
         public static readonly string AutoUpdaterUrl = "https://raw.githubusercontent.com/mann1x/CPUDoc/master/CPUDoc/AutoUpdaterCPUDoc.json";
 
         //public static readonly string AutoUpdaterUrl = "https://raw.githubusercontent.com/mann1x/CPUDoc/master/CPUDoc/AutoUpdaterCPUDocTest.json";
-        //public static readonly string AutoUpdaterUrl = "https://raw.githubusercontent.com/mann1x/BenchMaestro/master/BenchMaestro/AutoUpdaterBenchMaestroTest.json";
 
         public static Logger logger = LogManager.GetCurrentClassLogger();
+        public static bool logger_b = false;
 
         private static readonly EventHook.EventHookFactory eventHookFactory = new EventHook.EventHookFactory();
         private static EventHook.ApplicationWatcher applicationWatcher;
@@ -69,9 +85,12 @@ namespace CPUDoc
         internal static Mutex instanceMutex;
         internal bool bMutex;
 
+        public static ulong TimerEffectiveus;
+        public static uint TimerResolution = 1;
+        public static bool TimerResolution_b = false;
+
         public static int InterlockHWM = 0;
         public static int InterlockTB = 0;
-        public static int InterlockUI = 0;
         public static int InterlockSys = 0;
 
         public static CancellationTokenSource hwmcts = new CancellationTokenSource();
@@ -84,15 +103,12 @@ namespace CPUDoc
 
         public static System.Timers.Timer hwmtimer = new System.Timers.Timer();
         public static System.Timers.Timer tbtimer = new System.Timers.Timer();
-        public static System.Timers.Timer uitimer = new System.Timers.Timer();
         public static System.Timers.Timer systimer = new System.Timers.Timer();
 
         public static Thread thrMonitor;
         public static int thridMonitor;
         public static Thread thrThreadBooster;
         public static int thridThreadBooster;
-        public static Thread thrUpdateUI;
-        public static int thridUpdateUI;
         public static Thread thrSys;
         public static int thridSys;
 
@@ -119,16 +135,34 @@ namespace CPUDoc
         public static int SysMaskPooling = 25;
 
         public static IPowerPlanManager powerManager = PowerManagerProvider.CreatePowerManager();
-        public static Guid PPGuid = new Guid("FBB9C3D1-AF6E-46CF-B02B-C411928D1BE1");
+        public static Guid PPGuidV1 = new Guid("FBB9C3D1-AF6E-46CF-B02B-C411928D1BE1");
+        public static Guid PPGuid = new Guid("FBB9C3D1-AF6E-46CF-B02B-C411928D2CE0");
+        public static string PPGuidV2B11 = "FBB9C3D1-AF6E-46CF-B02B-C411928D2CE1";
+        public static string PPNameV2B11 = "CPUDocDynamicW11_v2_Balanced.pow";
+        public static string PPGuidV2U11 = "FBB9C3D1-AF6E-46CF-B02B-C411928D2CE2";
+        public static string PPNameV2U11 = "CPUDocDynamicW11_v2_Ultimate.pow";
+        public static string PPGuidV2B10 = "FBB9C3D1-AF6E-46CF-B02B-C411928D2CE3";
+        public static string PPNameV2B10 = "CPUDocDynamicW10_v2_Balanced.pow";
+        public static string PPGuidV2U10 = "FBB9C3D1-AF6E-46CF-B02B-C411928D2CE4";
+        public static string PPNameV2U10 = "CPUDocDynamicW10_v2_Ultimate.pow";
 
         public static string boot_ppname;
-        public static Guid boot_ppguid;
+        public static Guid? boot_ppguid = null;
 
+        public static bool psact_b = false;
         public static bool psact_plan = false;
         public static bool psact_light_b = false;
         public static bool psact_deep_b = false;
-
+        public static int PPImportErrCnt = 0;
+        public static bool PPImportErrStatus = false;
         public static bool numazero_b = false;
+
+        public static int PPDutyCycling = 1;
+        public static int PPUSBSSuspend = 0;
+        public static int PPUSBSSuspendTimeout = 2000;
+
+        public static bool IsHibernateAllowed = false;
+        public static bool IsSuspendAllowed = false;
 
         public static MovingAverage cpuTotalLoad;
         public static MovingAverage cpuTotalLoadLong;
@@ -175,11 +209,113 @@ namespace CPUDoc
         
         public static DispatcherTimer autimer;
 
+        private static IDictionary<uint, string> _map;
+        private static ManagementEventWatcher _processStartedWatcher;
+        private static ManagementEventWatcher _processStoppedwatcher;
+
+        [Flags]
+        public enum SERVICE_CONTROL : uint
+        {
+            STOP = 0x00000001,
+            PAUSE = 0x00000002,
+            CONTINUE = 0x00000003,
+            INTERROGATE = 0x00000004,
+            SHUTDOWN = 0x00000005,
+            PARAMCHANGE = 0x00000006,
+            NETBINDADD = 0x00000007,
+            NETBINDREMOVE = 0x00000008,
+            NETBINDENABLE = 0x00000009,
+            NETBINDDISABLE = 0x0000000A,
+            DEVICEEVENT = 0x0000000B,
+            HARDWAREPROFILECHANGE = 0x0000000C,
+            POWEREVENT = 0x0000000D,
+            SESSIONCHANGE = 0x0000000E
+        }
+
+        public enum SERVICE_STATE : uint
+        {
+            SERVICE_STOPPED = 0x00000001,
+            SERVICE_START_PENDING = 0x00000002,
+            SERVICE_STOP_PENDING = 0x00000003,
+            SERVICE_RUNNING = 0x00000004,
+            SERVICE_CONTINUE_PENDING = 0x00000005,
+            SERVICE_PAUSE_PENDING = 0x00000006,
+            SERVICE_PAUSED = 0x00000007
+        }
+
+        [Flags]
+        public enum SERVICE_ACCEPT : uint
+        {
+            STOP = 0x00000001,
+            PAUSE_CONTINUE = 0x00000002,
+            SHUTDOWN = 0x00000004,
+            PARAMCHANGE = 0x00000008,
+            NETBINDCHANGE = 0x00000010,
+            HARDWAREPROFILECHANGE = 0x00000020,
+            POWEREVENT = 0x00000040,
+            SESSIONCHANGE = 0x00000080,
+        }
+
+        [Flags]
+        public enum SERVICE_ACCESS : uint
+        {
+            STANDARD_RIGHTS_REQUIRED = 0xF0000,
+            SERVICE_QUERY_CONFIG = 0x00001,
+            SERVICE_CHANGE_CONFIG = 0x00002,
+            SERVICE_QUERY_STATUS = 0x00004,
+            SERVICE_ENUMERATE_DEPENDENTS = 0x00008,
+            SERVICE_START = 0x00010,
+            SERVICE_STOP = 0x00020,
+            SERVICE_PAUSE_CONTINUE = 0x00040,
+            SERVICE_INTERROGATE = 0x00080,
+            SERVICE_USER_DEFINED_CONTROL = 0x00100,
+            SERVICE_ALL_ACCESS = 0xF003F
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SERVICE_STATUS
+        {
+            public long serviceType;
+            public SERVICE_STATE currentState;
+            public long controlsAccepted;
+            public long win32ExitCode;
+            public long serviceSpecificExitCode;
+            public long checkPoint;
+            public long waitHint;
+        };
+
+        [DllImport("advapi32.dll", CharSet = CharSet.Unicode, EntryPoint = "OpenSCManagerW", ExactSpelling = true, SetLastError = true)]
+        private static extern IntPtr OpenSCManager(string MachineName, string DatabaseName, SERVICE_ACCESS DesiredAccess);
+
+        [DllImport("advapi32.dll", CharSet = CharSet.Ansi, EntryPoint = "OpenServiceA", SetLastError = true)]
+        private static extern IntPtr OpenService(IntPtr hSCManager, string ServiceName, SERVICE_ACCESS DesiredAccess);
+
+        [DllImport("advapi32.dll", EntryPoint = "CloseServiceHandle", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool CloseServiceHandle(IntPtr hSCObject);
+
+        [DllImport("advapi32.dll", EntryPoint = "QueryServiceStatus", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool QueryServiceStatus(IntPtr hService, ref SERVICE_STATUS ServiceStatus);
+
+        [DllImport("advapi32.dll", EntryPoint = "DeleteService", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DeleteService(IntPtr hService);
+
+        [DllImport("advapi32.dll", EntryPoint = "ControlService", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool ControlService(IntPtr hService, SERVICE_CONTROL Control, ref SERVICE_STATUS ServiceStatus);
         internal struct LASTINPUTINFO
         {
             public uint cbSize;
             public uint dwTime;
         }
+        
+        [DllImport("powrprof.dll")]
+        public static extern bool IsPwrHibernateAllowed();
+
+        [DllImport("powrprof.dll")]
+        public static extern bool IsPwrSuspendAllowed();
 
         [DllImport(@"User32.dll")]
         private static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
@@ -208,12 +344,70 @@ namespace CPUDoc
 
             return lastInPut.dwTime;
         }
+        [DllImport("ntdll.dll")]
+        private static extern uint RtlAdjustPrivilege
+        (
+            int Privilege,
+            bool bEnablePrivilege,
+            bool IsThreadPrivilege,
+            out bool PreviousValue
+        );
 
         [DllImport(@"cputools.dll")]
         private static extern int SetSystemCpuSet(uint bitMask);
 
         [DllImport(@"cputools.dll")]
+        public static extern void wsleep(uint us);
+
+        [DllImport(@"cputools.dll")]
         private static extern int ResetSystemCpuSetProc(int pid, uint bitMask);
+
+        [DllImport(@"cputools.dll")]
+        public static extern ulong GetTimerResolution();
+
+        [DllImport(@"cputools.dll")]
+        public static extern ulong GetSysTimerResolution();
+
+        [DllImport(@"cputools.dll")]
+        public static extern double testTimerOverall(ulong duration_us, int timePeriod);
+
+        [DllImport(@"cputools.dll")]
+        public static extern double testTimerPerf(ulong duration_us, int iterations, int timePeriod, bool waitable);
+
+        public enum MEMORY_PRIORITY_INFORMATION : int
+        {
+            MEMORY_PRIORITY_VERY_LOW = 1,
+            MEMORY_PRIORITY_LOW = 2,
+            MEMORY_PRIORITY_MEDIUM = 3,
+            MEMORY_PRIORITY_BELOW_NORMAL = 4,
+            MEMORY_PRIORITY_NORMAL = 5
+        }
+        public struct _MEMORY_PRIORITY_INFORMATION
+        {
+            public MEMORY_PRIORITY_INFORMATION memPrio { get; set; }
+        }
+
+        [DllImport(@"cputools.dll")]
+        public static extern int setMemPrio(int pid, _MEMORY_PRIORITY_INFORMATION memPrio);
+
+        public struct PROCESS_POWER_THROTTLING_STATE
+        {
+            public ulong Version { get; set; }
+            public ulong ControlMask { get; set; }
+            public ulong StateMask { get; set; }
+        }
+
+        [DllImport(@"kernel32.dll")]
+        public static extern uint SetProcessInformation(IntPtr hWnd, int pclass, PROCESS_POWER_THROTTLING_STATE pinfo, int size);
+
+        [DllImport(@"cputools.dll")]
+        public static extern int setPowerThrottlingExecSpeed(int pid, bool enable);
+
+        [DllImport(@"cputools.dll")]
+        public static extern int setPowerThrottlingIgnoreTimer(int pid, bool enable);
+
+        [DllImport(@"cputools.dll")]
+        public static extern int resetPowerThrottling(int pid);
 
         [DllImport(@"kernel32.dll", SetLastError = true)]
         static extern bool FreeLibrary(IntPtr hModule);
@@ -239,8 +433,42 @@ namespace CPUDoc
             ES_DISPLAY_REQUIRED = 0x00000002,
             ES_SYSTEM_REQUIRED = 0x00000001
         }
-        protected static bool IsInVisualStudio => LicenseManager.UsageMode == LicenseUsageMode.Designtime || Debugger.IsAttached == true || StringComparer.OrdinalIgnoreCase.Equals("devenv", Process.GetCurrentProcess().ProcessName);
+        public static bool IsInVisualStudio => LicenseManager.UsageMode == LicenseUsageMode.Designtime || Debugger.IsAttached == true || StringComparer.OrdinalIgnoreCase.Equals("devenv", Process.GetCurrentProcess().ProcessName);
 
+        [DllImport("ntdll.dll")]
+        private static extern uint NtQueryWnfStateData(IntPtr pStateName, IntPtr pTypeId, IntPtr pExplicitScope, out uint nChangeStamp, out IntPtr pBuffer, ref uint nBufferSize);
+
+
+        [StructLayout(LayoutKind.Sequential)]
+
+        public struct WNF_TYPE_ID
+        {
+            public Guid TypeId;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct WNF_STATE_NAME
+        {
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
+            public uint[] Data;
+
+            public WNF_STATE_NAME(uint Data1, uint Data2) : this()
+            {
+                uint[] newData = new uint[2];
+                newData[0] = Data1;
+                newData[1] = Data2;
+                Data = newData;
+            }
+        }
+
+        public enum FocusAssistResult
+        {
+            NOT_SUPPORTED = -2,
+            FAILED = -1,
+            OFF = 0,
+            PRIORITY_ONLY = 1,
+            ALARMS_ONLY = 2
+        };
 
         [DllImport("user32.dll")]
         static extern IntPtr GetForegroundWindow();
@@ -263,18 +491,211 @@ namespace CPUDoc
             public int Right;
             public int Bottom;
         }
-        public static bool IsForegroundWwindowFullScreen()
-        {
-            int scrX = GetSystemMetrics(SM_CXSCREEN),
-                scrY = GetSystemMetrics(SM_CYSCREEN);
 
+        [DllImport("shell32.dll")]
+        static extern int SHQueryUserNotificationState(
+        out QUERY_USER_NOTIFICATION_STATE pquns);
+
+        public enum QUERY_USER_NOTIFICATION_STATE
+        {
+            QUNS_NOT_PRESENT = 1,
+            QUNS_BUSY = 2,
+            QUNS_RUNNING_D3D_FULL_SCREEN = 3,
+            QUNS_PRESENTATION_MODE = 4,
+            QUNS_ACCEPTS_NOTIFICATIONS = 5,
+            QUNS_QUIET_TIME = 6,
+            QUNS_FAILED = 7
+        };
+
+        [DllImport("gdi32.dll", CharSet = CharSet.Auto, SetLastError = true, ExactSpelling = true)]
+        public static extern int GetDeviceCaps(IntPtr hDC, int nIndex);
+
+        public enum DeviceCap
+        {
+            VERTRES = 10,
+            DESKTOPVERTRES = 117
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct TIMECAPS
+        {
+            public uint wPeriodMin { get; set; }
+            public uint wPeriodMax { get; set; }
+        }
+
+        public const uint TIMERR_BASE = 96;
+        public const uint TIMERR_NOERROR = 0;                /* no error */
+        public const uint TIMERR_NOCANDO = TIMERR_BASE + 1;  /* request not completed */
+        public const uint TIMERR_STRUCT = TIMERR_BASE + 33;  /* time struct size */
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Interoperability", "CA1401:PInvokesShouldNotBeVisible"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage"), SuppressUnmanagedCodeSecurity]
+        [DllImport("winmm.dll", EntryPoint = "timeGetDevCaps")]
+        public static extern uint timeGetDevCaps(out TIMECAPS ptc, uint size);
+
+        /// <summary>TimeBeginPeriod(). See the Windows API documentation for details.</summary>
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Interoperability", "CA1401:PInvokesShouldNotBeVisible"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage"), SuppressUnmanagedCodeSecurity]
+        [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod")]
+
+        public static extern uint TimeBeginPeriod(uint uMilliseconds);
+
+        /// <summary>TimeEndPeriod(). See the Windows API documentation for details.</summary>
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Interoperability", "CA1401:PInvokesShouldNotBeVisible"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage"), SuppressUnmanagedCodeSecurity]
+        [DllImport("winmm.dll", EntryPoint = "timeEndPeriod")]
+
+        public static extern uint TimeEndPeriod(uint uMilliseconds);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SYSTEM_POWER_INFORMATION
+        {
+            public uint MaxIdlenessAllowed;
+            public uint Idleness;
+            public uint TimeRemaining;
+            public string CoolingMode;
+        }
+
+        [DllImport("PowrProf.dll", EntryPoint = "CallNtPowerInformation")]
+        public static extern uint CallPowerInformationSPI(int Level, IntPtr inBuf, IntPtr szin, [Out] SYSTEM_POWER_INFORMATION outBuf, int szout);
+        
+        [DllImport("PowrProf.dll", EntryPoint = "CallNtPowerInformation")]
+        private static extern uint CallPowerCapabilities(int Level, IntPtr inBuf, int szin, IntPtr outBuf, int szout);
+
+        public static double GetWindowsScreenScalingFactor(bool percentage = true)
+        {
+            //Create Graphics object from the current windows handle
+            Graphics GraphicsObject = Graphics.FromHwnd(IntPtr.Zero);
+            //Get Handle to the device context associated with this Graphics object
+            IntPtr DeviceContextHandle = GraphicsObject.GetHdc();
+            //Call GetDeviceCaps with the Handle to retrieve the Screen Height
+            int LogicalScreenHeight = GetDeviceCaps(DeviceContextHandle, (int)DeviceCap.VERTRES);
+            int PhysicalScreenHeight = GetDeviceCaps(DeviceContextHandle, (int)DeviceCap.DESKTOPVERTRES);
+            //Divide the Screen Heights to get the scaling factor and round it to two decimals
+            double ScreenScalingFactor = Math.Round(PhysicalScreenHeight / (double)LogicalScreenHeight, 2);
+            //If requested as percentage - convert it
+            if (percentage)
+            {
+                ScreenScalingFactor *= 100.0;
+            }
+            //Release the Handle and Dispose of the GraphicsObject object
+            GraphicsObject.ReleaseHdc(DeviceContextHandle);
+            GraphicsObject.Dispose();
+            //Return the Scaling Factor
+            return ScreenScalingFactor;
+        }
+        const int ENUM_CURRENT_SETTINGS = -1;
+        [DllImport("user32.dll")]
+        static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct DEVMODE
+        {
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 0x20)]
+            public string dmDeviceName;
+            public short dmSpecVersion;
+            public short dmDriverVersion;
+            public short dmSize;
+            public short dmDriverExtra;
+            public int dmFields;
+            public int dmPositionX;
+            public int dmPositionY;
+            public System.Windows.Forms.ScreenOrientation dmDisplayOrientation;
+            public int dmDisplayFixedOutput;
+            public short dmColor;
+            public short dmDuplex;
+            public short dmYResolution;
+            public short dmTTOption;
+            public short dmCollate;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 0x20)]
+            public string dmFormName;
+            public short dmLogPixels;
+            public int dmBitsPerPel;
+            public int dmPelsWidth;
+            public int dmPelsHeight;
+            public int dmDisplayFlags;
+            public int dmDisplayFrequency;
+            public int dmICMMethod;
+            public int dmICMIntent;
+            public int dmMediaType;
+            public int dmDitherType;
+            public int dmReserved1;
+            public int dmReserved2;
+            public int dmPanningWidth;
+            public int dmPanningHeight;
+        }
+        public static bool IsForegroundWindowFullScreen(bool primaryonly)
+        {
             IntPtr handle = GetForegroundWindow();
             if (handle == IntPtr.Zero) return false;
 
             W32RECT wRect;
+
+            System.Windows.Forms.Screen scr = System.Windows.Forms.Screen.FromHandle(handle);
+            int scrX = GetSystemMetrics(SM_CXSCREEN),
+                scrY = GetSystemMetrics(SM_CYSCREEN);
+            string _device = scr.DeviceName.Trim();
+
+            foreach (System.Windows.Forms.Screen screen in System.Windows.Forms.Screen.AllScreens)
+            {
+                var dm = new DEVMODE();
+                dm.dmSize = (short)Marshal.SizeOf(typeof(DEVMODE));
+                EnumDisplaySettings(screen.DeviceName, ENUM_CURRENT_SETTINGS, ref dm);
+
+                //App.LogDebug($"dm0={screen.DeviceName} dm1={_device}");
+
+                if (screen.DeviceName.Trim() == _device)
+                {
+                    if (!primaryonly || (primaryonly && scr.Primary))
+                        {
+                        if (!GetWindowRect(handle, out wRect)) return false;
+                        //App.LogDebug($"scrX={(wRect.Right - wRect.Left)} scrY={(wRect.Bottom - wRect.Top)}");
+
+                        scrX = dm.dmPelsWidth;
+                        scrY = dm.dmPelsHeight;
+
+                        return scrX == (wRect.Right - wRect.Left) && scrY == (wRect.Bottom - wRect.Top);
+                    }
+                }
+                //App.LogDebug($"Device: {screen.DeviceName} Primary={screen.Primary}");
+                //App.LogDebug($"Real Resolution: {dm.dmPelsWidth}x{dm.dmPelsHeight}");
+                //App.LogDebug($"Virtual Resolution: {screen.Bounds.Width}x{screen.Bounds.Height}");
+            }
+            return false;
+
+            //if (primaryonly)
+
+            //double sf = GetWindowsScreenScalingFactor(false);
+
+            /*
+            if (!scr.Primary && !primaryonly)
+            {
+                var dm = new DEVMODE();
+                dm.dmSize = (short)Marshal.SizeOf(typeof(DEVMODE));
+                EnumDisplaySettings(scr.DeviceName, ENUM_CURRENT_SETTINGS, ref dm);
+                scrX = dm.dmPelsWidth;
+                scrY = dm.dmPelsHeight;
+            }
+
+            App.LogDebug($"Screen={scr.DeviceName} ScreenPrimary={scr.Primary} scrX={scrX} scrX={scrY}");
+            
+            foreach (System.Windows.Forms.Screen screen in System.Windows.Forms.Screen.AllScreens)
+            {
+                var dm = new DEVMODE();
+                dm.dmSize = (short)Marshal.SizeOf(typeof(DEVMODE));
+                EnumDisplaySettings(screen.DeviceName, ENUM_CURRENT_SETTINGS, ref dm);
+
+                App.LogDebug($"Device: {screen.DeviceName} Primary={screen.Primary}");
+                App.LogDebug($"Real Resolution: {dm.dmPelsWidth}x{dm.dmPelsHeight}");
+                App.LogDebug($"Virtual Resolution: {screen.Bounds.Width}x{screen.Bounds.Height}");
+            }
+            
+
+            W32RECT wRect;
             if (!GetWindowRect(handle, out wRect)) return false;
+            //App.LogDebug($"scrX={(wRect.Right - wRect.Left)} scrY={(wRect.Bottom - wRect.Top)}");
 
             return scrX == (wRect.Right - wRect.Left) && scrY == (wRect.Bottom - wRect.Top);
+            */
         }
         public class SettingBindingExtension : Binding
         {
@@ -292,7 +713,7 @@ namespace CPUDoc
             private void Initialize()
             {
                 Source = CPUDoc.Properties.Settings.Default;
-                Mode = BindingMode.TwoWay;
+                Mode = BindingMode.OneWay;
             }
         }
 
@@ -310,7 +731,7 @@ namespace CPUDoc
             */
             return _ret;
         }
-        public static int ResetSysCpuSetProc(int pid, uint BitMask = 0)
+        public static int ProcSetCpuSet(int pid, uint BitMask = 0)
         {
             int _ret = 0;
             using (var lam = new ConariL(@"cputools.dll"))
@@ -318,7 +739,7 @@ namespace CPUDoc
                 _ret = lam.DLR.ResetSystemCpuSetProc<int>(pid, BitMask);
             }
             /*
-            _ret = ResetSystemCpuSetProc(pid, BitMask);
+            _ret = ProcSetCpuSet(pid, BitMask);
             */
             return _ret;
         }
@@ -349,6 +770,39 @@ namespace CPUDoc
                 LogExError($"GetLastThreadT0 exception: {ex.Message}", ex);
                 return 1;
             }
+        }
+        public static FocusAssistResult GetFocusAssistState()
+        {
+            //  Focus Assist:   Windows 10 build >= 17083
+            WNF_STATE_NAME WNF_SHEL_QUIETHOURS_ACTIVE_PROFILE_CHANGED = new WNF_STATE_NAME(0xA3BF1C75, 0xD83063E);
+            uint nBufferSize = (uint)Marshal.SizeOf(typeof(IntPtr));
+            IntPtr pStateName = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(WNF_STATE_NAME)));
+            Marshal.StructureToPtr(WNF_SHEL_QUIETHOURS_ACTIVE_PROFILE_CHANGED, pStateName, false);
+            bool success = NtQueryWnfStateData(pStateName, IntPtr.Zero, IntPtr.Zero, out uint nChangeStamp, out IntPtr pBuffer, ref nBufferSize) == 0;
+            Marshal.FreeHGlobal(pStateName);
+            if (success)
+            {
+                return (FocusAssistResult)pBuffer;
+            }
+            return FocusAssistResult.FAILED;
+        }
+        public static bool IsAvailableUserNotification()
+        {
+            //  Quiet Hours:   Windows 10 build < 17083
+            QUERY_USER_NOTIFICATION_STATE state;
+            bool success = SHQueryUserNotificationState(out state) == 0;
+            return success;
+        }
+        public static QUERY_USER_NOTIFICATION_STATE GetUserNotificationState()
+        {
+            //  Quiet Hours:   Windows 10 build < 17083
+            QUERY_USER_NOTIFICATION_STATE state;
+            bool success = SHQueryUserNotificationState(out state) == 0;
+            if (success)
+            {
+                return (QUERY_USER_NOTIFICATION_STATE)state;
+            }
+            return QUERY_USER_NOTIFICATION_STATE.QUNS_FAILED;
         }
 
         public static (List<int>, List<int>) GetTieredLists()
@@ -535,6 +989,184 @@ namespace CPUDoc
                 return "";
             }
         }
+        private static void StartTestTimerOverall(int period)
+        {
+            ulong duration_us;
+            double _overall1;
+            double _overall10;
+            double _overall100;
+            double _overall2000;
+            string _periodlabel = "default";
+            if (period != 0)
+                _periodlabel = $"{period} ms";
+
+            duration_us = 2000;
+            _overall2000 = testTimerOverall(duration_us, period);
+            duration_us = 100;
+            _overall100 = testTimerOverall(duration_us, period);
+            duration_us = 10;
+            _overall10 = testTimerOverall(duration_us, period);
+            duration_us = 1;
+            _overall1 = testTimerOverall(duration_us, period);
+            LogInfo($"Timer testing at {_periodlabel} resolution, average requested/effective duration in us: [1/{String.Format("{0:0.#}", _overall1)}] [10/{String.Format("{0:0.#}", _overall10)}] [100/{String.Format("{0:0.#}", _overall100)}] [2000/{String.Format("{0:0.#}", _overall2000)}]");
+        }
+        private static void StartTestTimerPerf(int period, int iterations)
+        {
+            ulong duration_us = 500;
+            double _perf;
+            double _perfwaitable;
+            string _periodlabel = "default";
+
+            if (period != 0)
+                _periodlabel = $"{period} ms";
+
+            _perf = testTimerPerf(duration_us, iterations, period, false);
+            _perfwaitable = testTimerPerf(duration_us, iterations, period, true);
+
+            LogInfo($"Timer testing at {_periodlabel} resolution, sleeps of {((int)(duration_us) * iterations)/1000} ms took: non-waitable={String.Format("{0:0.00}", _perf * 1000)} ms waitable={String.Format("{0:0.00}", _perfwaitable * 1000)} ms");
+        }
+
+        private static void InitTimers()
+        {
+            try
+            {
+                //uint _period;
+
+                int swresolution = (int)(1E9 / Stopwatch.Frequency);
+                
+                TimerEffectiveus = App.GetTimerResolution();
+                LogInfo($"Timer Resolution: {String.Format("{0:0.0#}", TimerEffectiveus / 1e4)} ms - System: {String.Format("{0:0.0#}", App.GetSysTimerResolution() / 1e4)} ms - .NET StopWatch Resolution: {swresolution} us");
+
+                TIMECAPS timecaps = new TIMECAPS();
+                uint _retcaps = timeGetDevCaps(out timecaps, (uint)Marshal.SizeOf(timecaps));
+                if (_retcaps != 0)
+                {
+                    LogInfo($"timeGetDevCaps failed: {_retcaps}");
+                }
+                else
+                {
+                    LogInfo($"Timer Resolution Caps min: {String.Format("{0:0.0#}", timecaps.wPeriodMin)} ms - max: {String.Format("{0:0.0#}", timecaps.wPeriodMax)} ms");
+                }
+
+                SetThrottleExecSpeed(0, false);
+                SetIgnoreTimer(0, false);
+                SetThrottleExecSpeed(Process.GetCurrentProcess().Id, false);
+                SetIgnoreTimer(Process.GetCurrentProcess().Id, false);
+                
+                StartTestTimerOverall(0);
+                StartTestTimerPerf(0, 10);
+                StartTestTimerPerf(0, 100);
+
+                bool prev;
+                int _priv = (int)RtlAdjustPrivilege(20, true, false, out prev);
+                if (_priv != 0) LogInfo($"SetPrivilege failed: {_priv}");
+
+                /*
+                _period = TimerResolution;
+                NewTimePeriod(_period);
+
+                if (TimerResolution != (int)TimerEffectiveus / 1e4)
+                {
+                    StartTestTimerOverall((int)_period);
+                    StartTestTimerPerf((int)_period, 10);
+                    StartTestTimerPerf((int)_period, 100);
+                }
+                else
+                {
+                    LogInfo($"Default Timer Resolution is same as desired, skipping test...");
+                }
+                TimerEffectiveus = App.GetTimerResolution();
+                LogInfo($"Timer Resolution: {String.Format("{0:0.0#}", TimerEffectiveus / 1e4)} ms - System: {String.Format("{0:0.0#}", App.GetSysTimerResolution() / 1e4)} ms");
+                */
+
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"InitTimers Exception: {ex}");
+                LogExError($"InitTimers exception: {ex.Message}", ex);
+            }
+
+        }
+
+        public static void ResetThrottling(int _pid)
+        {
+            try
+            {
+                int _reset = resetPowerThrottling(_pid);
+                if (_reset != 0) LogInfo($"Power Throttling reset failed [PID={_pid}]: Error {_reset}");
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"ResetThrottling Exception [PID={_pid}]: {ex}");
+                LogExError($"ResetThrottling exception [PID={_pid}]: {ex.Message}", ex);
+            }
+        }
+
+        public static void SetThrottleExecSpeed(int _pid, bool enable)
+        {
+            try
+            {
+                int _execspeed = setPowerThrottlingExecSpeed(_pid, enable);
+                if (_execspeed != 0) LogInfo($"Power Throttling failed to set Execution Speed {enable} [PID={_pid}]: Error {_execspeed}");
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"SetThrottleExecSpeed Exception [PID={_pid}]: {ex}");
+                LogExError($"SetThrottleExecSpeed exception [PID={_pid}]: {ex.Message}", ex);
+            }
+        }
+        public static void SetIgnoreTimer(int _pid, bool enable)
+        {
+            try
+            {
+                int _ignoretimer = setPowerThrottlingIgnoreTimer(_pid, enable);
+                if (_ignoretimer != 0) LogInfo($"Power Throttling failed to set Ignore Timer {enable} [PID={_pid}]: Error {_ignoretimer}");
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"SetThrottleExecSpeed Exception [PID={_pid}]: {ex}");
+                LogExError($"SetThrottleExecSpeed exception [PID={_pid}]: {ex.Message}", ex);
+            }
+        }
+
+        public static void NewTimePeriod(uint period)
+        {
+            try
+            {
+                uint _retperiod;
+                if (!TimerResolution_b)
+                {
+                    _retperiod = TimeEndPeriod(TimerResolution);
+                    if (_retperiod != 0) LogInfo($"TimeEndPeriod failed: Error {_retperiod}");
+                }
+                _retperiod = TimeBeginPeriod(period);
+                if (_retperiod != 0) LogInfo($"TimeBeginPeriod failed: Error {_retperiod}");
+                TimerResolution_b = true;
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"NewTimePeriod Exception: {ex}");
+                LogExError($"NewTimePeriod exception: {ex.Message}", ex);
+            }
+        }
+
+        public static void ClearTimePeriod()
+        {
+            try
+            {
+                if (!TimerResolution_b)
+                {
+                    uint _retperiod;
+                    _retperiod = TimeEndPeriod(TimerResolution);
+                    if (_retperiod != 0) LogInfo($"TimeEndPeriod failed: Error {_retperiod}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"ClearTimePeriod Exception: {ex}");
+                LogExError($"ClearTimePeriod exception: {ex.Message}", ex);
+            }
+        }
         private static void InitNLog()
         {
             try
@@ -613,6 +1245,7 @@ namespace CPUDoc
                 LogManager.Configuration = logconfig;
                 //LogManager.ReconfigExistingLoggers();
                 logger = LogManager.GetCurrentClassLogger();
+                logger_b = true;
 
             }
             catch (NLogConfigurationException ex)
@@ -620,7 +1253,9 @@ namespace CPUDoc
                 Trace.WriteLine($"InitNLog Exception: {ex}");
                 LogExError($"InitNLog exception: {ex.Message}", ex);
             }
-
+            catch
+            {
+            }
         }
         public static void TraceLogging(bool enable)
         {
@@ -648,23 +1283,51 @@ namespace CPUDoc
                 LogManager.ReconfigExistingLoggers();
             }
         }
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr LoadLibrary(string lib);
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr GetProcAddress(IntPtr module, string proc);
         protected override void OnStartup(StartupEventArgs e)
         {
             try
             {
-                Directory.CreateDirectory(@".\Logs");
-
                 instanceMutex = new Mutex(true, mutexName, out bMutex);
 
                 if (!bMutex)
                 {
                     InteropMethods.PostMessage((IntPtr)InteropMethods.HWND_BROADCAST, InteropMethods.WM_SHOWME,
                         IntPtr.Zero, IntPtr.Zero);
+                    //MessageBox.Show("CPUDoc is already running, cannot start it again.");
                     Current.Shutdown();
                     Environment.Exit(0);
                 }
 
                 GC.KeepAlive(instanceMutex);
+                SplashWindow.Start();
+            }
+            catch (Exception ex)
+            {
+                string errorMessage = string.Format("CPUDoc: an exception occurred when checking the run mutex: {0}", ex.Message);
+                MessageBox.Show(errorMessage);
+            }
+
+            try
+            {
+
+                // handle unhandled better
+                Dispatcher.UnhandledException += OnDispatcherUnhandledException;
+
+                Version _version = Assembly.GetExecutingAssembly().GetName().Version;
+                version = string.Format("v{0}.{1}.{2}", _version.Major, _version.Minor, _version.Build);
+                _versionInfo = string.Format("{0}.{1}.{2}", _version.Major, _version.Minor, _version.Build);
+                
+                Directory.CreateDirectory(@".\Logs");
+
+                if (Process.GetProcessesByName("vgc").Length <= 0 && File.Exists("inpoutx64.dlh")) File.Move("inpoutx64.dlh", "inpoutx64.dll");
+                if (Process.GetProcessesByName("vgc").Length > 0 && File.Exists("inpoutx64.dll")) File.Move("inpoutx64.dll", "inpoutx64.dlh");
+                //if (IsModuleLoaded("CPUDoc.sys")) UnloadModule("CPUDoc.sys");
+
+                SplashWindow.Loading(10);
 
                 CleanUpOldFiles();
 
@@ -672,7 +1335,15 @@ namespace CPUDoc
 
                 InitNLog();
 
+                LogInfo($"CPUDoc Version {_versionInfo}");
+
+                InitTimers();
+
+                SplashWindow.Loading(15);
+
                 Ring0.Open();
+
+                SplashWindow.Loading(20);
 
                 WindowsIdentity identity = WindowsIdentity.GetCurrent();
                 WindowsPrincipal principal = new WindowsPrincipal(identity);
@@ -694,53 +1365,66 @@ namespace CPUDoc
                     }
                 }
 
+                SplashWindow.Loading(30);
+
                 base.OnStartup(e);
 
-                // NO POWER SAVING
-                //SetThreadExecutionState(EXECUTION_STATE.ES_DISPLAY_REQUIRED | EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_SYSTEM_REQUIRED);
-
-                Version _version = Assembly.GetExecutingAssembly().GetName().Version;
-                version = string.Format("v{0}.{1}.{2}", _version.Major, _version.Minor, _version.Build);
-                _versionInfo = string.Format("{0}.{1}.{2}", _version.Major, _version.Minor, _version.Build);
+                SplashWindow.Loading(35);
 
                 if (OSVersion.GetOSVersion().Version.Major >= 10) App.Win10 = true;
                 if (OSVersion.GetOSVersion().Version.Major >= 10 && OSVersion.GetOSVersion().Version.Build >= 22000) App.Win11 = true;
 
-                LogInfo($"CPUDoc Version {_versionInfo}");
+                SplashWindow.Loading(30);
 
                 cpuTotalLoad = new MovingAverage(4);
                 cpuTotalLoadLong = new MovingAverage(16);
                 TBPoolingAverage = new MovingAverage(64);
 
+                SplashWindow.Loading(40);
+
                 bool cpuloadperfcount = ProcessorInfo.CpuLoadInit();
                 LogInfo($"CPULoad using Performance Counters: {cpuloadperfcount}");
+
+                SplashWindow.Loading(50);
 
                 systemInfo = new();
 
                 systemInfo.AppVersion = version;
 
+                SplashWindow.Loading(60);
+
                 SettingsInit();
 
+                SplashWindow.Loading(65);
+
                 PSAInit();
+
+                SplashWindow.Loading(70);
 
                 InitColors();
 
                 TBStart();
                 HWMStart();
-                //UIStart();
+
+                SplashWindow.Loading(75);
 
                 SetActiveConfig(0);
 
-                TraceLogging(AppSettings.LogTrace);
-                InfoLogging(AppSettings.LogInfo);
+                Processes.Init();
 
+                SplashWindow.Loading(80);
 
-                tbIcon = (TaskbarIcon)FindResource("tbIcon");
-
-                tbIcon.ToolTip = $"CPUDoc {App.version}";
-                tbIcon.Icon = new Icon(Application.GetResourceStream(new Uri("pack://application:,,,/images/cpudoc.ico")).Stream);
+                TraceLogging((AppSettings.LogTrace ?? false));
+                InfoLogging((AppSettings.LogInfo ?? false));
 
                 SetLastT0Affinity();
+
+                SplashWindow.Loading(90);
+
+                //Binding bindToggleSSH = new Binding(App.systemInfo.ToggleSSH);
+                //bindToggleSSH.Mode = BindingMode.OneWay;
+                //bindToggleSSH.Source = App.systemInfo;
+                //BindingOperations.SetBinding(, ProgressBar.ValueProperty, bindLive);
 
                 AutoUpdater.ReportErrors = false;
                 AutoUpdater.InstalledVersion = new Version(App._versionInfo);
@@ -750,7 +1434,7 @@ namespace CPUDoc
                 AutoUpdater.ParseUpdateInfoEvent += AutoUpdaterOnParseUpdateInfoEvent;
 
                 autimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-                AUNotifications(App.AppSettings.AUNotifications);
+                AUNotifications(App.AppSettings.AUNotifications ?? false);
                 autimer.Tick += (sender, args) =>
                 {
                     autimer.Interval = TimeSpan.FromSeconds(3600);
@@ -759,9 +1443,10 @@ namespace CPUDoc
 
                 UAStamp = DateTime.Now;
 
-                Processes.Init();
 
                 SubscribeGlobal();
+
+                SplashWindow.Loading(95);
 
                 /*
 
@@ -799,7 +1484,6 @@ namespace CPUDoc
                     };
 
                 }
-                */
                 using (var eventHookFactory = new EventHook.EventHookFactory())
                 {
                     applicationWatcher = eventHookFactory.GetApplicationWatcher();
@@ -809,6 +1493,7 @@ namespace CPUDoc
                     //keyboardWatcher.Start();
                     //keyboardWatcher.OnKeyInput += CheckHotKey;
                 }
+                */
                 /*
                 applicationWatcher = eventHookFactory.GetApplicationWatcher();
                 applicationWatcher.Start();
@@ -821,19 +1506,110 @@ namespace CPUDoc
                     */
 
                 //App.LogDebug($"OnStartup App End");
+
+                SplashWindow.Loading(100);
+
+                SplashWindow.Stop();
+
+                tbIcon = (TaskbarIcon)FindResource("tbIcon");
+
+                tbIcon.ToolTip = $"CPUDoc {App.version}";
+                tbIcon.Icon = new Icon(Application.GetResourceStream(new Uri("pack://application:,,,/images/cpudoc.ico")).Stream);
+
+                //ShowBalloon($"CPUDoc {App.version}", "Now is running in the system tray");
+                ShowFancyBalloon($"CPUDoc {App.version}", "Now running minimized in the system tray, click here to open the App");
+
+                try
+                {
+                    _map = new ConcurrentDictionary<uint, string>();
+
+                    _processStartedWatcher = new ManagementEventWatcher("SELECT ProcessID, ProcessName FROM Win32_ProcessStartTrace");
+                    _processStartedWatcher.EventArrived += CheckStartApplication;
+                    _processStartedWatcher.Start();
+
+                    _processStoppedwatcher = new ManagementEventWatcher("SELECT ProcessID FROM Win32_ProcessStopTrace");
+                    _processStoppedwatcher.EventArrived += CheckStopApplication;
+                    _processStoppedwatcher.Start();
+                }
+                catch (ManagementException ex)
+                {
+                    LogExError("Could not start listening to WMI events: ", ex);
+                }
+
             }
             catch (Exception ex)
             {
-                LogExError($"OnStartup exception: {ex.Message}", ex);
+                if (logger_b) LogExError($"OnStartup exception: {ex.Message}", ex);
             }
+
+            //TEST
+            
+            //throw new InvalidOperationException();
+        }
+
+        void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+        {
+            Application_Cleanup();
+            string errorMessage = string.Format("CPUDoc: an unhandled exception occurred: {0}", e.Exception.Message);
+            //PSAPlanDisable();
+            MessageBox.Show(errorMessage);
+            if (logger_b)
+            {
+                LogInfo(errorMessage);
+                Trace.Flush();
+                Trace.Close();
+                LogManager.Shutdown();
+            }
+            e.Handled = MainWindow?.IsLoaded ?? false;
+            ClearTimePeriod();
+            Current.Shutdown();
+            Environment.Exit(-1);
+        }
+
+        public void ShowFancyBalloon(string title, string text)
+        {
+            FancyBalloon balloon = new FancyBalloon();
+            balloon.BalloonText = text;
+            balloon.BalloonTitle = title;
+            tbIcon.ShowCustomBalloon(balloon, PopupAnimation.Slide, 4000);
+        }
+        public void ShowBalloon(string title, string text, BalloonIcon icon = BalloonIcon.Info)
+        {         
+            tbIcon.ShowBalloonTip(title, text, icon);
+        }
+        public void HideBalloon()
+        {
+            tbIcon.HideBalloonTip();
         }
         public static void AUNotifications(bool enable)
         {
-            if (enable) autimer.Start();
-            if (!enable) autimer.Stop();
+            if (enable)
+            {
+                autimer.Start();
+            }
+            else
+            {
+                autimer.Stop();
+            }
         }
+
+        public static void PowerSavingActivation(bool enable)
+        {
+            if (enable)
+            {
+                //RESTORE POWER SAVING
+                SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
+            }
+            else
+            {
+                // NO POWER SAVING
+                SetThreadExecutionState(EXECUTION_STATE.ES_DISPLAY_REQUIRED | EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_AWAYMODE_REQUIRED);
+            }
+        }
+
         public void PSAInit()
         {
+
             try
             {
                 boot_ppname = powerManager.GetActivePlanFriendlyName();
@@ -867,51 +1643,306 @@ namespace CPUDoc
                 App.LogExError("PSAInit Exception:", ex);
             }
         }
+        public static void ImportPowerPlan(string planName)
+        {
+            try
+            {
+                var cmd = new Process { StartInfo = { FileName = "powercfg" } };
+                using (cmd)
+                {
+                    var inputPath = System.IO.Path.Combine(Environment.CurrentDirectory, planName);
+
+                    //This hides the resulting popup window
+                    cmd.StartInfo.CreateNoWindow = true;
+                    cmd.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+
+                    //Import the new power plan
+                    cmd.StartInfo.Arguments = $"-import \"{inputPath}\" {PPGuid}";
+                    cmd.Start();
+
+                    cmd.WaitForExit();
+                }
+            }
+            catch (Exception ex)
+            {
+                LogExError($"ImportPowerPlan exception: {ex.Message}", ex);
+            }
+
+        }
         public static void PSAPlanDisable()
         {
             try
             {
-                if (psact_plan)
+                bool fallback = false;
+                if (boot_ppguid != null)
                 {
-                    bool isactive = powerManager.SetActiveGuid(boot_ppguid);
-                    psact_plan = false;
-                    if (isactive)
+                    if (boot_ppguid.ToString().ToUpper().Contains("FBB9C3D1-AF6E-46CF-B02B-C41192"))
                     {
-                        App.LogDebug($"PSA Disabled Power Plan set back to: {boot_ppname}");
+                        fallback = PSAPlanFallback();
+                        App.LogDebug($"PSA Disabled Power Plan fall back to: {boot_ppname}");
                     }
                     else
                     {
-                        App.LogDebug($"PSA Disabled Power Plan failed to set back to original, active is: {powerManager.GetActivePlanFriendlyName()}");
+                        fallback = powerManager.SetActiveGuid((Guid)boot_ppguid);
+                        App.LogDebug($"PSA Disabled Power Plan set back to: {boot_ppname}");
                     }
                 }
+                if (fallback) psact_plan = false;
             }
             catch (Exception ex)
             {
                 App.LogExError("PSAPlanDisable Exception:", ex);
             }
         }
-        public static void PSAEnable()
+        public static bool PSAPlanFallback()
         {
             try
             {
-                if (App.pactive.PowerSaverActive)
+                bool _done = false;
+                _done = PSAPlanFallbackDo("Balanced");
+                if (!_done) PSAPlanFallbackDo("High Performance");
+                if (!_done) PSAPlanFallbackDo("Ultimate Performance");
+                if (!_done) PSAPlanFallbackDo("Power saver");
+                if (_done)
                 {
-                    if (powerManager.GetActiveGuid() != PPGuid)
-                    {
-                        if (!powerManager.PlanExists(PPGuid)) ImportPowerPlan();
-                        bool isactive = powerManager.SetActiveGuid(PPGuid);
-                        if (isactive)
-                        {
-                            psact_plan = true;
-                            App.LogInfo($"CPUDoc Dynamic Power Plan enabled: {powerManager.GetActivePlanFriendlyName()}");
-                        }
-                    }
+                    App.LogDebug($"PSA Fall Back Power Plan done, active is: {powerManager.GetActivePlanFriendlyName()}");
+                    return true;
+                }
+                else
+                {
+                    App.LogDebug($"PSA Fall Back Power Plan failed, active is: {powerManager.GetActivePlanFriendlyName()}");
+                    return false;
                 }
             }
             catch (Exception ex)
             {
+                App.LogExError("PSAPlanFallback Exception:", ex);
+                return false;
+            }
+        }
+        public static bool PSAPlanFallbackDo(string planname)
+        {
+            try
+            {
+                bool _done = false;
+                var plans = powerManager.GetPlans();
+                foreach (var plan in plans)
+                {
+                    if (plan.name == planname)
+                    {
+                        powerManager.SetActiveGuid(plan.guid);
+                        _done = true;
+                    }
+                }
+                return _done;
+            }
+            catch (Exception ex)
+            {
+                App.LogExError("PSAPlanFallbackDo Exception:", ex);
+                return false;
+            }
+        }
+        public static void PSAEnable()
+        {
+            try
+            {
+                bool isactive = false;
+                if ((App.pactive.PowerSaverActive ?? false) && !PPImportErrStatus)
+                {
+                    if (systemInfo.CPUName.Contains("Intel"))
+                    {
+                        PPDutyCycling = 0;
+                        PPUSBSSuspend = 0;
+                    }
+                    else
+                    {
+                        PPUSBSSuspend = 1;
+                        PPDutyCycling = 1;
+                    }
+
+                    int _personality = 1;
+                    int _activepersonality = (App.pactive.Personality ?? 0);
+                    int _activepowertweak = (App.pactive.PowerTweak ?? 1);
+
+                    string planName = "";
+
+                    if (_activepersonality == 0)
+                    {
+                        if (_activepowertweak == 0) _personality = 1;
+                        if ((Win11 && _activepowertweak != 0) || _activepowertweak == 2) _personality = 2;
+                    }
+                    else
+                    {
+                        _personality = _activepersonality;
+                    }
+
+                    if (_personality == 2)
+                    {
+                        PPGuid = Win11 ? new Guid(PPGuidV2U11) : new Guid(PPGuidV2U10);
+                        planName = Win11 ? PPNameV2U11 : PPNameV2U10;
+                    }
+                    else
+                    {
+                        PPGuid = Win11 ? new Guid(PPGuidV2B11) : new Guid(PPGuidV2B10);
+                        planName = Win11 ? PPNameV2B11 : PPNameV2B10;
+                    }
+
+                    if (_activepowertweak == 0)
+                    {
+                        App.pactive.PSALightSleepSeconds = 15;
+                        App.pactive.PSADeepSleepSeconds = 60;
+                        App.pactive.PSALightSleepThreshold = 12;
+                        App.pactive.PSADeepSleepThreshold = 6;
+                        ThreadBooster.ProcPerfBoostEco = 95;
+                        if (App.systemInfo.Ecores.Count > 0 && App.systemInfo.Pcores.Count > 0 && App.systemInfo.IntelHybrid)
+                        {
+                            ThreadBooster.coreparking = 10;
+                            int _pcoresmin = (100 / (App.systemInfo.Pcores.Count)) + 1;
+                            _pcoresmin = _pcoresmin <= 1 ? 1 : _pcoresmin >= 100 ? 100 : _pcoresmin;
+                            ThreadBooster.coreparking_ec1 = _pcoresmin;
+                            ThreadBooster.coreparking_light = 0;
+                            ThreadBooster.coreparking_light_ec1 = 0;
+                        }
+                    }
+                    else if (_activepowertweak == 2)
+                    {
+                        App.pactive.PSALightSleepSeconds = 90;
+                        App.pactive.PSADeepSleepSeconds = 240;
+                        App.pactive.PSALightSleepThreshold = 8;
+                        App.pactive.PSADeepSleepThreshold = 4;
+                        ThreadBooster.ProcPerfBoostEco = 100;
+                        if (App.systemInfo.Ecores.Count > 0)
+                        {
+                            if (App.systemInfo.Ecores.Count > 0 && App.systemInfo.Pcores.Count > 0 && App.systemInfo.IntelHybrid)
+                            {
+                                ThreadBooster.coreparking = 10;
+                                int _pcoresmin = (100 / (App.systemInfo.Pcores.Count)) + 1;
+                                _pcoresmin = _pcoresmin <= 1 ? 1 : _pcoresmin >= 100 ? 100 : _pcoresmin;
+                                ThreadBooster.coreparking_ec1 = _pcoresmin;
+                                int _ecoresmin = ((2 * 100) / (App.systemInfo.Ecores.Count)) + 2;
+                                _ecoresmin = _ecoresmin <= 1 ? 1 : _ecoresmin >= 100 ? 100 : _ecoresmin;
+                                ThreadBooster.coreparking_ec1 = _pcoresmin;
+                                _ecoresmin = ((1 * 100) / (App.systemInfo.Ecores.Count)) + 1;
+                                _ecoresmin = _ecoresmin <= 1 ? 1 : _ecoresmin >= 100 ? 100 : _ecoresmin;
+                                ThreadBooster.coreparking_light = _ecoresmin;
+                                ThreadBooster.coreparking_light_ec1 = _pcoresmin;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        App.pactive.PSALightSleepSeconds = 30;
+                        App.pactive.PSADeepSleepSeconds = 90;
+                        App.pactive.PSALightSleepThreshold = 14;
+                        App.pactive.PSADeepSleepThreshold = 8;
+                        ThreadBooster.ProcPerfBoostEco = 100;
+                        if (App.systemInfo.Ecores.Count > 0 && App.systemInfo.Pcores.Count > 0 && App.systemInfo.IntelHybrid)
+                        {
+                            ThreadBooster.coreparking = 10;
+                            int _pcoresmin = (100 / (App.systemInfo.Pcores.Count)) + 1;
+                            _pcoresmin = _pcoresmin <= 1 ? 1 : _pcoresmin >= 100 ? 100 : _pcoresmin;
+                            ThreadBooster.coreparking_ec1 = _pcoresmin;
+                            ThreadBooster.coreparking_light = 10;
+                            ThreadBooster.coreparking_light_ec1 = 0;
+                        }
+                    }
+
+                    if (powerManager.GetActiveGuid() != PPGuid)
+                    {
+                        if (!powerManager.PlanExists(PPGuid)) ImportPowerPlan(planName);
+
+                        if (powerManager.PlanExists(PPGuid)) isactive = powerManager.SetActiveGuid(PPGuid);
+                        if (isactive)
+                        {
+                            psact_b = true;
+                            psact_plan = true;
+                            App.LogInfo($"CPUDoc Dynamic Power Plan enabled: {powerManager.GetActivePlanFriendlyName()}");
+                        }
+                        else
+                        {
+                            PPImportErrCnt++;
+                            if (PPImportErrCnt > 25)
+                            {
+                                PPImportErrCnt = 0;
+                                PPImportErrStatus = true;
+                            }
+                        }
+                    }
+                    if (psact_b && psact_plan) 
+                    {
+                        uint _value;
+                        //USB selective suspend setting
+                        _value = (uint)App.PPUSBSSuspend;
+                        App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.USB_SUBGROUP, new Guid("48e6b7a6-50f5-4782-a5d4-53bb8f07e226"), PowerManagerAPI.PowerMode.AC, _value);
+
+                        //Hub Selective Suspend Timeout
+                        _value = (uint)App.PPUSBSSuspendTimeout;
+                        App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.USB_SUBGROUP, new Guid("0853a681-27c8-4100-a2fd-82013e970683"), PowerManagerAPI.PowerMode.AC, _value);
+
+                        App.powerManager.SetActiveGuid(App.PPGuid);
+
+                        if (pactive.MonitorIdle == null || pactive.SleepIdle == null || pactive.HyberIdle == null)
+                        {
+                            pactive.MonitorIdle = PPSecToIdx((int)PowerManager.GetPlanSetting(PPGuid, SettingSubgroup.VIDEO_SUBGROUP, Setting.VIDEOIDLE, PowerMode.AC));
+                            pactive.SleepIdle = PPSecToIdx((int)PowerManager.GetPlanSetting(PPGuid, SettingSubgroup.SLEEP_SUBGROUP, Setting.STANDBYIDLE, PowerMode.AC));
+                            pactive.HyberIdle = PPSecToIdx((int)PowerManager.GetPlanSetting(PPGuid, SettingSubgroup.SLEEP_SUBGROUP, Setting.HIBERNATEIDLE, PowerMode.AC));
+                        }
+
+                        App.powerManager.SetDynamic(SettingSubgroup.VIDEO_SUBGROUP, new Guid("3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)PPIdxToSec((pactive.MonitorIdle ?? 0)));
+                        App.powerManager.SetDynamic(SettingSubgroup.SLEEP_SUBGROUP, new Guid("29f6c1db-86da-48c5-9fdb-f2b67b1f44da"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)PPIdxToSec((pactive.SleepIdle ?? 0)));
+                        App.powerManager.SetDynamic(SettingSubgroup.SLEEP_SUBGROUP, new Guid("9d7815a6-7ee4-497e-8888-515a05f02364"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)PPIdxToSec((pactive.HyberIdle ?? 0)));
+
+                    }
+                }
+                else
+                {
+                    PSAPlanDisable();
+                }
+            }
+            catch (Exception ex)
+            {
+                psact_plan = false;
+                psact_b = false;
                 App.LogExError("PowerSaverActive Init Exception:", ex);
             }
+        }
+        public static int PPSecToIdx(int value)
+        {
+            return value <= 0 ? 0
+                        : value <= 60 ? 1
+                        : value <= 120 ? 2
+                        : value <= 180 ? 3
+                        : value <= 300 ? 4
+                        : value <= 600 ? 5
+                        : value <= 900 ? 6
+                        : value <= 1200 ? 7
+                        : value <= 1500 ? 8
+                        : value <= 1800 ? 9
+                        : value <= 2700 ? 10
+                        : value <= 3600 ? 10
+                        : value <= 10800 ? 12
+                        : value <= 14400 ? 13
+                        : value <= 18000 ? 14
+                        : 14;
+        }
+        public static int PPIdxToSec(int value)
+        {
+            return value <= 0 ? 0
+                        : value <= 1 ? 60
+                        : value <= 2 ? 120
+                        : value <= 3 ? 180
+                        : value <= 4 ? 300
+                        : value <= 5 ? 600
+                        : value <= 6 ? 900
+                        : value <= 7 ? 1200
+                        : value <= 8 ? 1500
+                        : value <= 9 ? 1800
+                        : value <= 10 ? 2700
+                        : value <= 11 ? 3600
+                        : value <= 12 ? 10800
+                        : value <= 13 ? 14400
+                        : value <= 14 ? 18000
+                        : 18000;
         }
         private void CheckApplication(object sender, EventHook.ApplicationEventArgs e)
         {
@@ -920,14 +1951,52 @@ namespace CPUDoc
             uint processId = 0;
             GetWindowThreadProcessId(e.ApplicationData.HWnd, out processId);
 
-            if (e.Event == EventHook.ApplicationEvents.Launched) Processes.AppLaunched(Path.GetFileNameWithoutExtension(e.ApplicationData.AppPath), (int)processId);
+            if (e.Event == EventHook.ApplicationEvents.Launched) Processes.AppLaunched(System.IO.Path.GetFileNameWithoutExtension(e.ApplicationData.AppPath), (int)processId);
 
-            if (e.Event == EventHook.ApplicationEvents.Closed) Processes.AppClosed(Path.GetFileNameWithoutExtension(e.ApplicationData.AppPath), (int)processId);
+            if (e.Event == EventHook.ApplicationEvents.Closed) Processes.AppClosed(System.IO.Path.GetFileNameWithoutExtension(e.ApplicationData.AppPath), (int)processId);
 
-            App.LogDebug($"[PID={processId}] AppBin={Path.GetFileNameWithoutExtension(e.ApplicationData.AppPath)} Application window of '{e.ApplicationData.AppName}' with the title '{e.ApplicationData.AppTitle}' was {e.Event}");
+            //App.LogDebug($"[PID={processId}] AppBin={System.IO.Path.GetFileNameWithoutExtension(e.ApplicationData.AppPath)} Application window of '{e.ApplicationData.AppName}' with the title '{e.ApplicationData.AppTitle}' was {e.Event}");
 
         }
 
+        private void CheckStartApplication(object sender, EventArrivedEventArgs e)
+        {
+            var processName = (string)e.NewEvent["ProcessName"];
+            var processId = (uint)e.NewEvent["ProcessId"];
+
+            if (string.IsNullOrEmpty(processName))
+                return;
+
+            _map[processId] = System.IO.Path.GetFileNameWithoutExtension(processName);
+
+            Processes.AppLaunched(System.IO.Path.GetFileNameWithoutExtension(processName), (int)processId);
+
+            //App.LogDebug($"Starting [PID={(int)processId}] AppBin={System.IO.Path.GetFileNameWithoutExtension(processName)}");
+
+        }
+        private void CheckStopApplication(object sender, EventArrivedEventArgs e)
+        {
+            var processId = (uint)e.NewEvent["ProcessId"];
+            string processName = GetProcessName(processId);
+            
+            Processes.AppClosed(processName, (int)processId);
+
+            _map.Remove(processId);
+
+            //App.LogDebug($"Exiting [PID={(int)processId}] AppBin={processName}");
+        }
+
+        public static string GetProcessName(uint processId)
+        {
+            if (_map == null)
+                return "";
+
+            if (_map.TryGetValue(processId, out string processName))
+            {
+                return processName;
+            }
+            return "";
+        }
         private void CheckHotKey(object sender, EventHook.KeyInputEventArgs e)
         {
             App.LogDebug($"Key {e.KeyData.EventType} event of key {e.KeyData.Keyname}");
@@ -999,28 +2068,18 @@ namespace CPUDoc
             {
                 App.pactive.ThreadBooster = true;
                 tbtimer.Enabled = true;
+                ThreadBooster.ForceCustomBitMask(false);
             }
             else
             {
                 App.pactive.ThreadBooster = false;
                 tbtimer.Enabled = false;
+                SysCpuSetMask = ThreadBooster.defFullBitMask;
+                lastSysCpuSetMask = ThreadBooster.defFullBitMask;
                 Thread.Sleep(500);
-                SetSysCpuSet();
+                SetSysCpuSet(ThreadBooster.defFullBitMask);
+                PSAPlanDisable();
             }
-
-            //App.LogDebug($"ThreadBooster Started PID={thridMonitor} ALIVE={thrMonitor.IsAlive}");
-
-        }
-
-        public static void UIStart()
-        {
-            thrUpdateUI = new Thread(RunUI);
-            thridUpdateUI = thrUpdateUI.ManagedThreadId;
-
-            uitimer.Enabled = false;
-
-            thrUpdateUI.Start();
-            uitimer.Start();
 
             //App.LogDebug($"ThreadBooster Started PID={thridMonitor} ALIVE={thrMonitor.IsAlive}");
 
@@ -1052,20 +2111,16 @@ namespace CPUDoc
 
                 (logicalsT0, logicalsT1) = GetTieredListsThreads();
 
-                //SetLastTieredThreadAffinity(logicalsT0);
-
                 _runlogicals = null;
                 _runcores = null;
 
-                ProtBufSettings.ReadSettings();
+                if (!ProtBufSettings.ReadSettings()) ProtBufSettings.ReadSettings();
 
-                App.LogDebug($"p0 tba {AppConfigs[0].ThreadBooster}");
+                App.LogDebug($"Profile 0 ThreadBooster Active={AppConfigs[0].ThreadBooster}");
 
                 pactive = AppConfigs[0];
 
-                App.LogDebug($"pact tba {pactive.ThreadBooster}");
-
-                //systemInfo.TBAutoStart = CPUDoc.Properties.Settings.Default.ThreadBooster;
+                App.LogDebug($"Active Profile ThreadBooster Active={pactive.ThreadBooster}");
 
             }
             catch (Exception ex)
@@ -1104,18 +2159,6 @@ namespace CPUDoc
                 //App.LogDebug("TB ELAPSED ON");
             }
         }
-        private static void UpdateUI_ElapsedEventHandler(object sender, ElapsedEventArgs e)
-        {
-            //App.LogDebug("UI ELAPSED");
-            int sync = Interlocked.CompareExchange(ref InterlockUI, 1, 0);
-            if (sync == 0)
-            {
-                OnUpdateUI(sender, e);
-                InterlockUI = 0;
-                //App.LogDebug("UI ELAPSED ON");
-            }
-        }
-
         private static void SysMask_ElapsedEventHandler(object sender, ElapsedEventArgs e)
         {
             //App.LogDebug("SysMask ELAPSED");
@@ -1128,23 +2171,6 @@ namespace CPUDoc
             }
         }
 
-        private static void OnUpdateUI(object sender, ElapsedEventArgs e)
-        {
-            if (thrThreadBooster.ThreadState == System.Threading.ThreadState.Running || thrThreadBooster.ThreadState == System.Threading.ThreadState.Background)
-            {
-                App.systemInfo.SetThreadBoosterStatus("Running");
-            }
-            else
-            {
-                App.systemInfo.SetThreadBoosterStatus("Stopped");
-            }
-
-            App.systemInfo.SetSSHStatus(App.pactive.SysSetHack);
-            App.systemInfo.SetPSAStatus(App.pactive.PowerSaverActive);
-            App.systemInfo.SetN0Status(App.pactive.NumaZero);
-
-            App.systemInfo.RefreshLabels();
-        }
         public static void RunHWM()
         {
 
@@ -1171,19 +2197,22 @@ namespace CPUDoc
             }
 
         }
+
+        /*
         public static void RunUI()
         {
 
-            App.LogDebug("RUN TUIB");
+            //App.LogDebug("RUN TUIB");
             uitimer.Interval = 1000;
             uitimer.Elapsed += new ElapsedEventHandler(UpdateUI_ElapsedEventHandler);
             if (uitimer.Enabled)
             {
-                App.LogDebug("START UI");
+                //App.LogDebug("START UI");
                 uitimer.Start();
             }
 
         }
+        */
         public static void RunSysMask()
         {
 
@@ -1262,19 +2291,92 @@ namespace CPUDoc
             m_Events = null;
         }
 
+        private SERVICE_STATUS DoQueryServiceStatus(IntPtr intPtrServ)
+        {
+            SERVICE_STATUS serviceStatus = new SERVICE_STATUS();
+
+            QueryServiceStatus(intPtrServ, ref serviceStatus);
+
+            return serviceStatus;
+        }
+        private int Stop_WinRing0()
+        {
+            int _exitcode = 0;
+            try
+            {
+                IntPtr intPtrSCM = OpenSCManager(null, null, SERVICE_ACCESS.SERVICE_ALL_ACCESS);
+                if (intPtrSCM == IntPtr.Zero) return -1;
+
+                IntPtr intPtrServ = OpenService(intPtrSCM, "R0CPUDoc", SERVICE_ACCESS.SERVICE_ALL_ACCESS);
+                if (intPtrServ == IntPtr.Zero) return -2;
+
+                SERVICE_STATUS stat = new SERVICE_STATUS();
+                bool res = ControlService(intPtrServ, SERVICE_CONTROL.STOP, ref stat);
+
+                if (!res)
+                {
+                    for (int i = 0; i < 8; ++i)
+                    {
+                        SERVICE_STATUS serviceStatus = DoQueryServiceStatus(intPtrServ);
+                        if (serviceStatus.currentState == SERVICE_STATE.SERVICE_STOPPED)
+                        {
+                            res = true;
+                            i = 9;
+                        }
+                        Thread.Sleep(250);
+                    }
+                    if (!res) App.LogDebug("Could not Stop WinRing0 service");
+
+                }
+                
+                res = DeleteService(intPtrServ);
+
+                if (!res) App.LogDebug("Could not delete WinRing0 service");
+
+                CloseServiceHandle(intPtrServ);
+                CloseServiceHandle(intPtrSCM);
+
+            }
+            catch (Exception ex)
+            {
+                App.LogDebug($"Exception Stop_WinRing0: {ex}");
+            }
+
+            return _exitcode;
+        }
 
         private void Application_Exit(object sender, ExitEventArgs e)
+        {
+            Application_Cleanup();
+            Current.Shutdown();
+            Environment.Exit(0);
+        }
+        private void Application_Cleanup()
         {
             try
             {
                 //keyboardWatcher.Stop();
                 //mouseWatcher.Stop();
                 //clipboardWatcher.Stop();
-                applicationWatcher.Stop();
+                //applicationWatcher.Stop();
                 //printWatcher.Stop();
                 //Unsubscribe();
                 Unsubscribe();
                 eventHookFactory.Dispose();
+
+                if (_processStartedWatcher != null)
+                {
+                    _processStartedWatcher.Stop();
+                    _processStartedWatcher.Dispose();
+                    _processStartedWatcher = null;
+                }
+
+                if (_processStoppedwatcher != null)
+                {
+                    _processStoppedwatcher.Stop();
+                    _processStoppedwatcher.Dispose();
+                    _processStoppedwatcher = null;
+                }
 
                 HWMonitor.Close();
                 ThreadBooster.Close();
@@ -1290,7 +2392,7 @@ namespace CPUDoc
             }
             catch (Exception ex)
             {
-                LogExWarn($"Application_Exit exception: {ex.Message}", ex);
+                if (logger_b) LogExWarn($"Application_Cleanup exception: {ex.Message}", ex);
             }
             try
             {
@@ -1299,7 +2401,7 @@ namespace CPUDoc
             }
             catch (Exception ex)
             {
-                LogExWarn($"Application_Exit exception: {ex.Message}", ex);
+                if (logger_b) LogExWarn($"Application_Cleanup exception: {ex.Message}", ex);
             }
             try
             {
@@ -1308,11 +2410,10 @@ namespace CPUDoc
                     systemInfo.Zen?.Dispose();
                     systemInfo.Zen = null;
                 }
-
             }
             catch (Exception ex)
             {
-                LogExWarn($"Application_Exit exception: {ex.Message}", ex);
+                if (logger_b) LogExWarn($"Application_Cleanup exception: {ex.Message}", ex);
             }
             try
             {
@@ -1323,49 +2424,55 @@ namespace CPUDoc
             }
             catch (Exception ex)
             {
-                LogExWarn($"Application_Exit exception: {ex.Message}", ex);
+                if (logger_b) LogExWarn($"Application_Cleanup exception: {ex.Message}", ex);
             }
             try
             {
                 SetSystemCpuSet(0);
-                UnloadModule("CPUDoc.sys");
-                UnloadModule("CPUTools.dll");
+                if (IsModuleLoaded("CPUDoc.sys")) UnloadModule("CPUDoc.sys");
+                if (IsModuleLoaded("CPUTools.dll")) UnloadModule("CPUTools.dll");
+                int _stopR0 = Stop_WinRing0();
+                if (_stopR0 != 0) LogDebug($"WinRing0 could not stop: {_stopR0}");
             }
             catch (Exception ex)
             {
-                LogExWarn($"Application_Exit exception: {ex.Message}", ex);
+                if (logger_b) LogExWarn($"Application_Cleanup exception: {ex.Message}", ex);
             }
-            LogInfo($"CPUDoc Version {_versionInfo} closed");
+            if (logger_b) LogInfo($"CPUDoc Version {_versionInfo} closed");
             Trace.Flush();
             Trace.Close();
             LogManager.Shutdown();
-            Current.Shutdown();
-            Environment.Exit(0);
+            ClearTimePeriod();
+        }
+
+        private bool IsModuleLoaded(string ModuleName)
+        {
+            bool loaded = false;
+            Process _process = Process.GetCurrentProcess();
+            ProcessModuleCollection myProcessModuleCollection;
+
+            try
+            {
+                ProcessModule myProcessModule = null;
+                myProcessModuleCollection = _process.Modules;
+
+                for (int j = 0; j < myProcessModuleCollection.Count; j++)
+                {
+                    myProcessModule = myProcessModuleCollection[j];
+
+                    if (myProcessModule.ModuleName.Contains(ModuleName))
+                    {
+                        loaded = true;
+                        break;
+                    }
+                }
+            }
+            catch { loaded = false; }
+            return loaded;
         }
 
         private void InitColors()
         {
-            /*
-			//boxbrush1 = (SolidColorBrush)new BrushConverter().ConvertFrom("#648585");
-			//boxbrush2 = (SolidColorBrush)new BrushConverter().ConvertFrom("#648585");
-			boxbrush1 = (SolidColorBrush)new BrushConverter().ConvertFrom("#B6CECE");
-			boxbrush2 = (SolidColorBrush)new BrushConverter().ConvertFrom("#B6CECE");
-			thrbrush1 = (SolidColorBrush)new BrushConverter().ConvertFrom("#CEEDE2");
-			thrbrush2 = (SolidColorBrush)new BrushConverter().ConvertFrom("#C3E0D6");
-			//maxbrush = (SolidColorBrush)new BrushConverter().ConvertFrom("#6D006 750E17");
-			maxbrush = (SolidColorBrush)new BrushConverter().ConvertFrom("#A10008");
-			tempbrush = (SolidColorBrush)new BrushConverter().ConvertFrom("#005D70");
-			voltbrush = (SolidColorBrush)new BrushConverter().ConvertFrom("#8300A3");
-			clockbrush1 = (SolidColorBrush)new BrushConverter().ConvertFrom("#140D4F");
-			//clockbrush2 = (SolidColorBrush)new BrushConverter().ConvertFrom("#115C6B");
-			clockbrush2 = (SolidColorBrush)new BrushConverter().ConvertFrom("#A31746"); 
-			powerbrush = (SolidColorBrush)new BrushConverter().ConvertFrom("#D95D04");
-			//powerbrush = (SolidColorBrush)new BrushConverter().ConvertFrom("#D16700");
-
-			additionbrush = (SolidColorBrush)new BrushConverter().ConvertFrom("#431571");
-			blackbrush = (SolidColorBrush)new BrushConverter().ConvertFrom("#0A0A0A");
-			whitebrush = (SolidColorBrush)new BrushConverter().ConvertFrom("#F4F4F6");
-			*/
             //DOPO
 
             // BOX BACKGROUND ODD
@@ -1474,48 +2581,28 @@ namespace CPUDoc
                 LogExError($"SetLastTieredThreadAffinity exception: {ex.Message}", ex);
             }
         }
-        public static void ImportPowerPlan()
+        public static int ExecuteCmd(string exe, string arguments, string path)
         {
             try
             {
-                var cmd = new Process { StartInfo = { FileName = "powercfg" } };
+                var cmd = new Process { StartInfo = { FileName = exe, WorkingDirectory = path } };
                 using (cmd)
                 {
-                    string planName = "CPUDocDynamicW10_v1.pow";
-                    if (App.Win11)
-                        planName = "CPUDocDynamicW11_v1.pow";
-
-                    var inputPath = Path.Combine(Environment.CurrentDirectory, planName);
-
-                    //This hides the resulting popup window
                     cmd.StartInfo.CreateNoWindow = true;
                     cmd.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 
-                    //Import the new power plan
-                    cmd.StartInfo.Arguments = $"-import \"{inputPath}\" {PPGuid}";
+                    cmd.StartInfo.Arguments = arguments;
                     cmd.Start();
 
                     cmd.WaitForExit();
+
+                    return cmd.ExitCode;
                 }
             }
             catch (Exception ex)
             {
-                LogExError($"ImportPowerPlan exception: {ex.Message}", ex);
-            }
-
-        }
-        public static void ExecuteCmd(string exe, string arguments, string path)
-        {
-            var cmd = new Process { StartInfo = { FileName = exe, WorkingDirectory = path } };
-            using (cmd)
-            {
-                cmd.StartInfo.CreateNoWindow = true;
-                cmd.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-
-                cmd.StartInfo.Arguments = arguments;
-                cmd.Start();
-
-                cmd.WaitForExit();
+                LogExError($"ExecuteCmd exception: {ex.Message}", ex);
+                return -1;
             }
         }
 
@@ -1537,11 +2624,11 @@ namespace CPUDoc
                 pactive.SysSetHack = false;
             }
 
-            if (pactive.ThreadBooster)
+            if (pactive.ThreadBooster ?? false)
             {
                 tbtimer.Enabled = true;
-                if (!pactive.ManualPoolingRate) SetPoolingRate();
-                if (pactive.ManualPoolingRate) SetPoolingRate(pactive.PoolingRate);
+                if (!(pactive.ManualPoolingRate ?? false)) SetPoolingRate();
+                if (pactive.ManualPoolingRate ?? false) SetPoolingRate((int)(pactive.PoolingRate ?? 250));
             }
             else
             {
@@ -1550,7 +2637,7 @@ namespace CPUDoc
                 hwmtimer.Enabled = false;
             }
 
-            if (!pactive.SysSetHack && !pactive.NumaZero)
+            if (!(pactive.SysSetHack ?? false) && !(pactive.NumaZero ?? false))
             {
                 lastSysCpuSetMask = 0;
                 SetSysCpuSet(0);
@@ -1571,7 +2658,7 @@ namespace CPUDoc
 
             try
             {
-                if (pactive.NumaZero)
+                if ((pactive.NumaZero ?? false))
                 {
                     int _found = 0;
 
@@ -1687,15 +2774,29 @@ namespace CPUDoc
                     }
                 }
 
-                if (n0disabledT0.Count() > 0 || n0disabledT1.Count() > 0 && pactive.NumaZero) numazero_b = true;
+                if (n0disabledT0.Count() > 0 || n0disabledT1.Count() > 0 && (pactive.NumaZero ?? false)) numazero_b = true;
+
+                if (systemInfo.IntelHybrid)
+                {
+                    if (numazero_b)
+                    {
+                        powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("7f2f5cfa-f10c-4823-b5e1-e93ae85f46b5"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, 3);
+                        powerManager.SetActiveGuid(powerManager.GetActiveGuid());
+                    }
+                    else
+                    {
+                        powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("7f2f5cfa-f10c-4823-b5e1-e93ae85f46b5"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, 4);
+                        powerManager.SetActiveGuid(powerManager.GetActiveGuid());
+                    }
+                }
             }
             catch (Exception ex)
             {
                 App.LogExError($"NumaZero Init Exception:", ex);
             }
-            App.systemInfo.SetSSHStatus(pactive.SysSetHack);
-            App.systemInfo.SetPSAStatus(pactive.PowerSaverActive);
-            App.systemInfo.SetN0Status(pactive.NumaZero);
+            App.systemInfo.SetSSHStatus(pactive.SysSetHack ?? false);
+            App.systemInfo.SetPSAStatus(pactive.PowerSaverActive ?? false);
+            App.systemInfo.SetN0Status(pactive.NumaZero ?? false);
 
             App.LogDebug($"N0={pactive.NumaZero} N0Active={numazero_b} HT={systemInfo.HyperThreading}");
 
@@ -1745,7 +2846,6 @@ namespace CPUDoc
                     HWMonitor.MonitoringPoolingFast = 500;
                     cpuTotalLoad = new MovingAverage(3);
                     cpuTotalLoadLong = new MovingAverage(12);
-
                     return;
                 case 1:
                     ThreadBooster.PoolingInterval = 500;
@@ -1821,6 +2921,8 @@ namespace CPUDoc
                     .Where(f => f.LastWriteTime < DateTime.Now.AddDays(-1))
                     .ToList()
                     .ForEach(f => f.Delete());
+                
+                if (powerManager.PlanExists(PPGuidV1)) powerManager.DeletePlan(PPGuidV1);
 
             }
             catch (Exception ex)

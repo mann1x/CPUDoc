@@ -36,10 +36,12 @@ namespace CPUDoc
     using WindowSettings = Properties.Settings;
     public partial class MainWindow
     {
-        static bool InitUI = true;
+        //static bool InitUI = true;
         static bool WinLoaded = false;
         static DispatcherTimer uitimer;
         static bool AutoStartTask;
+        private uint? _lastmask_current = uint.MaxValue;
+        private int PoolingTick = 0;
 
         public static appConfigs pcurrent;
         public string WinTitle
@@ -65,6 +67,7 @@ namespace CPUDoc
                 if (binding != null) { binding.UpdateSource(); }
             }
         }
+
         private void Window_SourceInitialized(object sender, EventArgs e)
         {
             try
@@ -110,25 +113,51 @@ namespace CPUDoc
                 //pcurrent = new appConfigs();
                 //appConfigs.Init();
 
-                cbTBAutoStart.IsChecked = pcurrent.ThreadBooster ? true : false;
-                cbNumaZero.IsChecked = pcurrent.NumaZero ? true : false;
-                cbPSA.IsChecked = pcurrent.PowerSaverActive ? true : false;
-                cbZC.IsChecked = pcurrent.ZenControl ? true : false;
-                cbSysSetHack.IsChecked = pcurrent.SysSetHack ? true : false;
-                cbTraceInfo.IsChecked = App.AppSettings.LogInfo ? true : false;
-                cbTraceDebug.IsChecked = App.AppSettings.LogTrace ? true : false;
-                cbAUNotifications.IsChecked = App.AppSettings.AUNotifications ? true : false;
-                listNumaZeroType.SelectedIndex = pcurrent.NumaZeroType;
-                cbPoolingRate.IsChecked = pcurrent.ManualPoolingRate ? true : false;
-                listPoolingRate.SelectedIndex = pcurrent.PoolingRate;
+                App.systemInfo.SetSleepsAllowed();
 
-                SSHStatus.Text = App.pactive.SysSetHack ? "Enabled" : "Disabled";
-                PSAStatus.Text = App.pactive.PowerSaverActive ? "Enabled" : "Disabled";
-                N0Status.Text = App.pactive.NumaZero ? "Enabled" : "Disabled";
+                cbTBAutoStart.IsChecked = (pcurrent.ThreadBooster ?? false) ? true : false;
+                cbNumaZero.IsChecked = (pcurrent.NumaZero ?? false) ? true : false;
+                cbPSA.IsChecked = (pcurrent.PowerSaverActive ?? false) ? true : false;
+                cbZC.IsChecked = (pcurrent.ZenControl ?? false) ? true : false;
+                cbSysSetHack.IsChecked = (pcurrent.SysSetHack ?? false) ? true : false;
+                cbTraceInfo.IsChecked = (App.AppSettings.LogInfo ?? false) ? true : false;
+                cbAUNotifications.IsChecked = (App.AppSettings.AUNotifications ?? false) ? true : false;
+                listNumaZeroType.SelectedIndex = (int)pcurrent.NumaZeroType;
+                cbPoolingRate.IsChecked = (pcurrent.ManualPoolingRate ?? false) ? true : false;
+                listPoolingRate.SelectedIndex = (int)pcurrent.PoolingRate;
 
-                cbPPT.IsChecked = pcurrent.ZenControlPPTAuto ? true : false;
-                cbTDC.IsChecked = pcurrent.ZenControlTDCAuto ? true : false;
-                cbEDC.IsChecked = pcurrent.ZenControlEDCAuto ? true : false;
+                PowerTweak_LowPo.IsChecked = (pcurrent.PowerTweak ?? 1) == 0 ? true : false;
+                PowerTweak_AutoPo.IsChecked = (pcurrent.PowerTweak ?? 1) == 1 ? true : false;
+                PowerTweak_HighPo.IsChecked = (pcurrent.PowerTweak ?? 1) == 2 ? true : false;
+                App.LogDebug($"Personality?{pcurrent.Personality}");
+                Persona_Auto.IsChecked = (pcurrent.Personality ?? 0) == 0;
+                Persona_Bala.IsChecked = (pcurrent.Personality ?? 0) == 1;
+                Persona_Ulti.IsChecked = (pcurrent.Personality ?? 0) == 2;
+                AMBias_Auto.IsChecked = (pcurrent.ActiveModeBias ?? -1) == -1 ? true : false;
+                AMBias_Economizer.IsChecked = (pcurrent.ActiveModeBias ?? -1) == 0 ? true : false;
+                AMBias_Standard.IsChecked = (pcurrent.ActiveModeBias ?? -1) == 1 ? true : false;
+                AMBias_Booster.IsChecked = (pcurrent.ActiveModeBias ?? -1) == 2 ? true : false;
+                GMBias_Auto.IsChecked = (pcurrent.GameModeBias ?? -1) == -1 ? true : false;
+                GMBias_Economizer.IsChecked = (pcurrent.GameModeBias ?? -1) == 0 ? true : false;
+                GMBias_Standard.IsChecked = (pcurrent.GameModeBias ?? -1) == 1 ? true : false;
+                GMBias_Booster.IsChecked = (pcurrent.GameModeBias ?? -1) == 2 ? true : false;
+
+                listSleepIdle.SelectedIndex = (pcurrent.SleepIdle ?? 0);
+                listMonitorIdle.SelectedIndex = (pcurrent.MonitorIdle ?? 0);
+                listHyberIdle.SelectedIndex = (pcurrent.HyberIdle ?? 0);
+                App.LogDebug($"MonitorIdle?{listMonitorIdle.SelectedIndex}={(int)pcurrent.MonitorIdle}");
+                GMDetect.IsChecked = (pcurrent.GameMode ?? false) ? true : false;
+                GMFocusAssist.IsChecked = (pcurrent.FocusAssist ?? false) ? true : false;
+                GMUserNotification.IsChecked = (pcurrent.UserNotification ?? false) ? true : false;
+                GMFGSecondary.IsChecked = (pcurrent.SecondaryMonitor ?? false) ? true : false;
+
+                SSHStatus.Text = (App.pactive.SysSetHack ?? false) ? "Enabled" : "Disabled";
+                PSAStatus.Text = (App.pactive.PowerSaverActive ?? false) ? "Enabled" : "Disabled";
+                N0Status.Text = (App.pactive.NumaZero ?? false) ? "Enabled" : "Disabled";
+
+                cbPPT.IsChecked = (pcurrent.ZenControlPPTAuto ?? false) ? true : false;
+                cbTDC.IsChecked = (pcurrent.ZenControlTDCAuto ?? false) ? true : false;
+                cbEDC.IsChecked = (pcurrent.ZenControlEDCAuto ?? false) ? true : false;
 
                 PPThpx.IsEnabled = !cbPPT.IsChecked == true;
                 TDChpx.IsEnabled = !cbTDC.IsChecked == true;
@@ -151,24 +180,14 @@ namespace CPUDoc
 
                 Create_CpuDisplay();
 
-                if (cbTBAutoStart.IsChecked == true)
-                {
-                    cbNumaZero.IsEnabled = true;
-                    cbSysSetHack.IsEnabled = true;
-                    cbPSA.IsEnabled = true;
-                    cbZC.IsEnabled = true;
-                    listNumaZeroType.IsEnabled = true;
-                }
-                else
-                {
-                    cbNumaZero.IsEnabled = false;
-                    cbSysSetHack.IsEnabled = false;
-                    cbPSA.IsEnabled = false;
-                    cbZC.IsEnabled = false;
-                    listNumaZeroType.IsEnabled = false;
-                }
+                currentcpu_update();
+
+                Config_Init();
 
                 /*
+                */
+
+
                 uint eax = 0;
                 uint edx = 0;
 
@@ -178,7 +197,8 @@ namespace CPUDoc
                     App.LogDebug($"ENERGY={eax:X8} {edx:X8}");
                 if (App.ReadMsr(0xc00102b2, ref eax, ref edx))
                     App.LogDebug($"CPPC ENABLE={eax:X8} {edx:X8}");
-                */
+
+
                 this.UpdateLayout();
                 SaveWinPos();
 
@@ -194,15 +214,32 @@ namespace CPUDoc
                 if (AutoStartTask) BtnAutoStartTaskLabel.Text = "Delete AutoStart Task";
 
                 SizeToContent = SizeToContent.WidthAndHeight;
+
                 SetValue(MinWidthProperty, ActualWidth);
                 SetValue(MinHeightProperty, ActualHeight);
-                ClearValue(SizeToContentProperty);
-
-                App.uitimer.Enabled = true;
 
                 WinLoaded = true;
             }
 
+        }
+        private void Config_Init()
+        {
+            if (cbTBAutoStart.IsChecked == true)
+            {
+                cbNumaZero.IsEnabled = true;
+                cbSysSetHack.IsEnabled = true;
+                cbPSA.IsEnabled = true;
+                cbZC.IsEnabled = true;
+                listNumaZeroType.IsEnabled = true;
+            }
+            else
+            {
+                cbNumaZero.IsEnabled = false;
+                cbSysSetHack.IsEnabled = false;
+                cbPSA.IsEnabled = false;
+                cbZC.IsEnabled = false;
+                listNumaZeroType.IsEnabled = false;
+            }
         }
 
         private void Create_CpuDisplay()
@@ -261,12 +298,15 @@ namespace CPUDoc
                         ProgressBar loadT0 = new ProgressBar { Name = "tload", Maximum = 100, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
                         Button btnT1 = new Button { Width = 16, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Tag = $"{t1}", Content = $"T1", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
                         ProgressBar loadT1 = new ProgressBar { Name = "tload", Maximum = 100, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Tag = $"{t1}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+
                         loadT0.Width = 16;
                         loadT1.Width = 16;
                         loadT0.Height = 14;
                         loadT1.Height = 14;
                         loadT0.MaxWidth = 16;
                         loadT1.MaxWidth = 16;
+                        loadT0.IsIndeterminate = false;
+                        loadT1.IsIndeterminate = false;
 
                         Button btnSpace = new Button { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Content = $"TX", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
                         App.LogDebug($"C{pcore} {t0} {t1} {_col} {_row} {threads}");
@@ -287,14 +327,27 @@ namespace CPUDoc
                             _gridblock.Children.Add(loadT1);
                             Grid.SetColumn(loadT1, _col + 4);
                             Grid.SetRow(loadT1, _row);
+
+                            Binding bindLive = new Binding($"CpuTload[{t0}]");
+                            bindLive.Mode = BindingMode.OneWay;
+                            bindLive.Source = App.systemInfo;
+                            BindingOperations.SetBinding(loadT0, ProgressBar.ValueProperty, bindLive);
+
                         }
+
                         _gridblock.Children.Add(btnSpace);
                         Grid.SetColumn(btnSpace, _col + 5);
                         Grid.SetRow(btnSpace, _row);
+
                         if (t1 != -1)
                         {
                             btnT1.Visibility = Visibility.Visible;
                             loadT1.Visibility = Visibility.Visible;
+
+                            Binding bindLive = new Binding($"CpuTload[{t1}]");
+                            bindLive.Mode = BindingMode.OneWay;
+                            bindLive.Source = App.systemInfo;
+                            BindingOperations.SetBinding(loadT1, ProgressBar.ValueProperty, bindLive);
                         }
 
                         pcore++;
@@ -352,8 +405,12 @@ namespace CPUDoc
                 SaveWinPos();
                 App.LogDebug($"Saved Window Position Closing {WindowSettings.Default.Top} {WindowSettings.Default.Left} {WindowSettings.Default.Height} {WindowSettings.Default.Width} {WindowSettings.Default.Maximized}");
             }
-            //App.uitimer.Enabled = false;
+
+            uitimer.IsEnabled = false;
             uitimer.Stop();
+
+            GC.Collect();
+
         }
 
         public static IEnumerable<T> FindVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
@@ -399,6 +456,7 @@ namespace CPUDoc
         }
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            
             InitMainUI();
 
             string LicensePath = @".\LICENSE";
@@ -409,12 +467,11 @@ namespace CPUDoc
 
             UpdateLayout();
 
-            Activate();
-            Focus();
-
             this.Title = WinTitle;
 
             App.systemInfo.SetThreadBoosterStatus("N/A");
+
+            //InitUI = true;
 
             uitimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             uitimer.Start();
@@ -423,59 +480,70 @@ namespace CPUDoc
                 if (App.tbtimer.Enabled)
                 {
                     App.systemInfo.SetThreadBoosterStatus("Running");
-
                 }
                 else
                 {
                     App.systemInfo.SetThreadBoosterStatus("Stopped");
                 }
-                App.systemInfo.SetSSHStatus(App.pactive.SysSetHack);
-                App.systemInfo.SetPSAStatus(App.pactive.PowerSaverActive);
-                App.systemInfo.SetN0Status(App.pactive.NumaZero);
+                App.systemInfo.SetSSHStatus((App.pactive.SysSetHack ?? false));
+                App.systemInfo.SetPSAStatus((App.pactive.PowerSaverActive ?? false));
+                App.systemInfo.SetN0Status((App.pactive.NumaZero ?? false));
+                App.systemInfo.SetSleepsAllowed();
 
-                App.systemInfo.RefreshLabels();
+                if (PoolingTick == 3) App.systemInfo.RefreshLabels();
 
-                currentcpu_update();
+                PoolingTick++;
+                PoolingTick = PoolingTick > 3 ? 0 : PoolingTick;
+
+                if (WinLoaded) currentcpu_update();
 
             };
+
+            Activate();
+            Focus();
+
         }
 
         public void currentcpu_update()
         {
-            uint? _lastmask = App.lastSysCpuSetMask;
-            for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
+            try 
             {
-                //int _mask = i << _lastmask;
-                uint? _mask = _lastmask;
-                IEnumerable<Button> elements = FindVisualChildren<Button>(this).Where(x => x.Content == "T0" || x.Content == "T1");
-                foreach (Button btn in elements)
+                uint? _lastmask = App.lastSysCpuSetMask;
+                if (_lastmask != _lastmask_current || _lastmask_current == uint.MaxValue)
                 {
-                    if (btn.Tag.ToString() == $"{i}")
+                    for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
                     {
-                        if ((((1 << i) & _mask) != 0) || _mask == null || _mask == 0 || !App.pactive.ThreadBooster )
+                        //int _mask = i << _lastmask;
+                        uint? _mask = _lastmask;
+#pragma warning disable CS0252 // Possible unintended reference comparison; left hand side needs cast
+                        IEnumerable<Button> elements = FindVisualChildren<Button>(this).Where(x => x.Content == "T0" || x.Content== "T1");
+#pragma warning restore CS0252 // Possible unintended reference comparison; left hand side needs cast
+                        foreach (Button btn in elements)
                         {
-                            btn.Foreground = Brushes.White;
-                            btn.Background = Brushes.Green;
-                        }
-                        else if (!(((1 << i) & _mask) != 0) && (App.n0disabledT0.Contains(i) || App.n0disabledT1.Contains(i)))
-                        {
-                            btn.Foreground = Brushes.DarkGray;
-                            btn.Background = Brushes.Black;
-                        }
-                        else
-                        {
-                            btn.Foreground = Brushes.LightGray;
-                            btn.Background = Brushes.DarkRed;
+                            if (btn.Tag.ToString() == $"{i}")
+                            {
+                                if ((((1 << i) & _mask) != 0) || _mask == null || _mask == 0 || !(App.pactive.ThreadBooster ?? false))
+                                {
+                                    btn.Foreground = Brushes.White;
+                                    btn.Background = Brushes.Green;
+                                }
+                                else if (!(((1 << i) & _mask) != 0) && (App.n0disabledT0.Contains(i) || App.n0disabledT1.Contains(i)))
+                                {
+                                    btn.Foreground = Brushes.DarkGray;
+                                    btn.Background = Brushes.Black;
+                                }
+                                else
+                                {
+                                    btn.Foreground = Brushes.LightGray;
+                                    btn.Background = Brushes.DarkRed;
+                                }
+                            }
                         }
                     }
-                }
-                IEnumerable<ProgressBar> elements2 = FindVisualChildren<ProgressBar>(this).Where(x => x.Name == "tload");
-                foreach (ProgressBar bar in elements2)
-                {
-                    int _coreload = (int)ProcessorInfo.Load(Convert.ToInt32(bar.Tag));
-                    bar.Value = _coreload;
+                    _lastmask_current = _lastmask;
                 }
             }
+            catch { }            
         }
 
         private void EcoresMode(object sender, RoutedEventArgs e)
@@ -622,6 +690,13 @@ namespace CPUDoc
         {
             AutoUpdater.Start(App.AutoUpdaterUrl);
         }
+
+        private void InitMainUI()
+        {
+            //InitUI = false;
+        }
+
+        /*
         private void ButtonReset(object sender, RoutedEventArgs e)
         {
 
@@ -632,15 +707,7 @@ namespace CPUDoc
             InitMainUI();
 
         }
-        private void InitMainUI()
-        {
 
-            InitUI = true;
-
-            InitUI = false;
-        }
-
-        /*
         private void RestoreCustomCPPC()
         {
             try
@@ -755,21 +822,6 @@ namespace CPUDoc
                 listNumaZeroType.IsEnabled = false;
             }
         }
-        private void TraceDebugCheckBox_Click(object sender, RoutedEventArgs e)
-        {
-            CheckBox cb = sender as CheckBox;
-
-            if (cb.IsChecked == true)
-            {
-                App.AppSettings.LogTrace = true;
-            }
-            else
-            {
-                App.AppSettings.LogTrace = false;
-            }
-            App.TraceLogging(App.AppSettings.LogTrace);
-            ProtBufSettings.WriteSettings();
-        }
         private void AUNotificationsCheckBox_Click(object sender, RoutedEventArgs e)
         {
             CheckBox cb = sender as CheckBox;
@@ -782,7 +834,7 @@ namespace CPUDoc
             {
                 App.AppSettings.AUNotifications = false;
             }
-            App.AUNotifications(App.AppSettings.AUNotifications);
+            App.AUNotifications((App.AppSettings.AUNotifications ?? false));
             ProtBufSettings.WriteSettings();
         }
         private void TraceInfoCheckBox_Click(object sender, RoutedEventArgs e)
@@ -792,12 +844,14 @@ namespace CPUDoc
             if (cb.IsChecked == true)
             {
                 App.AppSettings.LogInfo = true;
+                App.AppSettings.LogTrace = true;
             }
             else
             {
                 App.AppSettings.LogInfo = false;
+                App.AppSettings.LogTrace = false;
             }
-            App.InfoLogging(App.AppSettings.LogInfo);
+            App.InfoLogging((App.AppSettings.LogInfo ?? false));
             ProtBufSettings.WriteSettings();
         }
         private void SysSetHack_Click(object sender, RoutedEventArgs e)
@@ -932,6 +986,24 @@ namespace CPUDoc
             if (pcurrent != null) pcurrent.PoolingRate = cb.SelectedIndex;
         }
 
+        private void HyberIdle_Select(object sender, SelectionChangedEventArgs e)
+        {
+            ComboBox cb = sender as ComboBox;
+            //App.LogDebug($"PoolingRate {pcurrent.PoolingRate} {pcurrent.PoolingRate.GetType()}");
+            if (pcurrent != null) pcurrent.HyberIdle = cb.SelectedIndex;
+        }
+        private void SleepIdle_Select(object sender, SelectionChangedEventArgs e)
+        {
+            ComboBox cb = sender as ComboBox;
+            //App.LogDebug($"PoolingRate {pcurrent.PoolingRate} {pcurrent.PoolingRate.GetType()}");
+            if (pcurrent != null) pcurrent.SleepIdle = cb.SelectedIndex;
+        }
+        private void MonitorIdle_Select(object sender, SelectionChangedEventArgs e)
+        {
+            ComboBox cb = sender as ComboBox;
+            //App.LogDebug($"PoolingRate {pcurrent.PoolingRate} {pcurrent.PoolingRate.GetType()}");
+            if (pcurrent != null) pcurrent.MonitorIdle = cb.SelectedIndex;
+        }
         private bool isNumericText(string strValue)
         {
             int intVal = 0;
@@ -982,17 +1054,45 @@ namespace CPUDoc
                     pcurrent.ZenControl = cbZC.IsChecked == true ? true : false;
                     pcurrent.SysSetHack = cbSysSetHack.IsChecked == true ? true : false;
                     App.AppSettings.LogInfo = cbTraceInfo.IsChecked == true ? true : false;
-                    App.AppSettings.LogTrace = cbTraceDebug.IsChecked == true ? true : false;
+                    App.AppSettings.LogTrace = cbTraceInfo.IsChecked == true ? true : false;
                     App.AppSettings.AUNotifications = cbAUNotifications.IsChecked == true ? true : false;
                     pcurrent.NumaZeroType = listNumaZeroType.SelectedIndex;
                     pcurrent.ManualPoolingRate = cbPoolingRate.IsChecked == true ? true : false;
                     pcurrent.PoolingRate = listPoolingRate.SelectedIndex;
-                    
+                    pcurrent.SleepIdle = listSleepIdle.SelectedIndex;
+                    pcurrent.MonitorIdle = listMonitorIdle.SelectedIndex;
+                    pcurrent.HyberIdle = listHyberIdle.SelectedIndex;
+
+                    if (PowerTweak_LowPo.IsChecked ?? false) pcurrent.PowerTweak = 0;
+                    if (PowerTweak_AutoPo.IsChecked ?? false) pcurrent.PowerTweak = 1;
+                    if (PowerTweak_HighPo.IsChecked ?? false) pcurrent.PowerTweak = 2;
+
+                    if (Persona_Auto.IsChecked ?? false) pcurrent.Personality = 0;
+                    if (Persona_Bala.IsChecked ?? false) pcurrent.Personality = 1;
+                    if (Persona_Ulti.IsChecked ?? false) pcurrent.Personality = 2;
+
+                    if (AMBias_Auto.IsChecked ?? false) pcurrent.ActiveModeBias = -1;
+                    if (AMBias_Economizer.IsChecked ?? false) pcurrent.ActiveModeBias = 0;
+                    if (AMBias_Standard.IsChecked ?? false) pcurrent.ActiveModeBias = 1;
+                    if (AMBias_Booster.IsChecked ?? false) pcurrent.ActiveModeBias = 2;
+
+                    if (GMBias_Auto.IsChecked ?? false) pcurrent.GameModeBias = -1;
+                    if (GMBias_Economizer.IsChecked ?? false) pcurrent.GameModeBias = 0;
+                    if (GMBias_Standard.IsChecked ?? false) pcurrent.GameModeBias = 1;
+                    if (GMBias_Booster.IsChecked ?? false) pcurrent.GameModeBias = 2;
+
+                    pcurrent.GameMode = GMDetect.IsChecked == true ? true : false;
+                    pcurrent.FocusAssist = GMFocusAssist.IsChecked == true ? true : false;
+                    pcurrent.UserNotification = GMUserNotification.IsChecked == true ? true : false;
+                    pcurrent.SecondaryMonitor = GMFGSecondary.IsChecked == true ? true : false;
+
                     App.AppConfigs[0] = pcurrent;
-                    App.SetActiveConfig(pcurrent.id);
-                    ProtBufSettings.WriteSettings();
+                    App.SetActiveConfig((int)(pcurrent.id ?? 0));
+                    if (!ProtBufSettings.WriteSettings()) ProtBufSettings.WriteSettings();
                     //App.LogDebug($"Wr Config[{App.pactive.id}] TBA={App.pactive.ThreadBooster} SSH={App.AppConfigs[0].SysSetHack}:{pcurrent.SysSetHack}:{App.pactive.SysSetHack} PSA={App.pactive.PowerSaverActive} N0={App.pactive.NumaZero}:{App.pactive.NumaZeroType}");
-                    ProtBufSettings.ReadSettings();
+                    if (!ProtBufSettings.ReadSettings()) ProtBufSettings.ReadSettings();
+                    ThreadBooster.bInit = false;
+                    Config_Init();
                     //App.LogDebug($"Rd Config[{App.pactive.id}] TBA={App.AppConfigs[App.pactive.id].ThreadBooster} SSH={App.AppConfigs[App.pactive.id].SysSetHack}:{App.pactive.SysSetHack} PSA={App.AppConfigs[App.pactive.id].PowerSaverActive} N0={App.pactive.NumaZero}:{App.AppConfigs[App.pactive.id].NumaZero}:{App.AppConfigs[App.pactive.id].NumaZeroType}");
                 }
             }
@@ -1007,9 +1107,11 @@ namespace CPUDoc
             //App.LogInfo($"NumaZeroType {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
             //App.AppConfigs[pcurrent.id] = pcurrent;
             ProtBufSettings.ResetSettings();
-            ProtBufSettings.ReadSettings();
+            if (!ProtBufSettings.ReadSettings()) ProtBufSettings.ReadSettings();
             App.SetActiveConfig(0);
-            ProtBufSettings.WriteSettings();
+            if (!ProtBufSettings.WriteSettings()) ProtBufSettings.WriteSettings();
+            ThreadBooster.bInit = false;
+            Config_Init();
         }
         private void BtnAutoStartTask_Click(object sender, RoutedEventArgs e)
         {
@@ -1074,11 +1176,29 @@ namespace CPUDoc
             }
         }
 
-        private void AdonisWindow_Activated(object sender, EventArgs e)
+        private void Window_StateChanged(object sender, EventArgs e)
         {
-            App.systemInfo.RefreshLabels();
+            if (WindowState == WindowState.Minimized)
+            {
+                uitimer.IsEnabled = false;
+            } 
+            else
+            {
+                uitimer.IsEnabled = true;
+            }
         }
 
+        private void TabItemEnter(object sender, MouseEventArgs e)
+        {
+            ClearValue(MinWidthProperty);
+            ClearValue(MinHeightProperty);
+            UpdateLayout();
+            SizeToContent = SizeToContent.WidthAndHeight;
+
+
+            SetValue(MinWidthProperty, ActualWidth);
+            SetValue(MinHeightProperty, ActualHeight);
+        }
     }
     public class NumericValidationRule : ValidationRule
     {
@@ -1088,7 +1208,7 @@ namespace CPUDoc
             string strValue = Convert.ToString(value);
 
             if (string.IsNullOrEmpty(strValue))
-                return new ValidationResult(false, $"Value cannot be coverted to string.");
+                return new ValidationResult(false, $"Value cannot be converted to string.");
             bool canConvert = false;
             switch (ValidationType.Name)
             {

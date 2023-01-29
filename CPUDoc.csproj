@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net5.0-windows</TargetFramework>
+    <TargetFramework>net6.0-windows10.0.17763.0</TargetFramework>
     <UseWPF>true</UseWPF>
     <Description>CPU Little Helper</Description>
     <PackageProjectUrl>https://github.com/mann1x/CPUDoc</PackageProjectUrl>
@@ -10,9 +10,14 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>CPUDoc.ico</ApplicationIcon>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <Version>1.1.6</Version>
-    <AssemblyVersion>1.1.6.0</AssemblyVersion>
-    <FileVersion>1.1.6.0</FileVersion>
+    <Version>1.1.8</Version>
+    <AssemblyVersion>1.1.8.0</AssemblyVersion>
+    <FileVersion>1.1.8.0</FileVersion>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <Nullable>annotations</Nullable>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <SignAssembly>False</SignAssembly>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -35,17 +40,26 @@
     <PackageReference Include="AdonisUI.ClassicTheme" Version="1.17.1" />
     <PackageReference Include="Autoupdater.NET.Official" Version="1.7.6" />
     <PackageReference Include="Conari" Version="1.5.0" />
+    <PackageReference Include="Costura.Fody" Version="5.7.0">
+      <PrivateAssets>all</PrivateAssets>
+      <!--<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>-->
+    </PackageReference>
     <PackageReference Include="EventHook" Version="1.4.113" />
-    <PackageReference Include="gong-wpf-dragdrop" Version="3.2.0" />
+    <PackageReference Include="Fody" Version="6.6.4">
+      <PrivateAssets>all</PrivateAssets>
+      <!--<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>-->
+    </PackageReference>
+    <PackageReference Include="gong-wpf-dragdrop" Version="3.2.1" />
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="6.0.0" />
     <PackageReference Include="Microsoft.Win32.Registry.AccessControl" Version="7.0.0" />
     <PackageReference Include="MouseKeyHook" Version="5.6.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="NLog" Version="5.0.5" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
+    <PackageReference Include="NLog" Version="5.1.1" />
     <PackageReference Include="OSVersionExt" Version="2.0.0" />
-    <PackageReference Include="PowerManagerAPI" Version="0.2.0-CI-20200413-015121" />
-    <PackageReference Include="protobuf-net" Version="3.1.25" />
+    <PackageReference Include="PowerManagerAPI-new101" Version="1.0.0" />
+    <PackageReference Include="protobuf-net" Version="3.1.26" />
     <PackageReference Include="protobuf-net-data" Version="4.0.0" />
     <PackageReference Include="regXwild" Version="1.4.0" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
@@ -59,10 +73,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Base\" />
     <Folder Include="Settings\" />
     <Folder Include="Resources\" />
-    <Folder Include="Windows\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -95,7 +107,19 @@
     <None Update="CPUDocDynamicW10_v1.pow">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="CPUDocDynamicW10_v2_Balanced.pow">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="CPUDocDynamicW10_v2_Ultimate.pow">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="CPUDocDynamicW11_v1.pow">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="CPUDocDynamicW11_v2_Balanced.pow">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="CPUDocDynamicW11_v2_Ultimate.pow">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="CpuTools.dll">
@@ -106,6 +130,8 @@
     </None>
     <None Update="LICENSE">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
     </None>
     <None Update="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
@@ -136,7 +162,7 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="ZenStates-Core.pdb">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 
