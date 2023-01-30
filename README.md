@@ -211,6 +211,9 @@ More a list to remember what to work on in the future :)
 
 ## Changelog:
 
+- v1.1.9 Beta
+    - New: FocusAssistAPI can be now used also when forcing Alarms or Priority only by querying the status
+    - Fix: UserNotificationAPI failure not considered as status to enable GameMode
 - v1.1.8 Beta
     - New: PowerSaveActive; introduction of Active Mode, Game Mode, Power Tweak, Plan Personality
     - New: Improved OS detection and logging

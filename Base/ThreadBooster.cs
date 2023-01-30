@@ -328,7 +328,6 @@ namespace CPUDoc
                 _deltaStamp = DateTime.Now - prevFullcoresStamp;
                 _deltaUA = DateTime.Now - App.UAStamp;
 
-
                 bool _GameMode = false;
                 bool _ActiveMode = false;
                 bool _FocusAssist = false;
@@ -338,8 +337,10 @@ namespace CPUDoc
 
                 if (App.pactive.GameMode ?? true)
                 {
+
                     FGFullScreen = App.IsForegroundWindowFullScreen(false);
                     FGFullScreenPrimary = App.IsForegroundWindowFullScreen(true);
+
                     if (FGFullScreenPrimary || ((App.pactive.SecondaryMonitor ?? false) && FGFullScreen))
                     {
                         _ActiveMode = true;
@@ -350,15 +351,18 @@ namespace CPUDoc
                         QUERY_USER_NOTIFICATION_STATE _quns = App.GetUserNotificationState();
                         if (_quns == App.QUERY_USER_NOTIFICATION_STATE.QUNS_BUSY ||
                         _quns == App.QUERY_USER_NOTIFICATION_STATE.QUNS_PRESENTATION_MODE ||
-                        _quns == App.QUERY_USER_NOTIFICATION_STATE.QUNS_RUNNING_D3D_FULL_SCREEN ||
-                        _quns == App.QUERY_USER_NOTIFICATION_STATE.QUNS_FAILED
+                        _quns == App.QUERY_USER_NOTIFICATION_STATE.QUNS_RUNNING_D3D_FULL_SCREEN //||
+                        //_quns == App.QUERY_USER_NOTIFICATION_STATE.QUNS_FAILED
                         )
                         {
                             _UserNotification = true;
                             _ActiveMode = true;
                             _GameMode = true;
                         }
-
+                        else
+                        {
+                            _UserNotification = false;
+                        }
                     } 
                     else
                     {
@@ -366,12 +370,18 @@ namespace CPUDoc
                     }
                     if (App.pactive.FocusAssist ?? true)
                     {
+                        var qhsettings = (IQuietHoursSettings)new QuietHoursSettings();
+                        var qhprofileId = qhsettings.UserSelectedProfile;
+
                         FocusAssistResult _far = App.GetFocusAssistState();
-                        if (_far == FocusAssistResult.PRIORITY_ONLY || _far == FocusAssistResult.ALARMS_ONLY)
+                        if ((_far == FocusAssistResult.PRIORITY_ONLY || _far == FocusAssistResult.ALARMS_ONLY) && qhprofileId.ToString() == "Microsoft.QuietHoursProfile.Unrestricted")
                         {
-                        _FocusAssist = true;
-                        _ActiveMode = true;
-                        _GameMode = true;
+                            _FocusAssist = true;
+                            _ActiveMode = true;
+                            _GameMode = true;
+                        } else
+                        {
+                            _FocusAssist = false;
                         }
                     }
                     else
@@ -398,12 +408,18 @@ namespace CPUDoc
                 {
                     //uint eax, edx;
                     //App.ReadMsrTx()
-                        
+
                     //App.LogDebug($"Timer Resolution: {String.Format("{0:0.0#}", App.GetTimerResolution() / 1e4)} ms - System: {String.Format("{0:0.0#}", App.GetSysTimerResolution() / 1e4)} ms");
                     //App.LogDebug($"FocusAssist={App.GetFocusAssistState()} UserNotification={App.GetUserNotificationState()} FGFullScreen={App.IsForegroundWindowFullScreen(false)} FGFullScreenPrimary={App.IsForegroundWindowFullScreen(true)}");
                     //App.LogDebug($"FocusAssist={FocusAssist} UserNotification={UserNotification} FGFullScreen={FGFullScreen} FGFullScreenPrimary={FGFullScreenPrimary}");
                     //App.LogDebug($"GameMode={GameMode} ActiveMode={ActiveMode} Bias={PSABiasCurrent} {App.systemInfo.PSABias} {App.pactive.MonitorIdle}");
                     //App.LogDebug($"GameMode={GameMode} ActiveMode={ActiveMode} Bias={PSABiasCurrent} {App.systemInfo.PSABias} {App.pactive.MonitorIdle}");
+                    
+                    //var settings = (IQuietHoursSettings)new QuietHoursSettings();
+                    //var profileId = settings.UserSelectedProfile;
+                    //var qhprofile = settings.GetProfile(qhprofileId);
+                    
+                    //App.LogDebug($"GameMode={GameMode} ActiveMode={ActiveMode} Bias={PSABiasCurrent} {App.systemInfo.PSABias} {App.pactive.MonitorIdle} profileId={qhprofileId} {qhprofile.GetDisplayName()}");
 
                     // SYSTEM_POWER_INFORMATION _spi = new SYSTEM_POWER_INFORMATION();
                     // uint _ret = App.CallPowerInformationSPI(12, IntPtr.Zero, IntPtr.Zero, _spi, Marshal.SizeOf(_spi));

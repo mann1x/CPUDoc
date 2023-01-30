@@ -213,6 +213,96 @@ namespace CPUDoc
         private static ManagementEventWatcher _processStartedWatcher;
         private static ManagementEventWatcher _processStoppedwatcher;
 
+        // © Rafael Rivera
+        // License: MIT
+
+        [ComImport]
+        [Guid("F53321FA-34F8-4B7F-B9A3-361877CB94CF")]
+        public class QuietHoursSettings { }
+
+        [Guid("6BFF4732-81EC-4FFB-AE67-B6C1BC29631F")]
+        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        public interface IQuietHoursSettings
+        {
+            string UserSelectedProfile
+            {
+                [return: MarshalAs(UnmanagedType.LPWStr)]
+                get;
+                [param: MarshalAs(UnmanagedType.LPWStr)]
+                set;
+            }
+
+            IQuietHoursProfile GetProfile([MarshalAs(UnmanagedType.LPWStr)] string profile);
+
+            void GetAllProfileData(); /* Incomplete definition */
+
+            [return: MarshalAs(UnmanagedType.LPWStr)]
+            string GetDisplayNameForProfile([MarshalAs(UnmanagedType.LPWStr)] string profile);
+
+            IntPtr QuietMomentsManager { get; } /* Incomplete definition */
+
+            string OffProfileId { [return: MarshalAs(UnmanagedType.LPWStr)] get; }
+
+            string ActiveQuietMomentProfile
+            {
+                [return: MarshalAs(UnmanagedType.LPWStr)]
+                get;
+                [param: MarshalAs(UnmanagedType.LPWStr)]
+                set;
+            }
+
+            string ActiveProfile { [return: MarshalAs(UnmanagedType.LPWStr)] get; }
+
+            IntPtr QuietHoursPinnedContactManager { get; } /* Incomplete definition */
+
+            void SetQuietMomentsShowSummaryEnabled([MarshalAs(UnmanagedType.Bool)] bool isEnabled);
+
+            [return: MarshalAs(UnmanagedType.Bool)]
+            bool GetQuietMomentsShowSummaryEnabled();
+
+            IntPtr GetAlwaysAllowedApps(out uint count);
+
+            void StartProcessing();
+
+            void StopProcessing();
+        }
+
+        [Guid("e813fe81-62b6-417d-b951-9d2e08486ac1")]
+        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        public interface IQuietHoursProfile
+        {
+            [return: MarshalAs(UnmanagedType.LPWStr)]
+            string GetDisplayName();
+
+            [return: MarshalAs(UnmanagedType.LPWStr)]
+            string GetProfileId();
+
+            IntPtr GetSetting(int setting); /* Incomplete definition */
+
+            IntPtr SetSetting(int setting, int value); /* Incomplete definition */
+
+            [return: MarshalAs(UnmanagedType.Bool)]
+            bool GetIsCustomizable();
+
+            void GetAllowedContacts(); /* Incomplete definition */
+
+            void AddAllowedContact(); /* Incomplete definition */
+
+            void RemoveAllowedContact(); /* Incomplete definition */
+
+            IntPtr GetAllowedApps([Out] out uint numAllowedApps);
+
+            void AddAllowedApp(); /* Incomplete definition */
+
+            void RemoveAllowedApp(); /* Incomplete definition */
+
+            void GetDescription(); /* Incomplete definition */
+
+            void GetCustomizeLinkText(); /* Incomplete definition */
+
+            void GetRestrictiveLevel(); /* Incomplete definition */
+        }
+
         [Flags]
         public enum SERVICE_CONTROL : uint
         {
@@ -1432,7 +1522,7 @@ namespace CPUDoc
                 AutoUpdater.RunUpdateAsAdmin = false;
                 AutoUpdater.Synchronous = false;
                 AutoUpdater.ParseUpdateInfoEvent += AutoUpdaterOnParseUpdateInfoEvent;
-
+               
                 autimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
                 AUNotifications(App.AppSettings.AUNotifications ?? false);
                 autimer.Tick += (sender, args) =>
