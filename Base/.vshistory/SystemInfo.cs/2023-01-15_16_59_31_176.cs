@@ -97,7 +97,6 @@ namespace CPUDoc
         public bool Zen1X { get; set; }
         public bool ZenPlus { get; set; }
         public bool Zen3 { get; set; }
-        public bool Zen4 { get; set; }
 
         public bool IntelAVX512 { get; set; }
         public bool IntelHybrid { get; set; }
@@ -307,8 +306,6 @@ namespace CPUDoc
             ZenCoreMapLabel = "";
             Zen1X = false;
             ZenPlus = false;
-            Zen3 = false;
-            Zen4 = false;
             LiveCPUTemp = "N/A";
             LiveCPUClock = "N/A";
             LiveCPUPower = "N/A";
@@ -446,18 +443,6 @@ namespace CPUDoc
                 ZenVDDP = (int)(Zen.powerTable.Table[137] * 1000);
                 ZenVIOD = (int)(Zen.powerTable.Table[138] * 1000);
                 ZenVCCD = (int)(Zen.powerTable.Table[139] * 1000);
-            }
-            else if (ZenPTVersion == 0x540104)
-            {
-                ZenPPT = (int)Zen.powerTable.Table[0];
-                ZenTDC = (int)Zen.powerTable.Table[2];
-                ZenTHM = (int)Zen.powerTable.Table[4];
-                ZenEDC = (int)Zen.powerTable.Table[8];
-                ZenFCLK = (int)Zen.powerTable.Table[70];
-                ZenUCLK = (int)Zen.powerTable.Table[74];
-                ZenMCLK = (int)Zen.powerTable.Table[78];
-                ZenScalar = (int)GetPBOScalar();
-                ZenVDDP = (int)(Zen.powerTable.Table[268] * 1000);
             }
             else if (ZenPTVersion == 0x400004 || ZenPTVersion == 0x400005)
             {
@@ -1695,8 +1680,7 @@ namespace CPUDoc
 
                         smucheck = ZenInit();
 
-                        if (Zen.smu.SMU_TYPE == SMU.SmuType.TYPE_CPU3 || (Zen.info.family == Cpu.Family.FAMILY_19H && CPUSocket == "AM4") || Zen.info.codeName == Cpu.CodeName.Vermeer || Zen.info.codeName == Cpu.CodeName.Cezanne) Zen3 = true;
-                        if (Zen.smu.SMU_TYPE == SMU.SmuType.TYPE_CPU4 || (Zen.info.family == Cpu.Family.FAMILY_19H && CPUSocket == "AM5") || Zen.info.codeName == Cpu.CodeName.Raphael) Zen4 = true;
+                        if (Zen.info.family == Cpu.Family.FAMILY_19H) Zen3 = true;
 
                         if (!Zen.info.family.Equals(Cpu.Family.UNSUPPORTED) && !Zen.info.codeName.Equals(Cpu.CodeName.Unsupported))
                         {
@@ -1707,8 +1691,7 @@ namespace CPUDoc
                             App.LogInfo($"Zen BaseModel: {Zen.info.baseModel}");
                             App.LogInfo($"Zen ExtModel: {Zen.info.extModel}");
                             App.LogInfo($"Zen Socket: {Zen.info.packageType}");
-                            App.LogInfo($"Zen Zen3 flag: {Zen3}");
-                            App.LogInfo($"Zen Zen4 flag: {Zen4}");
+                            App.LogInfo($"Zen Zen3 flag (Family 19h): {Zen3}");
                             App.LogInfo($"Zen CpuID: {Zen.info.cpuid:X8}");
                             App.LogInfo($"Zen SVI2: {Zen.info.svi2.coreAddress:X8}:{Zen.info.svi2.socAddress:X8}");
                             App.LogInfo($"Zen SMU Type: {Zen.smu.SMU_TYPE}");
@@ -2146,73 +2129,6 @@ namespace CPUDoc
                                 ZenPTKnown = true;
                                 int _maxcores = 16;
                                 App.LogInfo($"Configuring Zen Source for PT [0x{ZenPTVersion:X}] [{_maxcores}] Zen3");
-
-                                ZenPerCCDTemp = true;
-
-                                CPUSensorsSource = "Zen PowerTable";
-                                HWMonitor.CPUSource = HWSensorSource.Zen;
-
-                                App.hwsensors.Add(new HWSensorItem(HWSensorName.CPUCoresC0, HWSensorValues.MultiCore, HWSensorConfig.Auto, HWSensorDevice.CPU, HWSensorType.Load, HWSensorSource.Zen));
-                                App.hwsensors.Add(new HWSensorItem(HWSensorName.CPUCoresEffClocks, HWSensorValues.MultiCore, HWSensorConfig.Auto, HWSensorDevice.CPU, HWSensorType.Clock, HWSensorSource.Zen));
-                                App.hwsensors.Add(new HWSensorItem(HWSensorName.CPUCoresStretch, HWSensorValues.MultiCore, HWSensorConfig.Auto, HWSensorDevice.CPU, HWSensorType.Clock, HWSensorSource.Zen));
-                                App.hwsensors.Add(new HWSensorItem(HWSensorName.CPUPPT, HWSensorValues.Single, HWSensorConfig.Auto, HWSensorDevice.CPU, HWSensorType.Power, HWSensorSource.Zen));
-                                App.hwsensors.Add(new HWSensorItem(HWSensorName.CPUTDC, HWSensorValues.Single, HWSensorConfig.Auto, HWSensorDevice.CPU, HWSensorType.Amperage, HWSensorSource.Zen));
-                                App.hwsensors.Add(new HWSensorItem(HWSensorName.CPUEDC, HWSensorValues.Single, HWSensorConfig.Auto, HWSensorDevice.CPU, HWSensorType.Amperage, HWSensorSource.Zen));
-                                App.hwsensors.Add(new HWSensorItem(HWSensorName.CPUPPTLimit, HWSensorValues.Single, HWSensorConfig.Auto, HWSensorDevice.CPU, HWSensorType.Percentage, HWSensorSource.Zen));
-                                App.hwsensors.Add(new HWSensorItem(HWSensorName.CPUTDCLimit, HWSensorValues.Single, HWSensorConfig.Auto, HWSensorDevice.CPU, HWSensorType.Percentage, HWSensorSource.Zen));
-                                App.hwsensors.Add(new HWSensorItem(HWSensorName.CPUEDCLimit, HWSensorValues.Single, HWSensorConfig.Auto, HWSensorDevice.CPU, HWSensorType.Percentage, HWSensorSource.Zen));
-                                App.hwsensors.Add(new HWSensorItem(HWSensorName.CCD1L3Temp, HWSensorValues.Single, HWSensorConfig.Auto, HWSensorDevice.CPU, HWSensorType.Temperature, HWSensorSource.Zen));
-                                App.hwsensors.Add(new HWSensorItem(HWSensorName.CCD2L3Temp, HWSensorValues.Single, HWSensorConfig.Auto, HWSensorDevice.CPU, HWSensorType.Temperature, HWSensorSource.Zen));
-
-                                ZenRefreshStatic(false);
-
-                                App.hwsensors.InitZen(HWSensorName.CPUPPT, 1);
-                                App.hwsensors.InitZen(HWSensorName.CPUTDC, 3);
-                                App.hwsensors.InitZen(HWSensorName.CPUEDC, 9);
-                                App.hwsensors.InitZen(HWSensorName.CPUPPTLimit, -1, 1, false);
-                                App.hwsensors.InitZen(HWSensorName.CPUTDCLimit, -1, 1, false);
-                                App.hwsensors.InitZen(HWSensorName.CPUEDCLimit, -1, 1, false);
-                                App.hwsensors.InitZen(HWSensorName.CPUPower, 29);
-                                int _vsoc = (int)Zen.powerTable.Table[45] == 0 ? 44 : 45;
-                                App.hwsensors.InitZen(HWSensorName.SOCVoltage, _vsoc);
-                                App.hwsensors.InitZen(HWSensorName.CCD1L3Temp, 544);
-                                App.hwsensors.InitZen(HWSensorName.CCD2L3Temp, 545);
-                                App.hwsensors.InitZen(HWSensorName.CPUFSB, -1);
-                                App.hwsensors.InitZen(HWSensorName.CPUVoltage, 41);
-                                App.hwsensors.InitZen(HWSensorName.CPUTemp, -1);
-
-                                App.hwsensors.InitZen(HWSensorName.CPUClock, -1);
-                                App.hwsensors.InitZen(HWSensorName.CPUEffClock, -1);
-                                App.hwsensors.InitZen(HWSensorName.CCD1Temp, -1, 1);
-                                App.hwsensors.InitZen(HWSensorName.CCD2Temp, -1, 1);
-                                App.hwsensors.InitZen(HWSensorName.CCDSTemp, -1, 1);
-                                App.hwsensors.InitZen(HWSensorName.CPULoad, -1);
-
-                                for (int _core = 1; _core <= CPUCores; ++_core)
-                                {
-                                    int _coreoffset = ZenCoreMap[_core - 1];
-                                    App.hwsensors.InitZenMulti(HWSensorName.CPUCoresPower, 172 + _coreoffset, _core);
-                                    App.hwsensors.InitZenMulti(HWSensorName.CPUCoresVoltages, 188 + _coreoffset, _core);
-                                    App.hwsensors.InitZenMulti(HWSensorName.CPUCoresTemps, 204 + _coreoffset, _core);
-                                    App.hwsensors.InitZenMulti(HWSensorName.CPUCoresClocks, 252 + _coreoffset, _core, 1000 * _bclkmulti);
-                                    App.hwsensors.InitZenMulti(HWSensorName.CPUCoresEffClocks, 268 + _coreoffset, _core, 1000 * _bclkmulti);
-                                    App.hwsensors.InitZenMulti(HWSensorName.CPUCoresStretch, -1, _core, 1);
-                                    App.hwsensors.InitZenMulti(HWSensorName.CPUCoresC0, 284 + _coreoffset, _core);
-                                }
-
-                                for (int _cpu = 1; _cpu <= CPULogicalProcessors; ++_cpu)
-                                {
-                                    App.hwsensors.InitZenMulti(HWSensorName.CPULogicalsLoad, -1, _cpu);
-                                }
-
-                                App.LogInfo($"Configuring Zen Source done");
-
-                            }
-                            else if (ZenPTVersion == 0x540104)
-                            {
-                                ZenPTKnown = true;
-                                int _maxcores = 16;
-                                App.LogInfo($"Configuring Zen Source for PT [0x{ZenPTVersion:X}] [{_maxcores}] Zen4");
 
                                 ZenPerCCDTemp = true;
 

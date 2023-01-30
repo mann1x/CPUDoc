@@ -359,15 +359,7 @@ namespace CPUDoc
                             _ActiveMode = true;
                             _GameMode = true;
                         }
-                        else
-                        {
-                            _UserNotification = false;
-                        }
                     } 
-                    else
-                    {
-                        _UserNotification = false;
-                    }
                     if (App.pactive.FocusAssist ?? true)
                     {
                         var qhsettings = (IQuietHoursSettings)new QuietHoursSettings();
@@ -379,14 +371,7 @@ namespace CPUDoc
                             _FocusAssist = true;
                             _ActiveMode = true;
                             _GameMode = true;
-                        } else
-                        {
-                            _FocusAssist = false;
-                        }
-                    }
-                    else
-                    {
-                        _FocusAssist = false;
+                        } 
                     }
                 }
                 else

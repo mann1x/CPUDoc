@@ -1712,7 +1712,7 @@ namespace CPUDoc
                 }
                 else
                 {
-                    if (!systemInfo.Zen3 && !systemInfo.Zen4)
+                    if (!systemInfo.Zen3)
                     {
                         ThreadBooster.hepfg = 2;
                         ThreadBooster.hepbg = 4;
