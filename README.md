@@ -211,6 +211,8 @@ More a list to remember what to work on in the future :)
 
 ## Changelog:
 
+- v1.2.1 Beta
+    - Fix: Fix Zen4 SMU detection
 - v1.2.0 Beta
     - New: Added initial support for Zen4 (Raphael) Ryzen 7000
 - v1.1.9 Beta

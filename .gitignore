@@ -365,5 +365,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/CPUDoc/.vshistory/AutoUpdaterCPUDoc.json
-/.vshistory
+
+*.vshistory/
+*.vshistory
