@@ -211,6 +211,11 @@ More a list to remember what to work on in the future :)
 
 ## Changelog:
 
+- v1.2.2 Beta
+    - Fix: Fix Zen4 Power Tables and more
+    - Fix: Some code optimizations with ChatGPT!
+    - Fix: Disabling and enabling SSH in Settings would not update enabled cores display
+    - Fix: Zen SMU version not detected display
 - v1.2.1 Beta
     - Fix: Fix Zen4 SMU detection
 - v1.2.0 Beta

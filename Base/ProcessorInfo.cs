@@ -234,6 +234,8 @@ namespace CPUDoc
         /// <summary>
         /// Update CpuLoad
         /// </summary>
+
+        /*
         public static void CpuLoadUpdate()
         {
             threadsTotalLoad = 0;
@@ -257,6 +259,38 @@ namespace CPUDoc
                 App.systemInfo.UpdateLoadThread(i, (int)_Load);
                 threadsTotalLoad += (int)_Load;
             }
+            App.systemInfo.UpdateLoadThreads();
+        }
+        */
+        public static void CpuLoadUpdate()
+        {
+            threadsTotalLoad = 0;
+
+            for (var i = 0; i < LogicalCoresCount; ++i)
+            {
+                float _Load = CpuLoadPerfCounter ? HardwareCpuSets[i].LoadCounter.NextValue() : _cpuLoad.GetCpuLoad(i);
+                HardwareCpuSets[i].Load = _Load;
+
+                int _loadhigh = Math.Min(40, HardwareCpuSets[i].LoadHigh);
+                _loadhigh = (_Load >= LoadHighThreshold) ? Math.Min(40, _loadhigh + 2) : (_loadhigh <= 1) ? 0 : Math.Max(0, _loadhigh - 1);
+                HardwareCpuSets[i].LoadHigh = _loadhigh;
+
+                int _loadmedium = Math.Min(40, HardwareCpuSets[i].LoadMedium);
+                _loadmedium = (_Load >= LoadMediumThreshold) ? Math.Min(40, _loadmedium + 1) : (_loadmedium <= 1) ? 0 : Math.Max(0, _loadmedium - 1);
+                HardwareCpuSets[i].LoadMedium = _loadmedium;
+
+                int _loadlow = Math.Min(40, HardwareCpuSets[i].LoadLow);
+                _loadlow = (_Load >= LoadLowThreshold) ? Math.Min(40, _loadlow + 1) : (_loadlow <= 1) ? 0 : Math.Max(0, _loadlow - 1);
+                HardwareCpuSets[i].LoadLow = _loadlow;
+
+                int _loadzero = Math.Min(40, HardwareCpuSets[i].LoadZero);
+                _loadzero = (_Load == 0) ? Math.Min(40, _loadzero + 1) : (_loadzero <= 2) ? 0 : Math.Max(0, _loadzero - 1);
+                HardwareCpuSets[i].LoadZero = _loadzero;
+
+                App.systemInfo.UpdateLoadThread(i, (int)_Load);
+                threadsTotalLoad += (int)_Load;
+            }
+
             App.systemInfo.UpdateLoadThreads();
         }
 

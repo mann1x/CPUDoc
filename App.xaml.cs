@@ -1472,6 +1472,7 @@ namespace CPUDoc
 
                 SplashWindow.Loading(40);
 
+                LogInfo($"CPULoad going to init Performance Counters: if you get a reboot or crash please download CoreCycler and run enable_performance_counter.bat in tools dir with admin privileges!");
                 bool cpuloadperfcount = ProcessorInfo.CpuLoadInit();
                 LogInfo($"CPULoad using Performance Counters: {cpuloadperfcount}");
 

@@ -475,10 +475,7 @@ namespace CPUDoc
 
                         if (App.pactive.SysSetHack ?? false)
                         {
-                            needcores = 0;
-                            usedcores = 0;
-                            newsetcores = 0;
-                            morecores = 0;
+                            needcores = usedcores = newsetcores = morecores = 0;
                             TotalT0Load = 0;
 
                             foreach (int logical in App.logicalsT0)

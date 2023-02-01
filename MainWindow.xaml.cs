@@ -185,9 +185,6 @@ namespace CPUDoc
                 Config_Init();
 
                 /*
-                */
-
-
                 uint eax = 0;
                 uint edx = 0;
 
@@ -197,6 +194,7 @@ namespace CPUDoc
                     App.LogDebug($"ENERGY={eax:X8} {edx:X8}");
                 if (App.ReadMsr(0xc00102b2, ref eax, ref edx))
                     App.LogDebug($"CPPC ENABLE={eax:X8} {edx:X8}");
+                */
 
 
                 this.UpdateLayout();
@@ -522,7 +520,7 @@ namespace CPUDoc
                         {
                             if (btn.Tag.ToString() == $"{i}")
                             {
-                                if ((((1 << i) & _mask) != 0) || _mask == null || _mask == 0 || !(App.pactive.ThreadBooster ?? false))
+                                if ((((1 << i) & _mask) != 0) || _mask == null || _mask == 0 || !((bool)App.pactive.ThreadBooster))
                                 {
                                     btn.Foreground = Brushes.White;
                                     btn.Background = Brushes.Green;
@@ -1091,7 +1089,19 @@ namespace CPUDoc
                     if (!ProtBufSettings.WriteSettings()) ProtBufSettings.WriteSettings();
                     //App.LogDebug($"Wr Config[{App.pactive.id}] TBA={App.pactive.ThreadBooster} SSH={App.AppConfigs[0].SysSetHack}:{pcurrent.SysSetHack}:{App.pactive.SysSetHack} PSA={App.pactive.PowerSaverActive} N0={App.pactive.NumaZero}:{App.pactive.NumaZeroType}");
                     if (!ProtBufSettings.ReadSettings()) ProtBufSettings.ReadSettings();
+
+                    if ((bool)pcurrent.ThreadBooster)
+                    {
+                        BtnThreadBoost.IsEnabled = false;
+                        App.TbSetStart(false);
+                        App.TbSetStart();
+                        BtnThreadBoostLabel.Text = "Stop";
+                        BtnThreadBoost.IsEnabled = true;
+                    }
+                    
+                    _lastmask_current = uint.MaxValue;
                     ThreadBooster.bInit = false;
+
                     Config_Init();
                     //App.LogDebug($"Rd Config[{App.pactive.id}] TBA={App.AppConfigs[App.pactive.id].ThreadBooster} SSH={App.AppConfigs[App.pactive.id].SysSetHack}:{App.pactive.SysSetHack} PSA={App.AppConfigs[App.pactive.id].PowerSaverActive} N0={App.pactive.NumaZero}:{App.AppConfigs[App.pactive.id].NumaZero}:{App.AppConfigs[App.pactive.id].NumaZeroType}");
                 }
