@@ -19,6 +19,10 @@ using System.Security.Permissions;
 using OSVersionExtension;
 using AutoUpdaterDotNET;
 using Hardcodet.Wpf.TaskbarNotification.Interop;
+using static CPUDoc.ProcessorInfo;
+using static CPUDoc.MemoryConfig;
+using System.Windows.Markup;
+using CPUDoc.Windows;
 
 namespace CPUDoc
 {
@@ -136,6 +140,17 @@ namespace CPUDoc
         public string MemAddrCmdSetup { get; set; }
         public string MemCsOdtSetup { get; set; }
         public string MemCkeSetup { get; set; }
+        public string MemVddio { get; set; }
+        public string MemVddq { get; set; }
+        public string MemVpp { get; set; }
+        public string MemCadBusDrvStren { get; set; }
+        public string MemDramDataDrvStren { get; set; }
+        public string MemProcDataDrvStren { get; set; }
+        public string MemRttWrD5 { get; set; }
+        public string MemRttNomWr { get; set; }
+        public string MemRttNomRd { get; set; }
+        public string MemRttParkD5 { get; set; }
+        public string MemRttParkDqs { get; set; }
         public string CpuVtt { get; set; }
         public double CpuBusClock { get; set; }
         public bool CpuSHAExt { get; set; }
@@ -263,6 +278,18 @@ namespace CPUDoc
             MemCsOdtSetup = "";
             MemCkeSetup = "";
 
+            MemVddio = "";
+            MemVddq = "";
+            MemVpp = "";
+            MemCadBusDrvStren = "";
+            MemDramDataDrvStren = "";
+            MemProcDataDrvStren = "";
+            MemRttWrD5 = "";
+            MemRttNomWr = "";
+            MemRttNomRd = "";
+            MemRttParkD5 = "";
+            MemRttParkDqs = "";
+
             LastVersionOnServer = "N/A";
 
             CPPCOrder = new int[CPUCores];
@@ -327,19 +354,45 @@ namespace CPUDoc
                 HWMonitor.CPUSource = HWSensorSource.Libre;
                 HWMonitor.NewSensors();
 
+                SplashWindow.Loading(36);
+
+                App.LogInfo("SystemInfo: WMI basics query");
+
                 WmiBasics();
 
                 if (CPULogicalProcessors > CPUCores) HyperThreading = true;
 
+                SplashWindow.Loading(40);
+
+                App.LogInfo("SystemInfo: CPPC Tags Init");
+
                 CPPCTagsInit();
+
+                SplashWindow.Loading(45);
+
+                App.LogInfo("SystemInfo: CPUID Init");
 
                 CpuIdInit();
 
+                SplashWindow.Loading(50);
+
+                App.LogInfo("SystemInfo: CPUSet Init");
+
                 CpuSetInit();
+
+                SplashWindow.Loading(55);
+
+                App.LogInfo("SystemInfo: Windows OS Info Init");
 
                 GetWindowsLabel();
 
+                SplashWindow.Loading(60);
+
+                App.LogInfo("SystemInfo: ZenMain Init");
+
                 ZenMainInit();
+
+                SplashWindow.Loading(65);
 
                 if (!MemPartNumbers.Any())
                 {
@@ -737,6 +790,7 @@ namespace CPUDoc
 
                 string _MemoryLabel1 = "";
                 string _MemoryLabel2 = "";
+                string _MemoryLabel3 = "";
 
                 if (MemPartNumbers.Any())
                 {
@@ -757,14 +811,28 @@ namespace CPUDoc
                 if (ZenStates)
                 {
                     if (_MemoryLabel2.Length > 0) _MemoryLabel2 += " ";
-                    if (_MemoryLabel2.Length == 0 && MEMCFG.Frequency > 0) _MemoryLabel2 += $"\n";
-                    if (MEMCFG.Frequency > 0)
-                        _MemoryLabel2 += $"Clock: {MEMCFG.Frequency} MHz";
+                    if (_MemoryLabel2.Length == 0 && MEMCFG.FrequencyString.Length > 0) _MemoryLabel2 += $"\n";
+                    if (MEMCFG.FrequencyString.Length > 0)
+                        _MemoryLabel2 += $"Clock: {MEMCFG.FrequencyString} MHz";
+
+                    if (MEMCFG.Type == MemType.DDR4)
+                    {
+                        _MemoryLabel3 += $"RTT [Nom: {MemRttNom} Wr: {MemRttWr} Park: {MemRttPark}] pODT: {MemProcODT}";
+                    }
+
+                    if (MEMCFG.Type == MemType.DDR5)
+                    {
+                        _MemoryLabel3 += $"RTT [NomRd: {MemRttNomRd} NomWr: {MemRttNomWr} Wr: {MemRttWrD5} Park: {MemRttParkD5} ParkDqs: {MemRttParkDqs}] pODT: {MemProcODT} ";
+                        _MemoryLabel3 += $"\nVDDIO: {MemVddio} VDDQ: {MemVddq} VPP: {MemVpp}";
+                    }
                 }
 
                 MemoryLabel = _MemoryLabel1;
                 if (_MemoryLabel1.Length > 0 && _MemoryLabel2.Length > 0) MemoryLabel += "\n";
                 if (_MemoryLabel2.Length > 0) MemoryLabel += $"{_MemoryLabel2}";
+
+                if (_MemoryLabel3.Length > 0 && MemoryLabel.Length > 0) MemoryLabel += "\n";
+                if (_MemoryLabel3.Length > 0) MemoryLabel += $"{_MemoryLabel3}";
 
                 if (MemoryLabel.Length == 0) MemoryLabel = "N/A";
 
@@ -1799,7 +1867,6 @@ namespace CPUDoc
                         BMC = new BiosMemController();
                         ReadMemoryConfig();
 
-
                         uint smu_ver = Zen.smu.Version;
                         uint ver_maj = smu_ver >> 16 & 255U;
                         uint ver_min = smu_ver >> 8 & 255U;
@@ -2738,14 +2805,13 @@ namespace CPUDoc
                     }
                 }
 
-                var totalCapacity = 0UL;
+                ulong totalCapacity = 0UL;
 
                 foreach (var module in modules)
                 {
-                    var rank = module.DualRank ? "DR" : "SR";
                     totalCapacity += module.Capacity;
                     MemPartNumbers.Add(
-                        $"{module.Slot}: {module.PartNumber} ({module.Capacity / 1024 / (1024 * 1024)}GB, {rank})");
+                        $"{module.Slot}: {module.PartNumber} ({module.Capacity / 1024 / (1024 * 1024)}GB, {module.Rank})");
                 }
 
                 if (modules[0].ClockSpeed != 0)
@@ -2758,8 +2824,8 @@ namespace CPUDoc
 
         private void ReadMemoryConfig()
         {
-            var scope = @"root\wmi";
-            var className = "AMD_ACPI";
+            string scope = @"root\wmi";
+            string className = "AMD_ACPI";
 
             App.LogDebug("Zen ReadMemoryConfig");
 
@@ -2767,9 +2833,9 @@ namespace CPUDoc
             {
                 WMI.Connect($@"{scope}");
 
-                var instanceName = WMI.GetInstanceName(scope, className);
+                string instanceName = WMI.GetInstanceName(scope, className);
 
-                var classInstance = new ManagementObject(scope,
+                ManagementObject classInstance = new ManagementObject(scope,
                     $"{className}.InstanceName='{instanceName}'",
                     null);
 
@@ -2788,18 +2854,18 @@ namespace CPUDoc
 
                 // Get function names with their IDs
                 string[] functionObjects = { "GetObjectID", "GetObjectID2" };
-                foreach (var functionObject in functionObjects)
+                foreach (string functionObject in functionObjects)
                 {
                     try
                     {
-                        var pack = WMI.InvokeMethod(classInstance, functionObject, "pack", null, 0);
+                        ManagementBaseObject pack = WMI.InvokeMethodAndGetValue(classInstance, functionObject, "pack", null, 0);
                         if (pack != null)
                         {
-                            var ID = (uint[])pack.GetPropertyValue("ID");
-                            var IDString = (string[])pack.GetPropertyValue("IDString");
-                            var Length = (byte)pack.GetPropertyValue("Length");
+                            uint[] ID = (uint[])pack.GetPropertyValue("ID");
+                            string[] IDString = (string[])pack.GetPropertyValue("IDString");
+                            byte Length = (byte)pack.GetPropertyValue("Length");
 
-                            for (var i = 0; i < Length; ++i)
+                            for (int i = 0; i < Length; ++i)
                             {
                                 biosFunctions.Add(new BiosACPIFunction(IDString[i], ID[i]));
                                 Debug.WriteLine("{0}: {1:X8}", IDString[i], ID[i]);
@@ -2812,71 +2878,108 @@ namespace CPUDoc
                     }
                 }
 
-                // Get APCB config from BIOS. Holds memory parameters.
-                BiosACPIFunction cmd = GetFunctionByIdString("Get APCB Config");
-                if (cmd == null)
-                    throw new Exception();
+                AOD aod = Zen.info.aod;
 
-                var apcbConfig = WMI.RunCommand(classInstance, cmd.ID);
-
-                cmd = GetFunctionByIdString("Get memory voltages");
-                if (cmd != null)
+                if (MEMCFG.Type == MemType.DDR4)
                 {
-                    var voltages = WMI.RunCommand(classInstance, cmd.ID);
-
-                    // MEM_VDDIO is ushort, offset 27
-                    // MEM_VTT is ushort, offset 29
-                    for (var i = 27; i <= 30; i++)
+                    // Get APCB config from BIOS. Holds memory parameters.
+                    BiosACPIFunction cmd = GetFunctionByIdString("Get APCB Config");
+                    if (cmd == null)
                     {
-                        var value = voltages[i];
-                        if (value > 0)
-                            apcbConfig[i] = value;
+                        // throw new Exception("Could not get memory controller config");
+                        // Use AOD table as an alternative path for now
+                        BMC.Table = Zen.info.aod.Table.rawAodTable;
                     }
-                }
-
-                BMC.Table = apcbConfig;
-
-                // When ProcODT is 0, then all other resistance values are 0
-                // Happens when one DIMM installed in A1 or A2 slot
-                if (BMC.Table == null || Utils.AllZero(BMC.Table) || BMC.Config.ProcODT < 1) return;
-
-                var vdimm = Convert.ToSingle(Convert.ToDecimal(BMC.Config.MemVddio) / 1000);
-                if (vdimm > 0)
-                {
-                    MemVdimm = $"{vdimm:F3}V";
-                    App.LogInfo($"Zen ReadMemoryConfig VDIMM BMC {MemVdimm}");
-                }
-                else if (AsusWmi != null && AsusWmi.Status == 1)
-                {
-                    var sensor = AsusWmi.FindSensorByName("DRAM Voltage");
-                    if (sensor != null)
+                    else
                     {
-                        MemVdimm = sensor.Value;
-                        App.LogInfo($"Zen ReadMemoryConfig VDIMM ASUSWMI {MemVdimm}");
+                        byte[] apcbConfig = WMI.RunCommand(classInstance, cmd.ID);
+                        // BiosACPIFunction cmd = new BiosACPIFunction("Get APCB Config", 0x00010001);
+                        cmd = GetFunctionByIdString("Get memory voltages");
+                        if (cmd != null)
+                        {
+                            byte[] voltages = WMI.RunCommand(classInstance, cmd.ID);
+
+                            // MEM_VDDIO is ushort, offset 27
+                            // MEM_VTT is ushort, offset 29
+                            for (int i = 27; i <= 30; i++)
+                            {
+                                byte value = voltages[i];
+                                if (value > 0)
+                                    apcbConfig[i] = value;
+                            }
+                        }
+
+                        BMC.Table = apcbConfig ?? new byte[] { };
                     }
-                }
 
-                var vtt = Convert.ToSingle(Convert.ToDecimal(BMC.Config.MemVtt) / 1000);
-                if (vtt > 0)
+                    float vdimm = Convert.ToSingle(Convert.ToDecimal(BMC.Config.MemVddio) / 1000);
+                    if (vdimm > 0 && vdimm < 3)
+                    {
+                        MemVdimm = $"{vdimm:F4}V";
+                        App.LogInfo($"Zen ReadMemoryConfig VDIMM BMC {MemVdimm}");
+                    }
+                    else if (AsusWmi != null && AsusWmi.Status == 1)
+                    {
+                        AsusSensorInfo sensor = AsusWmi.FindSensorByName("DRAM Voltage");
+                        float temp = 0;
+                        bool valid = sensor != null && float.TryParse(sensor.Value, out temp);
+
+                        if (valid && temp > 0 && temp < 3)
+                        {
+                            MemVdimm = sensor.Value;
+                            App.LogInfo($"Zen ReadMemoryConfig VDIMM ASUSWMI {MemVdimm}");
+                        }
+                    }
+
+                    float vtt = Convert.ToSingle(Convert.ToDecimal(BMC.Config.MemVtt) / 1000);
+                    if (vtt > 0)
+                    {
+                        MemVtt = $"{vtt:F4}V";
+                        App.LogInfo($"Zen ReadMemoryConfig VTT BMC {MemVtt}");
+                    }
+
+                    // When ProcODT is 0, then all other resistance values are 0
+                    // Happens when one DIMM installed in A1 or A2 slot
+                    if (BMC.Table == null || Utils.AllZero(BMC.Table) || BMC.Config.ProcODT < 1) return;
+
+                    MemProcODT = BMC.GetProcODTString(BMC.Config.ProcODT);
+
+                    MemClkDrvStren = BMC.GetDrvStrenString(BMC.Config.ClkDrvStren);
+                    MemAddrCmdDrvStren = BMC.GetDrvStrenString(BMC.Config.AddrCmdDrvStren);
+                    MemCsOdtCmdDrvStren = BMC.GetDrvStrenString(BMC.Config.CsOdtCmdDrvStren);
+                    MemCkeDrvStren = BMC.GetDrvStrenString(BMC.Config.CkeDrvStren);
+
+                    MemRttNom = BMC.GetRttString(BMC.Config.RttNom);
+                    MemRttWr = BMC.GetRttWrString(BMC.Config.RttWr);
+                    MemRttPark = BMC.GetRttString(BMC.Config.RttPark);
+
+                    MemAddrCmdSetup = $"{BMC.Config.AddrCmdSetup}";
+                    MemCsOdtSetup = $"{BMC.Config.CsOdtSetup}";
+                    MemCkeSetup = $"{BMC.Config.CkeSetup}";
+                }
+                else
                 {
-                    MemVtt = $"{vtt:F3}V";
-                    App.LogInfo($"Zen ReadMemoryConfig VTT BMC {MemVtt}");
+                    if (Utils.AllZero(Zen.info.aod.Table.rawAodTable))
+                        return;
+
+                    AOD.AodData Data = Zen.info.aod.Table.Data;
+
+                    MemVddio = $"{Data.MemVddio / 1000.0:F4}V";
+                    MemVddq = $"{Data.MemVddq / 1000.0:F4}V";
+                    MemVpp = $"{Data.MemVpp / 1000.0:F4}V";
+
+                    MemProcODT = AOD.GetProcODTString(BMC.Config.ProcODT);
+                    MemCadBusDrvStren = AOD.GetCadBusDrvStrenString(Data.CadBusDrvStren);
+                    MemDramDataDrvStren = AOD.GetDramDataDrvStrenString(Data.DramDataDrvStren);
+                    MemProcDataDrvStren = AOD.GetProcDataDrvStrenString(Data.ProcDataDrvStren);
+
+                    MemRttWrD5 = RttToString(Data.RttWr);
+                    MemRttNomWr = RttToString(Data.RttNomWr);
+                    MemRttNomRd = RttToString(Data.RttNomRd);
+                    MemRttParkD5 = RttToString(Data.RttPark);
+                    MemRttParkDqs = RttToString(Data.RttParkDqs);
+
                 }
-
-                MemProcODT = BMC.GetProcODTString(BMC.Config.ProcODT);
-
-                MemClkDrvStren = BMC.GetDrvStrenString(BMC.Config.ClkDrvStren);
-                MemAddrCmdDrvStren = BMC.GetDrvStrenString(BMC.Config.AddrCmdDrvStren);
-                MemCsOdtCmdDrvStren = BMC.GetDrvStrenString(BMC.Config.CsOdtCmdDrvStren);
-                MemCkeDrvStren = BMC.GetDrvStrenString(BMC.Config.CkeDrvStren);
-
-                MemRttNom = BMC.GetRttString(BMC.Config.RttNom);
-                MemRttWr = BMC.GetRttWrString(BMC.Config.RttWr);
-                MemRttPark = BMC.GetRttString(BMC.Config.RttPark);
-
-                MemAddrCmdSetup = $"{BMC.Config.AddrCmdSetup}";
-                MemCsOdtSetup = $"{BMC.Config.CsOdtSetup}";
-                MemCkeSetup = $"{BMC.Config.CkeSetup}";
             }
             catch (Exception ex)
             {
@@ -2885,12 +2988,18 @@ namespace CPUDoc
 
             BMC.Dispose();
         }
-
+        private string RttToString(int rtt)
+        {
+            if (rtt > 0)
+                return $"{AOD.GetRttString(rtt)} ({240 / rtt})";
+            return $"{AOD.GetRttString(rtt)}";
+        }
         private bool ReadChannelsInfo()
         {
             try
             {
                 int dimmIndex = 0;
+                int channelsPerDimm = MEMCFG.Type == MemType.DDR5 ? 2 : 1;
 
                 // Get the offset by probing the IMC0 to IMC7
                 // It appears that offsets 0x80 and 0x84 are DIMM config registers
@@ -2905,24 +3014,29 @@ namespace CPUDoc
                     bool dimm1 = Utils.GetBits(Zen.ReadDword(channelOffset | 0x50000), 0, 1) == 1;
                     bool dimm2 = Utils.GetBits(Zen.ReadDword(channelOffset | 0x50008), 0, 1) == 1;
 
-                    if (channel && (dimm1 || dimm2))
+                    try
                     {
-                        if (dimm1 && modules.Count > 0)
+                        if (channel && (dimm1 || dimm2))
                         {
-                            MemoryModule module = modules[dimmIndex++];
-                            module.Slot = $"{Convert.ToChar(i + 65)}1";
-                            module.DctOffset = channelOffset;
-                            module.DualRank = Utils.GetBits(Zen.ReadDword(channelOffset | 0x50080), 0, 1) == 1;
-                        }
+                            if (dimm1)
+                            {
+                                MemoryModule module = modules[dimmIndex++];
+                                module.Slot = $"{Convert.ToChar(i / channelsPerDimm + 65)}1";
+                                module.DctOffset = channelOffset;
+                                module.Rank = (MemRank)Utils.GetBits(Zen.ReadDword(channelOffset | 0x50080), 0, 1);
+                            }
 
-                        if (dimm2 && modules.Count > 1)
-                        {
-                            MemoryModule module = modules[dimmIndex++];
-                            module.Slot = $"{Convert.ToChar(i + 65)}2";
-                            module.DctOffset = channelOffset;
-                            module.DualRank = Utils.GetBits(Zen.ReadDword(channelOffset | 0x50084), 0, 1) == 1;
+                            if (dimm2)
+                            {
+                                MemoryModule module = modules[dimmIndex++];
+                                module.Slot = $"{Convert.ToChar(i / channelsPerDimm + 65)}2";
+                                module.DctOffset = channelOffset;
+                                module.Rank = (MemRank)Utils.GetBits(Zen.ReadDword(channelOffset | 0x50084), 0, 1);
+                            }
                         }
                     }
+                    catch { }
+
                 }
                 return true;
             }
@@ -2936,6 +3050,10 @@ namespace CPUDoc
         {
             try
             {
+                uint config = Zen.ReadDword(offset | 0x50100);
+
+                MEMCFG.Type = (MemType)Utils.GetBits(config, 0, 2);
+
                 uint powerDown = Zen.ReadDword(offset | 0x5012C);
                 uint umcBase = Zen.ReadDword(offset | 0x50200);
                 uint bgsa0 = Zen.ReadDword(offset | 0x500D0);
@@ -2957,13 +3075,32 @@ namespace CPUDoc
                 uint timings17 = Zen.ReadDword(offset | 0x50250);
                 uint timings18 = Zen.ReadDword(offset | 0x50254);
                 uint timings19 = Zen.ReadDword(offset | 0x50258);
-                uint timings20 = Zen.ReadDword(offset | 0x50260);
-                uint timings21 = Zen.ReadDword(offset | 0x50264);
+                uint trfcTimings0 = Zen.ReadDword(offset | 0x50260);
+                uint trfcTimings1 = Zen.ReadDword(offset | 0x50264);
+                uint trfcTimings2 = Zen.ReadDword(offset | 0x50268);
+                uint trfcTimings3 = Zen.ReadDword(offset | 0x5026C);
                 uint timings22 = Zen.ReadDword(offset | 0x5028C);
-                uint timings23 = timings20 != timings21 ? (timings20 != 0x21060138 ? timings20 : timings21) : timings20;
+                uint trfcRegValue = 0;
+
+                if (MEMCFG.Type == MemType.DDR4)
+                {
+                    trfcRegValue = trfcTimings0 != trfcTimings1 ? (trfcTimings0 != 0x21060138 ? trfcTimings0 : trfcTimings1) : trfcTimings0;
+                }
+                else if (MEMCFG.Type == MemType.DDR5)
+                {
+                    uint[] ddr5Regs = { trfcTimings0, trfcTimings1, trfcTimings2, trfcTimings3 };
+                    foreach (uint reg in ddr5Regs)
+                    {
+                        if (reg != 0x00C00138)
+                        {
+                            trfcRegValue = reg;
+                            break;
+                        }
+                    }
+                }
 
                 float configured = MEMCFG.Frequency;
-                float ratio = Utils.GetBits(umcBase, 0, 7) / 3.0f;
+                float ratio = MEMCFG.Type == MemType.DDR4 ? Utils.GetBits(umcBase, 0, 7) / 3.0f : Utils.GetBits(umcBase, 0, 16) / 100.0f;
                 float freqFromRatio = ratio * 200;
 
                 MEMCFG.Ratio = ratio;
@@ -2983,8 +3120,10 @@ namespace CPUDoc
                 MEMCFG.BGSAlt = Utils.GetBits(bgsa0, 4, 7) > 0 || Utils.GetBits(bgsa1, 4, 7) > 0
                     ? "Enabled"
                     : "Disabled";
-                MEMCFG.GDM = Utils.GetBits(umcBase, 11, 1) > 0 ? "Enabled" : "Disabled";
-                MEMCFG.Cmd2T = Utils.GetBits(umcBase, 10, 1) > 0 ? "2T" : "1T";
+                int GDM_BIT = MEMCFG.Type == MemType.DDR4 ? 11 : 18;
+                MEMCFG.GDM = Utils.GetBits(umcBase, GDM_BIT, 1) > 0 ? "Enabled" : "Disabled";
+                int CMD2T_BIT = MEMCFG.Type == MemType.DDR4 ? 10 : 17;
+                MEMCFG.Cmd2T = Utils.GetBits(umcBase, CMD2T_BIT, 1) > 0 ? "2T" : "1T";
 
                 MEMCFG.CL = Utils.GetBits(timings5, 0, 6);
                 MEMCFG.RAS = Utils.GetBits(timings5, 8, 7);
@@ -2998,13 +3137,13 @@ namespace CPUDoc
                 MEMCFG.RRDL = Utils.GetBits(timings7, 8, 5);
                 MEMCFG.RTP = Utils.GetBits(timings7, 24, 5);
 
-                MEMCFG.FAW = Utils.GetBits(timings8, 0, 8);
+                MEMCFG.FAW = Utils.GetBits(timings8, 0, 7);
 
                 MEMCFG.CWL = Utils.GetBits(timings9, 0, 6);
                 MEMCFG.WTRS = Utils.GetBits(timings9, 8, 5);
                 MEMCFG.WTRL = Utils.GetBits(timings9, 16, 7);
 
-                MEMCFG.WR = Utils.GetBits(timings10, 0, 8);
+                MEMCFG.WR = Utils.GetBits(timings10, 0, 7);
 
                 MEMCFG.TRCPAGE = Utils.GetBits(timings11, 20, 12);
 
@@ -3018,7 +3157,7 @@ namespace CPUDoc
                 MEMCFG.WRWRSC = Utils.GetBits(timings13, 16, 4);
                 MEMCFG.WRWRSCL = Utils.GetBits(timings13, 24, 6);
 
-                MEMCFG.RDWR = Utils.GetBits(timings14, 8, 5);
+                MEMCFG.RDWR = Utils.GetBits(timings14, 8, 6);
                 MEMCFG.WRRD = Utils.GetBits(timings14, 0, 4);
 
                 MEMCFG.REFI = Utils.GetBits(timings15, 0, 16);
@@ -3028,18 +3167,41 @@ namespace CPUDoc
                 MEMCFG.MOD = Utils.GetBits(timings16, 8, 6);
                 MEMCFG.MRD = Utils.GetBits(timings16, 0, 6);
 
-                MEMCFG.STAG = Utils.GetBits(timings17, 16, 8);
+                MEMCFG.STAG = Utils.GetBits(timings17, 16, 11);
 
                 MEMCFG.XP = Utils.GetBits(timings18, 0, 6);
                 MEMCFG.CKE = Utils.GetBits(timings18, 24, 5);
 
-                MEMCFG.PHYWRL = Utils.GetBits(timings19, 8, 5);
-                MEMCFG.PHYRDL = Utils.GetBits(timings19, 16, 6);
+                MEMCFG.PHYWRL = Utils.GetBits(timings19, 8, 8);
+                MEMCFG.PHYRDL = Utils.GetBits(timings19, 16, 8);
                 MEMCFG.PHYWRD = Utils.GetBits(timings19, 24, 3);
 
-                MEMCFG.RFC = Utils.GetBits(timings23, 0, 11);
-                MEMCFG.RFC2 = Utils.GetBits(timings23, 11, 11);
-                MEMCFG.RFC4 = Utils.GetBits(timings23, 22, 11);
+                if (MEMCFG.Type == MemType.DDR4)
+                {
+                    MEMCFG.RFC = Utils.GetBits(trfcRegValue, 0, 11);
+                    MEMCFG.RFC2 = Utils.GetBits(trfcRegValue, 11, 11);
+                    MEMCFG.RFC4 = Utils.GetBits(trfcRegValue, 22, 11);
+                }
+
+                if (MEMCFG.Type == MemType.DDR5)
+                {
+                    MEMCFG.RFC = Utils.GetBits(trfcRegValue, 0, 16);
+                    MEMCFG.RFC2 = Utils.GetBits(trfcRegValue, 16, 16);
+                    uint[] temp = {
+                    Utils.GetBits(Zen.ReadDword(offset | 0x502c0), 0, 11),
+                    Utils.GetBits(Zen.ReadDword(offset | 0x502c4), 0, 11),
+                    Utils.GetBits(Zen.ReadDword(offset | 0x502c8), 0, 11),
+                    Utils.GetBits(Zen.ReadDword(offset | 0x502cc), 0, 11),
+                };
+                    foreach (uint value in temp)
+                    {
+                        if (value != 0)
+                        {
+                            MEMCFG.RFCsb = value;
+                            break;
+                        }
+                    }
+                }
 
                 MEMCFG.PowerDown = Utils.GetBits(powerDown, 28, 1) == 1 ? "Enabled" : "Disabled";
             }

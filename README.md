@@ -211,6 +211,8 @@ More a list to remember what to work on in the future :)
 
 ## Changelog:
 
+- v1.2.3 Beta
+    - New: introduced support for Zen AM5 DDR5 display
 - v1.2.2 Beta
     - Fix: Fix Zen4 Power Tables and more
     - Fix: Some code optimizations with ChatGPT!

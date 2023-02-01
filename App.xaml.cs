@@ -1455,11 +1455,9 @@ namespace CPUDoc
                     }
                 }
 
-                SplashWindow.Loading(30);
+                SplashWindow.Loading(25);
 
                 base.OnStartup(e);
-
-                SplashWindow.Loading(35);
 
                 if (OSVersion.GetOSVersion().Version.Major >= 10) App.Win10 = true;
                 if (OSVersion.GetOSVersion().Version.Major >= 10 && OSVersion.GetOSVersion().Version.Build >= 22000) App.Win11 = true;
@@ -1470,34 +1468,28 @@ namespace CPUDoc
                 cpuTotalLoadLong = new MovingAverage(16);
                 TBPoolingAverage = new MovingAverage(64);
 
-                SplashWindow.Loading(40);
-
                 LogInfo($"CPULoad going to init Performance Counters: if you get a reboot or crash please download CoreCycler and run enable_performance_counter.bat in tools dir with admin privileges!");
                 bool cpuloadperfcount = ProcessorInfo.CpuLoadInit();
                 LogInfo($"CPULoad using Performance Counters: {cpuloadperfcount}");
 
-                SplashWindow.Loading(50);
+                SplashWindow.Loading(35);
 
                 systemInfo = new();
 
                 systemInfo.AppVersion = version;
 
-                SplashWindow.Loading(60);
+                SplashWindow.Loading(70);
 
                 SettingsInit();
 
-                SplashWindow.Loading(65);
-
                 PSAInit();
 
-                SplashWindow.Loading(70);
+                SplashWindow.Loading(75);
 
                 InitColors();
 
                 TBStart();
                 HWMStart();
-
-                SplashWindow.Loading(75);
 
                 SetActiveConfig(0);
 

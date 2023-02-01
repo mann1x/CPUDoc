@@ -144,8 +144,7 @@ namespace CPUDoc
             }
         }
 
-        public static ManagementBaseObject InvokeMethod(ManagementObject mo, string methodName, string propName,
-            string inParamName, uint arg)
+        public static ManagementBaseObject InvokeMethod(ManagementObject mo, string methodName, string inParamName, uint arg)
         {
             try
             {
@@ -159,6 +158,20 @@ namespace CPUDoc
                 // Execute the method and obtain the return values.
                 ManagementBaseObject outParams = mo.InvokeMethod($"{methodName}", inParams, null);
 
+                return outParams;
+            }
+            catch (ManagementException)
+            {
+                return null;
+            }
+        }
+
+        public static ManagementBaseObject InvokeMethodAndGetValue(ManagementObject mo, string methodName, string propName,
+            string inParamName, uint arg)
+        {
+            try
+            {
+                ManagementBaseObject outParams = InvokeMethod(mo, methodName, inParamName, arg);
                 return (ManagementBaseObject)outParams?.Properties[$"{propName}"].Value;
             }
             catch (Exception ex)
@@ -168,7 +181,7 @@ namespace CPUDoc
             }
         }
 
-        public static byte[] RunCommand(ManagementObject mo, uint commandID, uint commandArgs = 0x0)
+        public static byte[] RunCommand(ManagementObject mo, uint commandID, uint commandArg = 0x0)
         {
             try
             {
@@ -179,10 +192,10 @@ namespace CPUDoc
                 byte[] buffer = new byte[8];
 
                 var cmd = BitConverter.GetBytes(commandID);
-                var args = BitConverter.GetBytes(commandArgs);
+                var arg = BitConverter.GetBytes(commandArg);
 
-                Buffer.BlockCopy(cmd, 0, buffer, 0, cmd.Length);
-                Buffer.BlockCopy(args, 0, buffer, cmd.Length, args.Length);
+                Buffer.BlockCopy(cmd, 0, buffer, 0, 4);
+                Buffer.BlockCopy(arg, 0, buffer, 4, 4);
 
                 inParams["Inbuf"] = buffer;
 
