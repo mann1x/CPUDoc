@@ -74,6 +74,7 @@ namespace CPUDoc
         private static int ClearForceThreshold = 5;
         private static int ClearForceLoadThreshold = (App.pactive.PSALightSleepThreshold ?? 10) > 10 ? (int)App.pactive.PSALightSleepThreshold : 10;
         public static int ProcPerfBoostEco = 100;
+        public static bool PLEvtPerfMode = false;
 
         public static int hepfg = 5;
         public static int hepbg = 5;
@@ -332,6 +333,7 @@ namespace CPUDoc
                 bool _ActiveMode = false;
                 bool _FocusAssist = false;
                 bool _UserNotification = false;
+                bool _PLEvtPerfMode = false;
 
                 if (App.GetIdleTime() < App.pactive.PSALightSleepSeconds * 1000) _ActiveMode = true;
 
@@ -343,9 +345,9 @@ namespace CPUDoc
 
                     if (FGFullScreenPrimary || ((App.pactive.SecondaryMonitor ?? false) && FGFullScreen))
                     {
-                        _ActiveMode = true;
                         _GameMode = true;
                     }
+
                     if (App.pactive.UserNotification ?? true)
                     {
                         QUERY_USER_NOTIFICATION_STATE _quns = App.GetUserNotificationState();
@@ -356,10 +358,10 @@ namespace CPUDoc
                         )
                         {
                             _UserNotification = true;
-                            _ActiveMode = true;
                             _GameMode = true;
                         }
                     } 
+
                     if (App.pactive.FocusAssist ?? true)
                     {
                         var qhsettings = (IQuietHoursSettings)new QuietHoursSettings();
@@ -369,20 +371,43 @@ namespace CPUDoc
                         if ((_far == FocusAssistResult.PRIORITY_ONLY || _far == FocusAssistResult.ALARMS_ONLY) && qhprofileId.ToString() == "Microsoft.QuietHoursProfile.Unrestricted")
                         {
                             _FocusAssist = true;
-                            _ActiveMode = true;
                             _GameMode = true;
                         } 
                     }
-                }
-                else
-                {
-                    _GameMode = false;
+
+                    if (App.pactive.PLPerfMode ?? true)
+                    {
+                        IntPtr evtPL;
+                        if (OpenEventPerfMode(out evtPL))
+                        {
+                            if (OpenSingleEvent(evtPL))
+                            {
+                                _GameMode = true;
+                                _PLEvtPerfMode = true;
+
+                                if (PLEvtPerfMode == false)
+                                    App.LogDebug("Process Lasso Performance Mode enabled");
+                            }
+                            else
+                            {
+                                if (PLEvtPerfMode == true)
+                                {
+                                    _PLEvtPerfMode = false;
+                                    App.LogDebug("Process Lasso Performance Mode disabled");
+                                }
+                            }
+                        }
+                    }
+
                 }
 
-                GameMode = GameMode != _GameMode ? _GameMode : GameMode;
-                ActiveMode = ActiveMode != _ActiveMode ? _ActiveMode : ActiveMode;
-                UserNotification = UserNotification != _UserNotification ? _UserNotification : UserNotification;
-                FocusAssist = FocusAssist != _FocusAssist ? _FocusAssist : FocusAssist;
+                if (_GameMode) _ActiveMode = true;
+
+                GameMode = _GameMode ;
+                ActiveMode = _ActiveMode;
+                UserNotification = _UserNotification;
+                FocusAssist = _FocusAssist;
+                PLEvtPerfMode = _PLEvtPerfMode;
 
                 if (ActiveMode == true)
                 {
@@ -1297,31 +1322,34 @@ namespace CPUDoc
                 uint procmask = procfull ? defFullBitMask : mask;
                 if (whitelist.Length > 0)
                 {
-                    //App.LogInfo($"[PID={threads[0].Id}]: {processname}");
-                    Process proc = Process.GetProcessById(whitelist[0].Id);
-                    //if (!App.IsInVisualStudio) proc.ProcessorAffinity = (IntPtr)App.SysCpuSetMask;
-                    if (!App.IsInVisualStudio) proc.ProcessorAffinity = (IntPtr)procmask;
-                    ProcessThreadCollection threads;
-                    for (int ins = 0; ins < whitelist.Length; ++ins)
+                    foreach (Process procs in whitelist)
                     {
-                        threads = whitelist[ins].Threads;
-                        //App.LogDebug($"ProcSetAffinityMask: {processname}");
-                        for (int t = 0; t < threads.Count; ++t)
+                        //App.LogInfo($"[PID={threads[0].Id}]: {processname}");
+                        Process proc = Process.GetProcessById(procs.Id);
+                        //if (!App.IsInVisualStudio) proc.ProcessorAffinity = (IntPtr)App.SysCpuSetMask;
+                        if (!App.IsInVisualStudio) proc.ProcessorAffinity = (IntPtr)procmask;
+                        ProcessThreadCollection threads;
+                        for (int ins = 0; ins < whitelist.Length; ++ins)
                         {
-                            //App.LogInfo($"T{t}: {processname}");
-                            threads[t].IdealProcessor = _ideal;
-                            threads[t].ProcessorAffinity = (IntPtr)mask;
+                            threads = whitelist[ins].Threads;
+                            //App.LogDebug($"ProcSetAffinityMask: {processname}");
+                            for (int t = 0; t < threads.Count; ++t)
+                            {
+                                //App.LogInfo($"T{t}: {processname}");
+                                threads[t].IdealProcessor = _ideal;
+                                threads[t].ProcessorAffinity = (IntPtr)mask;
+                            }
                         }
                     }
                 }
                 else {
-                    App.LogInfo($"Failed not found ProcSetAffinityMask: {processname}");
+                    App.LogInfo($"Failed not found ProcSetAffinityMask: {processname} [Full={full}] [Full={procfull}]");
                 }
             }
             catch(Exception ex)
             {
-                App.LogInfo($"Failed ProcSetAffinityMask: {processname} Full={full}");
-                App.LogDebug($"Failed ProcSetAffinityMask: {processname} Full={full} {ex}");
+                App.LogInfo($"Failed ProcSetAffinityMask: {processname} [Full={full}] [Full={procfull}]");
+                App.LogDebug($"Failed ProcSetAffinityMask: {processname} [Full={full}] [Full={procfull}] {ex}");
             }
         }
         public static void ProcSetSysMask(string processname, bool full)
@@ -1332,13 +1360,16 @@ namespace CPUDoc
                 Process[] whitelist = Process.GetProcessesByName(processname);
                 if (whitelist.Length > 0)
                 {
-                    uint mask = full ? defFullBitMask : App.SysCpuSetMask != null ? (uint)App.SysCpuSetMask : defFullBitMask;
+                    foreach (Process procs in whitelist)
+                    {
+                        uint mask = full ? defFullBitMask : App.SysCpuSetMask != null ? (uint)App.SysCpuSetMask : defFullBitMask;
 
-                    int pid = whitelist[0].Id;
-                    int ret = App.ProcSetCpuSet(pid, mask);
-                    //int ret = App.ProcSetCpuSet(pid, (uint)App.SysCpuSetMask);
-                    //App.LogDebug($"ProcSysDefMask: {processname}");
-                    if (ret != 0) App.LogInfo($"Failed ProcSysDefMask: {pid} - {processname} = {ret}");
+                        int pid = procs.Id;
+                        int ret = App.ProcSetCpuSet(pid, mask);
+                        //int ret = App.ProcSetCpuSet(pid, (uint)App.SysCpuSetMask);
+                        //App.LogDebug($"ProcSysDefMask: {processname}");
+                        if (ret != 0) App.LogInfo($"Failed ProcSysDefMask: [Full={full}] {pid} - {processname} = {ret}");
+                    }
                 }
                 else
                 {
@@ -1350,6 +1381,27 @@ namespace CPUDoc
                 App.LogInfo($"Failed ProcSysDefMask: {processname} Full={full}");
                 App.LogDebug($"Failed ProcSysDefMask: {processname} Full={full} {ex}");
             }
+        }
+        private static bool OpenEventPerfMode(out IntPtr evt)
+        {
+            uint unEventPermissions = 2031619;
+            // Same as EVENT_ALL_ACCESS value in the Win32 realm
+            evt = App.OpenEvent(unEventPermissions, false, "Global\\4f90aefd-30ca-4121-afec-106c3903fc0f");
+            if (evt == IntPtr.Zero) return false;
+            return true;
+        }
+        private static bool OpenSingleEvent(IntPtr evt)
+        {
+            if (evt != IntPtr.Zero)
+            {
+                AutoResetEvent arEvt = new AutoResetEvent(false);
+                arEvt.SafeWaitHandle = new Microsoft.Win32.SafeHandles.SafeWaitHandle(evt, true);
+                WaitHandle[] waitHandles = new WaitHandle[] { arEvt };
+                //int waitResult = WaitHandle.WaitAny(waitHandles, 2, false);
+                int waitResult = WaitHandle.WaitAny(waitHandles, 0, false);
+                if (waitResult == 0) return true;
+            }
+            return false;
         }
 
         public static void Close()

@@ -146,10 +146,13 @@ namespace CPUDoc
                 listMonitorIdle.SelectedIndex = (pcurrent.MonitorIdle ?? 0);
                 listHyberIdle.SelectedIndex = (pcurrent.HyberIdle ?? 0);
                 App.LogDebug($"MonitorIdle?{listMonitorIdle.SelectedIndex}={(int)pcurrent.MonitorIdle}");
+                cbWakeTimers.IsChecked = (pcurrent.WakeTimers ?? false) ? true : false;
+
                 GMDetect.IsChecked = (pcurrent.GameMode ?? false) ? true : false;
                 GMFocusAssist.IsChecked = (pcurrent.FocusAssist ?? false) ? true : false;
                 GMUserNotification.IsChecked = (pcurrent.UserNotification ?? false) ? true : false;
                 GMFGSecondary.IsChecked = (pcurrent.SecondaryMonitor ?? false) ? true : false;
+                cbPLPerfMode.IsChecked = (pcurrent.PLPerfMode ?? true) ? true : false;
 
                 SSHStatus.Text = (App.pactive.SysSetHack ?? false) ? "Enabled" : "Disabled";
                 PSAStatus.Text = (App.pactive.PowerSaverActive ?? false) ? "Enabled" : "Disabled";
@@ -1060,6 +1063,8 @@ namespace CPUDoc
                     pcurrent.SleepIdle = listSleepIdle.SelectedIndex;
                     pcurrent.MonitorIdle = listMonitorIdle.SelectedIndex;
                     pcurrent.HyberIdle = listHyberIdle.SelectedIndex;
+                    pcurrent.WakeTimers = cbWakeTimers.IsChecked == true ? true : false;
+                    pcurrent.PLPerfMode = cbPLPerfMode.IsChecked == true ? true : false;
 
                     if (PowerTweak_LowPo.IsChecked ?? false) pcurrent.PowerTweak = 0;
                     if (PowerTweak_AutoPo.IsChecked ?? false) pcurrent.PowerTweak = 1;

@@ -194,10 +194,30 @@ namespace CPUDoc
 
         [ProtoMember(52)]
         public int? SleepIdle { get; set; }
+
         [ProtoMember(53)]
         public int? MonitorIdle { get; set; }
+
         [ProtoMember(54)]
         public int? HyberIdle { get; set; }
+
+        [ProtoMember(55)]
+        public bool? WakeTimers { get; set; }
+
+        [ProtoMember(56)]
+        public int? SleepIdleDC { get; set; }
+
+        [ProtoMember(57)]
+        public int? MonitorIdleDC { get; set; }
+
+        [ProtoMember(58)]
+        public int? HyberIdleDC { get; set; }
+
+        [ProtoMember(59)]
+        public bool? WakeTimersDC { get; set; }
+
+        [ProtoMember(60)]
+        public bool? PLPerfMode { get; set; }
         /*
         public static T DeepClone<T>(this T obj)
         {
@@ -254,6 +274,10 @@ namespace CPUDoc
             if (realinit || Personality == null) Personality = 0;
             Personality = Personality < 0 ? 0 : Personality;
             Personality = Personality > 2 ? 2 : Personality;
+            if (realinit || SecondaryMonitor == null) SecondaryMonitor = false;
+            if (realinit || PLPerfMode == null) PLPerfMode = true;
+            if (realinit || WakeTimers == null) WakeTimers = false;
+            if (realinit || WakeTimersDC == null) WakeTimersDC = false;
         }
 
     }

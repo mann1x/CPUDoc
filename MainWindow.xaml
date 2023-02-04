@@ -499,6 +499,10 @@
                                         Enable GameMode detection
                                     </CheckBox>
 
+                                    <CheckBox Grid.Column="1" Grid.Row="13" Grid.ColumnSpan="5" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="cbPLPerfMode" IsChecked="True">
+                                        User Process Lasso Performance Mode for GameMode detection
+                                    </CheckBox>
+
                                     <CheckBox Grid.Column="1" Grid.Row="14" Grid.ColumnSpan="5" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="GMFocusAssist" IsChecked="True">
                                         Use FocusAssist API for GameMode detection
                                     </CheckBox>
@@ -575,6 +579,10 @@
                                         <ComboBoxItem Tag="18000">5 hours</ComboBoxItem>
                                     </ComboBox>
                                     <TextBlock Grid.Column="3" Grid.Row="21" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{Binding Path=systemInfo.HiberAllowed, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                    <CheckBox Grid.Column="1" Grid.Row="23" Grid.ColumnSpan="5" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="cbWakeTimers" IsChecked="False">
+                                        Allow RTC Wake Timers
+                                    </CheckBox>
 
                                 </Grid>
 

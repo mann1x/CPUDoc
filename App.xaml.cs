@@ -374,6 +374,24 @@ namespace CPUDoc
             public long waitHint;
         };
 
+        //OPEN EVENT
+        [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern IntPtr OpenEvent(UInt32
+            dwDesiredAccess, Boolean bInheritHandle, String lpName);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        public static extern IntPtr CreateEvent(IntPtr lpEventAttributes,
+        bool bManualReset, bool bInitialState, string lpName);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool CloseHandle(IntPtr hObject);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        public static extern bool SetEvent(IntPtr hEvent);
+
+        //SERVICE CONTROLLER
+
         [DllImport("advapi32.dll", CharSet = CharSet.Unicode, EntryPoint = "OpenSCManagerW", ExactSpelling = true, SetLastError = true)]
         private static extern IntPtr OpenSCManager(string MachineName, string DatabaseName, SERVICE_ACCESS DesiredAccess);
 
@@ -1962,18 +1980,20 @@ namespace CPUDoc
                         _value = (uint)App.PPUSBSSuspendTimeout;
                         App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.USB_SUBGROUP, new Guid("0853a681-27c8-4100-a2fd-82013e970683"), PowerManagerAPI.PowerMode.AC, _value);
 
-                        App.powerManager.SetActiveGuid(App.PPGuid);
-
                         if (pactive.MonitorIdle == null || pactive.SleepIdle == null || pactive.HyberIdle == null)
                         {
                             pactive.MonitorIdle = PPSecToIdx((int)PowerManager.GetPlanSetting(PPGuid, SettingSubgroup.VIDEO_SUBGROUP, Setting.VIDEOIDLE, PowerMode.AC));
                             pactive.SleepIdle = PPSecToIdx((int)PowerManager.GetPlanSetting(PPGuid, SettingSubgroup.SLEEP_SUBGROUP, Setting.STANDBYIDLE, PowerMode.AC));
                             pactive.HyberIdle = PPSecToIdx((int)PowerManager.GetPlanSetting(PPGuid, SettingSubgroup.SLEEP_SUBGROUP, Setting.HIBERNATEIDLE, PowerMode.AC));
-                        }
+                        } 
 
                         App.powerManager.SetDynamic(SettingSubgroup.VIDEO_SUBGROUP, new Guid("3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)PPIdxToSec((pactive.MonitorIdle ?? 0)));
                         App.powerManager.SetDynamic(SettingSubgroup.SLEEP_SUBGROUP, new Guid("29f6c1db-86da-48c5-9fdb-f2b67b1f44da"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)PPIdxToSec((pactive.SleepIdle ?? 0)));
                         App.powerManager.SetDynamic(SettingSubgroup.SLEEP_SUBGROUP, new Guid("9d7815a6-7ee4-497e-8888-515a05f02364"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)PPIdxToSec((pactive.HyberIdle ?? 0)));
+
+                        App.powerManager.SetDynamic(SettingSubgroup.SLEEP_SUBGROUP, new Guid("bd3b718a-0680-4d9d-8ab2-e1d2b4ac806d"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)(pactive.WakeTimers == true ? 1 : 0));
+
+                        App.powerManager.SetActiveGuid(App.PPGuid);
 
                     }
                 }

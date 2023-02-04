@@ -43,6 +43,15 @@ namespace CPUDoc
             listProcesses.Add(new ListProcessesItem("NVDisplay.Container", true, false, true, false, false, true));
             listProcesses.Add(new ListProcessesItem("SOTTR", true, false, true, false, false, true));
             listProcesses.Add(new ListProcessesItem("HorizonZeroDawn", true, false, true, false, false, true));
+            listProcesses.Add(new ListProcessesItem("csgo", true, false, true, false, false, true));
+            listProcesses.Add(new ListProcessesItem("bf1", true, false, true, false, false, true));
+            listProcesses.Add(new ListProcessesItem("bf3", true, false, true, false, false, true));
+            listProcesses.Add(new ListProcessesItem("bf4", true, false, true, false, false, true));
+            listProcesses.Add(new ListProcessesItem("bfv", true, false, true, false, false, true));
+            listProcesses.Add(new ListProcessesItem("bfh", true, false, true, false, false, true));
+            listProcesses.Add(new ListProcessesItem("bf2042", true, true, true, true, true, true));
+            listProcesses.Add(new ListProcessesItem("BFBC2Game", true, false, true, false, false, true));
+            listProcesses.Add(new ListProcessesItem("valheim", true, false, true, false, false, true));
             //listProcesses.Add(new ListProcessesItem("hunt", true, false, true, false, false, true));
 
             currentProcesses = new();
@@ -143,11 +152,19 @@ namespace CPUDoc
                 {
                     currentProcesses.Add(new CurrentProcessesItem(pid, processname, p.sysm, p.sysm_full, p.bitm, p.bitm_full, p.bitm_pfull, p.profile));
 
-                    //if (processname.ToLower() == "SOTTR".ToLower()) ThreadBooster.ForceCustomBitMask(true, ThreadBooster.defBitMask);
                     if (processname.ToLower() == "EasyFMSI".ToLower() 
                         || processname.ToLower() == "SystemInfoHelper".ToLower() 
                         || processname.ToLower() == "WatchDogsLegion".ToLower()
+                        || processname.ToLower() == "csgo".ToLower()
+                        || processname.ToLower() == "bf1".ToLower()
+                        || processname.ToLower() == "bf3".ToLower()
+                        || processname.ToLower() == "bf4".ToLower()
+                        || processname.ToLower() == "bfv".ToLower()
+                        || processname.ToLower() == "bfh".ToLower()
+                        || processname.ToLower() == "bf2042".ToLower()
+                        || processname.ToLower() == "BFBC2Game".ToLower()
                         || processname.ToLower().StartsWith("obs")
+                        || processname.ToLower() == "valheim".ToLower()
                         )
                         App.setPowerThrottlingExecSpeed(pid, false);
                     if (processname.StartsWith("3DMark"))

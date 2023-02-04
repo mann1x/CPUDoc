@@ -3324,6 +3324,9 @@ namespace CPUDoc
                     PSABias = (App.PSABiasCurrent == 0) ? " [Economizer]" : (App.PSABiasCurrent == 1) ? " [Standard]" : " [Booster]";
                     sleep = App.psact_deep_b ? " [Deep Sleep]" : App.psact_light_b ? " [Light Sleep]" : "";
                     mode = ThreadBooster.GameMode ? " [GameMode]" : ThreadBooster.ActiveMode ? " [ActiveMode]" : "";
+                    mode += ThreadBooster.FocusAssist ? " [FocusAssist]" : "";
+                    mode += ThreadBooster.UserNotification ? " [UserNotification]" : "";
+                    mode += ThreadBooster.PLEvtPerfMode ? " [PL PerfMode]" : "";
                 }
 
                 if (App.PPImportErrStatus) sleep = "[Error Initialization]";
