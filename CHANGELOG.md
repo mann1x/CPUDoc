@@ -9,6 +9,10 @@
 
 ## Changelog:
 
+- v1.2.7 Beta
+    - Fix: Toggles from System Tray icon not functional
+    - Fix: Win11 support for SSH and NumaZero
+    - New: added documentation of command line arguments
 - v1.2.6 Beta
     - New: Optimizations for Hunt: Showdown
     - New: Display of Zen Curve Optimizer Counts

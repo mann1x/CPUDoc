@@ -142,3 +142,22 @@ You could still see load on the disabled cores/threads.
 This is as expected as processes that are already running there could disregard the "hint" and decide to keep using the disabled cores.
 The E-Cores will be parked therefore no load should be seen there once they are disabled.
 
+---
+
+### Command line arguments
+
+There are a few command line arguments that can be used  when starting CPUDoc:
+
+- LogTrace:
+  - When set to 1 will enable the TraceLog, overriding but not overwriting the value in Settings
+- inpoutdlldisable:
+  - When set to 1 will disable the inpoutx64.dll loading at startup, overriding but not overwriting the value in Settings
+
+### Configurations files
+
+The App settings and Configuration files are now in a text readable INI format in the Settings folder.
+
+*Take caution not to open the INI files in an editor and run CPUDoc at the same time, it'll likely crash*
+
+You can freely modify the settings and configurations when the App is closed but the sensitization is still very weak. 
+Configuring something with a value in an unsupported range will likely have unexpected results.

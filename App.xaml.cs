@@ -1640,7 +1640,7 @@ namespace CPUDoc
                 TBStart();
                 HWMStart();
 
-                SetActiveConfig(0);
+                SetActiveConfig(pactive.id);
 
                 Processes.Init();
 
@@ -2868,26 +2868,16 @@ namespace CPUDoc
             }
         }
 
-        public static void SetActiveConfig(int id = 0)
+        public static void SetActiveConfig(int id = -1)
         {
             if (id >= 0 && id < 10) 
               AppConfigs[id].CopyPropertiesTo(pactive);
 
-            if (Win10)
-            {
-                systimer.Enabled = true;
-                hwmtimer.Enabled = true;
-            }
-            else
-            {
-                systimer.Enabled = false;
-                hwmtimer.Enabled = false;
-                pactive.NumaZero = false;
-                pactive.SysSetHack = false;
-            }
 
             if (pactive.ThreadBooster)
             {
+                hwmtimer.Enabled = true;
+                systimer.Enabled = true;
                 tbtimer.Enabled = true;
                 if (!pactive.ManualPoolingRate) SetPoolingRate();
                 if (pactive.ManualPoolingRate) SetPoolingRate((int)pactive.PoolingRate);
