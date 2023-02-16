@@ -2065,12 +2065,12 @@ namespace CPUDoc
                         ZenRefreshCO();
 
                         bool _refreshpt = false, _done = false;
-                        while (_done)
+
+                        while (!_done)
                         {
                             _refreshpt = ZenRefreshPowerTable();
                             if (Zen.powerTable != null && _refreshpt) _done = true;
                         }
-
 
                         StringBuilder sbz = new StringBuilder();
 
