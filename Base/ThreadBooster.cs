@@ -17,6 +17,8 @@ using static CPUDoc.App;
 using net.r_eg.Conari.Types;
 using System.Runtime.InteropServices;
 using NLog;
+using System.Diagnostics.Metrics;
+using AutoUpdaterDotNET;
 
 namespace CPUDoc
 {
@@ -72,7 +74,7 @@ namespace CPUDoc
         private static int LoadMediumThresholdCount = 3;
         private static int LoadHighThresholdCount = 2;
         private static int ClearForceThreshold = 5;
-        private static int ClearForceLoadThreshold = (App.pactive.PSALightSleepThreshold ?? 10) > 10 ? (int)App.pactive.PSALightSleepThreshold : 10;
+        private static int ClearForceLoadThreshold = App.pactive.PSALightSleepThreshold > 10 ? (int)App.pactive.PSALightSleepThreshold : 10;
         public static int ProcPerfBoostEco = 100;
         public static bool PLEvtPerfMode = false;
 
@@ -102,10 +104,13 @@ namespace CPUDoc
         public static bool zencontrol_b_tdc = false;
         public static bool zencontrol_b_edc = false;
         public static bool zencontrol_reapply = false;
+        public static bool zencontrol_activated = false;
         public static int zencontrol_mode = 0;
         public static int Zen_lastPPT = 0;
         public static int Zen_lastTDC = 0;
         public static int Zen_lastEDC = 0;
+        
+        public static bool debugtb_steps = false;
 
         public static void BuildDefaultMask()
         {
@@ -118,7 +123,7 @@ namespace CPUDoc
                 List<int> _t0;
                 List<int> _t1;
 
-                if (App.numazero_b && (App.pactive.NumaZero ?? false))
+                if (App.numazero_b && App.pactive.NumaZero)
                 {
                     _t0 = App.n0enabledT0;
                     _t1 = App.n0enabledT1;
@@ -192,9 +197,12 @@ namespace CPUDoc
         {
             try
             {
+                if (debugtb_steps) App.LogDebug("Stop 001");
                 tbtoken = new CancellationToken();
                 tbtoken = (CancellationToken)App.tbcts.Token;
                 _cpuTotalLoad = ProcessorInfo.cpuTotalLoad;
+
+                if (debugtb_steps) App.LogDebug("Stop 002");
 
                 if (tbpoolingStamp != DateTime.MinValue)
                 {
@@ -205,6 +213,8 @@ namespace CPUDoc
                 }
                 tbpoolingStamp = DateTime.Now;
 
+                if (debugtb_steps) App.LogDebug("Stop 003");
+
                 //Process.GetCurrentProcess().PriorityBoostEnabled = true;
 
                 if (tbtoken.IsCancellationRequested)
@@ -213,15 +223,19 @@ namespace CPUDoc
                     tbtoken.ThrowIfCancellationRequested();
                 }
 
+                if (debugtb_steps) App.LogDebug("Stop 004");
+
                 if (!bInit)
                 {
                     //uint eax = 0;
                     //uint edx = 0;
                     //App.WriteMsrTx(0xC0010202, eax, edx, 0);
 
+                    if (debugtb_steps) App.LogDebug("Stop 004a");
+
                     BuildDefaultMask();
 
-                    if (!(App.pactive.SysSetHack ?? false) && (App.pactive.NumaZero ?? false))
+                    if (!App.pactive.SysSetHack)
                     {
                         App.SysCpuSetMask = defFullBitMask;
                     } else
@@ -231,19 +245,23 @@ namespace CPUDoc
                     App.lastSysCpuSetMask = 0;
                     App.systemInfo.PSABias = "";
 
+                    if (debugtb_steps) App.LogDebug("Stop 004b");
+
                     ZenControlInit();
 
-                    if (((int)(App.pactive.GameModeBias ?? -1) >= 0))
+                    if (debugtb_steps) App.LogDebug("Stop 004c");
+
+                    if ((int)App.pactive.GameModeBias >= 0)
                     {
-                        GModeMinBias = (int)(App.pactive.GameModeBias ?? -1);
+                        GModeMinBias = (int)App.pactive.GameModeBias;
                     }
                     else
                     {
-                        if ((int)(App.pactive.PowerTweak ?? 1) == 0)
+                        if ((int)App.pactive.PowerTweak == 0)
                         {
                             GModeMinBias = 0;
                         }
-                        else if ((int)(App.pactive.PowerTweak ?? 1) == 1) {
+                        else if ((int)App.pactive.PowerTweak == 1) {
                             GModeMinBias = 1;
                         }
                         else
@@ -252,17 +270,17 @@ namespace CPUDoc
                         }
                     }
 
-                    if (((int)(App.pactive.ActiveModeBias ?? -1) >= 0))
+                    if ((int)App.pactive.ActiveModeBias >= 0)
                     {
-                        AModeMinBias = (int)(App.pactive.ActiveModeBias ?? -1);
+                        AModeMinBias = (int)App.pactive.ActiveModeBias;
                     }
                     else
                     {
-                        if ((int)(App.pactive.PowerTweak ?? 1) == 0)
+                        if ((int)App.pactive.PowerTweak == 0)
                         {
                             AModeMinBias = 0;
                         }
-                        else if ((int)(App.pactive.PowerTweak ?? 1) == 1)
+                        else if ((int)App.pactive.PowerTweak == 1)
                         {
                             AModeMinBias = 1;
                         }
@@ -299,6 +317,8 @@ namespace CPUDoc
                         LoadHighThresholdCount = 2;
                     }
 
+                    if (debugtb_steps) App.LogDebug("Stop 004d");
+
                     App.PSAEnable();
                     if (App.psact_plan)
                     {
@@ -309,6 +329,8 @@ namespace CPUDoc
                     bInit = true;
                 }
 
+                if (debugtb_steps) App.LogDebug("Stop 005");
+
                 if (App.reapplyProfile)
                 {
                     App.lastSysCpuSetMask = 0;
@@ -316,7 +338,7 @@ namespace CPUDoc
                     App.reapplyProfile = false;
                 }
 
-                if ((App.pactive.PowerSaverActive ?? false) && !App.psact_plan && !App.PPImportErrStatus) 
+                if (App.pactive.PowerSaverActive && !App.psact_plan && !App.PPImportErrStatus) 
                 {
                     App.PSAEnable();
                     if (App.psact_plan)
@@ -325,7 +347,9 @@ namespace CPUDoc
                         PSAct_Deep(false);
                     }
                 }
-                
+
+                if (debugtb_steps) App.LogDebug("Stop 006");
+
                 _deltaStamp = DateTime.Now - prevFullcoresStamp;
                 _deltaUA = DateTime.Now - App.UAStamp;
 
@@ -335,21 +359,31 @@ namespace CPUDoc
                 bool _UserNotification = false;
                 bool _PLEvtPerfMode = false;
 
+                if (debugtb_steps) App.LogDebug("Stop 007");
+
                 if (App.GetIdleTime() < App.pactive.PSALightSleepSeconds * 1000) _ActiveMode = true;
 
-                if (App.pactive.GameMode ?? true)
+                if (debugtb_steps) App.LogDebug("Stop 008");
+
+                if (App.pactive.GameMode)
                 {
+
+                    if (debugtb_steps) App.LogDebug("Stop 008a");
 
                     FGFullScreen = App.IsForegroundWindowFullScreen(false);
                     FGFullScreenPrimary = App.IsForegroundWindowFullScreen(true);
 
-                    if (FGFullScreenPrimary || ((App.pactive.SecondaryMonitor ?? false) && FGFullScreen))
+                    if (debugtb_steps) App.LogDebug("Stop 008b");
+
+                    if (FGFullScreenPrimary || (App.pactive.SecondaryMonitor && FGFullScreen))
                     {
                         _GameMode = true;
                     }
 
-                    if (App.pactive.UserNotification ?? true)
+                    if (App.pactive.UserNotification && App.UserNotificationAvailable)
                     {
+                        if (debugtb_steps) App.LogDebug("Stop 008c");
+
                         QUERY_USER_NOTIFICATION_STATE _quns = App.GetUserNotificationState();
                         if (_quns == App.QUERY_USER_NOTIFICATION_STATE.QUNS_BUSY ||
                         _quns == App.QUERY_USER_NOTIFICATION_STATE.QUNS_PRESENTATION_MODE ||
@@ -362,21 +396,29 @@ namespace CPUDoc
                         }
                     } 
 
-                    if (App.pactive.FocusAssist ?? true)
+                    if (App.pactive.FocusAssist && App.FocusAssistAvailable)
                     {
-                        var qhsettings = (IQuietHoursSettings)new QuietHoursSettings();
-                        var qhprofileId = qhsettings.UserSelectedProfile;
+                        if (debugtb_steps) App.LogDebug("Stop 008d");
 
-                        FocusAssistResult _far = App.GetFocusAssistState();
-                        if ((_far == FocusAssistResult.PRIORITY_ONLY || _far == FocusAssistResult.ALARMS_ONLY) && qhprofileId.ToString() == "Microsoft.QuietHoursProfile.Unrestricted")
-                        {
-                            _FocusAssist = true;
-                            _GameMode = true;
-                        } 
+                        try {
+                            var qhsettings = (IQuietHoursSettings)new QuietHoursSettings();
+                            var qhprofileId = qhsettings.UserSelectedProfile;
+
+                            FocusAssistResult _far = App.GetFocusAssistState();
+                            if ((_far == FocusAssistResult.PRIORITY_ONLY || _far == FocusAssistResult.ALARMS_ONLY) && qhprofileId.ToString() == "Microsoft.QuietHoursProfile.Unrestricted")
+                            {
+                                _FocusAssist = true;
+                                _GameMode = true;
+                            }
+                        }
+                        catch { }
+
                     }
 
-                    if (App.pactive.PLPerfMode ?? true)
+                    if (App.pactive.PLPerfMode)
                     {
+                        if (debugtb_steps) App.LogDebug("Stop 008e");
+
                         IntPtr evtPL;
                         if (OpenEventPerfMode(out evtPL))
                         {
@@ -398,6 +440,7 @@ namespace CPUDoc
                             }
                         }
                     }
+                    if (debugtb_steps) App.LogDebug("Stop 008f");
 
                 }
 
@@ -408,6 +451,8 @@ namespace CPUDoc
                 UserNotification = _UserNotification;
                 FocusAssist = _FocusAssist;
                 PLEvtPerfMode = _PLEvtPerfMode;
+
+                if (debugtb_steps) App.LogDebug("Stop 009");
 
                 if (ActiveMode == true)
                 {
@@ -443,6 +488,8 @@ namespace CPUDoc
 
                 */
 
+                if (debugtb_steps) App.LogDebug("Stop 010");
+
                 //if (_deltaUA.TotalSeconds > ClearForceThreshold && App.cpuTotalLoad.Current <= ClearForceLoadThreshold)
                 if (App.cpuTotalLoad.Current <= ClearForceLoadThreshold)
                 {
@@ -452,13 +499,21 @@ namespace CPUDoc
                     }
                 }
 
-                if ((App.pactive.PowerSaverActive ?? false) && App.psact_b && App.psact_plan) PowerSaverActive();
+                if (debugtb_steps) App.LogDebug("Stop 011");
+
+                if (App.pactive.PowerSaverActive && App.psact_b && App.psact_plan) PowerSaverActive();
+
+                if (debugtb_steps) App.LogDebug("Stop 012");
 
                 if (zencontrol_b) ZenControl();
 
-                if ((App.pactive.SysSetHack ?? false) || (App.pactive.PowerSaverActive ?? false))
+                if (debugtb_steps) App.LogDebug("Stop 013");
+
+                if (App.pactive.SysSetHack || App.pactive.PowerSaverActive)
                 {
                     int _computedhlt = (int)(CountBits(defFullBitMask) * 100 / ProcessorInfo.LogicalCoresCount * HighTotalLoadFactor);
+
+                    if (debugtb_steps) App.LogDebug("Stop 014a");
 
                     if (forceCustomBitMask && forceCustomBitMaskStamp != DateTime.MinValue)
                     {
@@ -470,7 +525,7 @@ namespace CPUDoc
                         }
                         else
                         {
-                            if (CustomBitMask != App.lastSysCpuSetMask && (App.pactive.SysSetHack ?? false))
+                            if (CustomBitMask != App.lastSysCpuSetMask && App.pactive.SysSetHack)
                             {
                                 App.LogDebug($"SysCpuSetMask CustomBitMask 0x{CustomBitMask:X8}");
                                 setcores = basecores;
@@ -485,7 +540,7 @@ namespace CPUDoc
                         if (_cpuTotalLoad > _computedhlt) prevFullcoresStamp = DateTime.Now;
                         App.LogDebug($"Full CpuLoad: {ProcessorInfo.cpuTotalLoad:0} {_deltaStamp.TotalSeconds}");
 
-                        if (defFullBitMask != App.lastSysCpuSetMask && (App.pactive.SysSetHack ?? false))
+                        if (defFullBitMask != App.lastSysCpuSetMask && (App.pactive.SysSetHack))
                         {
                             App.LogDebug($"SysCpuSetMask defFullBitMask 0x{defFullBitMask:X8}");
                             setcores = basecores + addcores;
@@ -498,8 +553,10 @@ namespace CPUDoc
                         //App.LogDebug($"CpuLoad: {ProcessorInfo.cpuTotalLoad:0}");
                         //App.LogDebug($"\tLoad-0-T0={ProcessorInfo.HardwareCpuSets[0].Load:0} \tLoad-0-T1={ProcessorInfo.HardwareCpuSets[1].Load:0}");
 
-                        if (App.pactive.SysSetHack ?? false)
+                        if (App.pactive.SysSetHack)
                         {
+                            if (debugtb_steps) App.LogDebug("Stop 014b");
+
                             needcores = usedcores = newsetcores = morecores = 0;
                             TotalT0Load = 0;
 
@@ -566,6 +623,7 @@ namespace CPUDoc
 
                             if (newBitMask != App.SysCpuSetMask && !SetHysteresis)
                             {
+                                if (debugtb_steps) App.LogDebug("Stop 014c");
                                 //App.LogDebug($"set newbitMask 0x{newBitMask:X8} prevBitMask 0x{App.SysCpuSetMask:X8} {morecores}");
                                 //App.LogDebug($"setcores {setcores} newsetcores {newsetcores} basecores {basecores} morecores {morecores}");
                                 prevNeedcores = needcores;
@@ -585,6 +643,7 @@ namespace CPUDoc
                 App.SysCpuSetMask = defFullBitMask;
                 App.SetSysCpuSet(0);
                 App.PSAPlanDisable();
+                ZenControlDisable();
                 App.lastPSABiasCurrent = null;
                 App.LogDebug("ThreadBooster cycle exiting due to OperationCanceled");
             }
@@ -593,8 +652,10 @@ namespace CPUDoc
                 App.SysCpuSetMask = defFullBitMask;
                 App.SetSysCpuSet(0);
                 App.PSAPlanDisable();
+                ZenControlDisable();
                 App.lastPSABiasCurrent = null;
-                App.LogExError($"ThreadBooster cycle Exception: {ex.Message}", ex); 
+                //App.LogExError($"ThreadBooster cycle Exception: {ex.Message}", ex);
+                App.LogError($"ThreadBooster cycle Exception: {ex.Message}");
             }
             finally
             {
@@ -700,6 +761,31 @@ namespace CPUDoc
             }
 
         }
+        public static void ZenControlDisable()
+        {
+            if (zencontrol_activated)
+            {
+                zencontrol_b = false;
+                if (zencontrol_b_ppt && systemInfo.ZenStartPPT > 0 && App.systemInfo.Zen.powerTable.PPT != App.systemInfo.ZenStartPPT)
+                {
+                    App.wsleep(20000);
+                    App.systemInfo.Zen.SetPPTLimit((uint)systemInfo.ZenStartPPT);
+                    App.LogInfo($"Setting PBO Limits back to start values PPT: {systemInfo.ZenStartPPT}");
+                }
+                if (zencontrol_b_tdc && systemInfo.ZenStartTDC > 0 && App.systemInfo.Zen.powerTable.TDC != App.systemInfo.ZenStartTDC)
+                {
+                    App.wsleep(20000);
+                    App.systemInfo.Zen.SetTDCVDDLimit((uint)systemInfo.ZenStartTDC);
+                    App.LogInfo($"Setting PBO Limits back to start values TDC: {systemInfo.ZenStartTDC}");
+                }
+                if (zencontrol_b_edc && systemInfo.ZenStartEDC > 0 && App.systemInfo.Zen.powerTable.EDC != App.systemInfo.ZenStartEDC)
+                {
+                    App.wsleep(20000);
+                    App.systemInfo.Zen.SetEDCVDDLimit((uint)systemInfo.ZenStartEDC);
+                    App.LogInfo($"Setting PBO Limits back to start values EDC: {systemInfo.ZenStartEDC}");
+                }
+            }
+        }
         public static string ZenControlMode()
         {
             if (App.psact_deep_b) return "deep";
@@ -727,8 +813,11 @@ namespace CPUDoc
 
         public static void ZenControlInit()
         {
-            if (App.systemInfo.ZenStates && (App.pactive.ZenControl ?? false))
+            ZenControlDisable();
+
+            if (App.systemInfo.ZenStates && App.pactive.ZenControl)
             {
+
                 //CHECK IF SMU OP Available
                 if (App.systemInfo.ZenPPT > 0) zencontrol_b_ppt = true;
                 if (App.systemInfo.ZenTDC > 0) zencontrol_b_tdc = true;
@@ -736,11 +825,17 @@ namespace CPUDoc
 
                 zenControlModes.Clear();
 
-                int _ppt, _tdc, _edc;
+                int _ppt, _tdc, _edc, _minppt, _mintdc, _minedc, _percentage;
                 int _autoppt, _autotdc, _autoedc, _ccds;
+                int _ptweak = App.pactive.PowerTweak;
+                int _ratio = _ptweak < 1 ? 90 : _ptweak > 1 ? 120 : 100;
+                float _archratio = 1;
                 string _mode;
 
                 _ccds = App.systemInfo.ZenCCDTotal > 0 ? App.systemInfo.ZenCCDTotal : 1;
+
+                if (App.systemInfo.Zen3) _archratio = 1.1f;
+                if (App.systemInfo.Zen4) _archratio = 1.5f;
 
                 //HIGH PERFORMANCE
                 _mode = "hpx";
@@ -749,51 +844,68 @@ namespace CPUDoc
                 _autotdc = (ProcessorInfo.PhysicalCoresCount * 9) + (_ccds * 10);
                 _autoedc = (ProcessorInfo.PhysicalCoresCount * 12) + (_ccds * 10);
 
-                _autoppt = (App.pactive.ZenControlPPTAuto ?? false) ? _autoppt : (int)App.pactive.ZenControlPPThpx;
-                _autotdc = (App.pactive.ZenControlTDCAuto ?? false) ? _autotdc : (int)App.pactive.ZenControlTDChpx;
-                _autoedc = (App.pactive.ZenControlEDCAuto ?? false) ? _autoedc : (int)App.pactive.ZenControlEDChpx;
+                _autoppt = _ratio == 100 ? _autoppt : ((int)(0.5f + ((_autoppt / 100f) * _ratio)));
+                _autotdc = _ratio == 100 ? _autotdc : ((int)(0.5f + ((_autotdc / 100f) * _ratio)));
+                _autoedc = _ratio == 100 ? _autoedc : ((int)(0.5f + ((_autoedc / 100f) * _ratio)));
 
-                _ppt = (App.pactive.ZenControlPPTAuto ?? false) && !zencontrol_b_ppt ? 0 : _autoppt;
-                _tdc = (App.pactive.ZenControlTDCAuto ?? false) && !zencontrol_b_tdc ? 0 : _autotdc;
-                _edc = (App.pactive.ZenControlEDCAuto ?? false) && !zencontrol_b_edc ? 0 : _autoedc;
 
-                zenControlModes.Add(new ZenControlMode(_mode, _ppt, _tdc, _edc));
+                _autoppt = App.pactive.ZenControlPPTAuto ? _autoppt : (int)App.pactive.ZenControlPPThpx;
+                _autotdc = App.pactive.ZenControlTDCAuto ? _autotdc : (int)App.pactive.ZenControlTDChpx;
+                _autoedc = App.pactive.ZenControlEDCAuto ? _autoedc : (int)App.pactive.ZenControlEDChpx;
+
+                _ppt = App.pactive.ZenControlPPTAuto && !zencontrol_b_ppt ? 0 : _autoppt;
+                _tdc = App.pactive.ZenControlTDCAuto && !zencontrol_b_tdc ? 0 : _autotdc;
+                _edc = App.pactive.ZenControlEDCAuto && !zencontrol_b_edc ? 0 : _autoedc;
+
+                zenControlModes.Add(new ZenControlMode(_mode, (int)(_ppt * _archratio), (int)(_tdc * _archratio), (int)(_edc * _archratio)));
 
                 //BALANCED
                 _mode = "bal";
+                _percentage = 75;
 
-                _ppt = (App.pactive.ZenControlPPTAuto ?? false) && !zencontrol_b_ppt ? 0 : (_autoppt - (int)((double)25 * (_autoppt / 100)));
-                _tdc = (App.pactive.ZenControlTDCAuto ?? false) && !zencontrol_b_tdc ? 0 : (_autotdc - (int)((double)25 * (_autotdc / 100)));
-                _edc = (App.pactive.ZenControlEDCAuto ?? false) && !zencontrol_b_edc ? 0 : (_autoedc - (int)((double)25 * (_autoedc / 100)));
+                _ppt = App.pactive.ZenControlPPTAuto && !zencontrol_b_edc ? 0 : ((int)(0.5f + ((_autoppt / 100f) * _percentage)));
+                _tdc = App.pactive.ZenControlTDCAuto && !zencontrol_b_tdc ? 0 : ((int)(0.5f + ((_autotdc / 100f) * _percentage)));
+                _edc = App.pactive.ZenControlEDCAuto && !zencontrol_b_edc ? 0 : ((int)(0.5f + ((_autoedc / 100f) * _percentage)));
 
-                zenControlModes.Add(new ZenControlMode(_mode, _ppt, _tdc, _edc));
+                zenControlModes.Add(new ZenControlMode(_mode, (int)(_ppt *_archratio), (int)(_tdc * _archratio), (int)(_edc * _archratio)));
 
                 //LOWPOWER
                 _mode = "low";
+                _percentage = 50;
 
-                _ppt = (App.pactive.ZenControlPPTAuto ?? false) && !zencontrol_b_ppt ? 0 : (_autoppt - (int)((double)50 * (_autoppt / 100)));
-                _tdc = (App.pactive.ZenControlTDCAuto ?? false) && !zencontrol_b_tdc ? 0 : (_autotdc - (int)((double)50 * (_autotdc / 100)));
-                _edc = (App.pactive.ZenControlEDCAuto ?? false) && !zencontrol_b_edc ? 0 : (_autoedc - (int)((double)50 * (_autoedc / 100)));
+                _ppt = App.pactive.ZenControlEDCAuto && !zencontrol_b_ppt ? 0 : ((int)(0.5f + ((_autoppt / 100f) * _percentage)));
+                _tdc = App.pactive.ZenControlEDCAuto && !zencontrol_b_tdc ? 0 : ((int)(0.5f + ((_autotdc / 100f) * _percentage)));
+                _edc = App.pactive.ZenControlEDCAuto && !zencontrol_b_edc ? 0 : ((int)(0.5f + ((_autoedc / 100f) * _percentage)));
 
                 zenControlModes.Add(new ZenControlMode(_mode, _ppt, _tdc, _edc));
-                
+
                 //LIGHT SLEEP
                 _mode = "light";
-                _ppt = (App.pactive.ZenControlPPTAuto ?? false) && !zencontrol_b_ppt ? 0 : 60 > _autoppt ? _autoppt : 60;
-                _tdc = (App.pactive.ZenControlTDCAuto ?? false) && !zencontrol_b_tdc ? 0 : 45 > _autotdc ? _autotdc : 45;
-                _edc = (App.pactive.ZenControlEDCAuto ?? false) && !zencontrol_b_edc ? 0 : 65 > _autoedc ? _autoedc : 65;
+                _minppt = 45;
+                _mintdc = 35;
+                _minedc = 50;
+                _percentage = 25;
+
+                _ppt = App.pactive.ZenControlPPTAuto && !zencontrol_b_ppt ? 0 : _minppt < ((int)(0.5f + ((_autoppt / 100f) * _percentage))) ? ((int)(0.5f + ((_autoppt / 100f) * _percentage))) : _minppt;
+                _tdc = App.pactive.ZenControlTDCAuto && !zencontrol_b_tdc ? 0 : _mintdc < ((int)(0.5f + ((_autotdc / 100f) * _percentage))) ? ((int)(0.5f + ((_autotdc / 100f) * _percentage))) : _mintdc;
+                _edc = App.pactive.ZenControlEDCAuto && !zencontrol_b_edc ? 0 : _minedc < ((int)(0.5f + ((_autoedc / 100f) * _percentage))) ? ((int)(0.5f + ((_autoedc / 100f) * _percentage))) : _minedc;
 
                 zenControlModes.Add(new ZenControlMode(_mode, _ppt, _tdc, _edc));
 
                 //DEEP SLEEP
                 _mode = "deep";
-                _ppt = (App.pactive.ZenControlPPTAuto ?? false) && !zencontrol_b_ppt ? 0 : 60 > _autoppt ? _autoppt : 45;
-                _tdc = (App.pactive.ZenControlTDCAuto ?? false) && !zencontrol_b_tdc ? 0 : 45 > _autotdc ? _autotdc : 25;
-                _edc = (App.pactive.ZenControlEDCAuto ?? false) && !zencontrol_b_edc ? 0 : 65 > _autoedc ? _autoedc : 45;
+                _minppt = 35;
+                _mintdc = 25;
+                _minedc = 35;
+                _percentage = 15;
+                _ppt = App.pactive.ZenControlPPTAuto && !zencontrol_b_ppt ? 0 : _minppt < ((int)(0.5f + ((_autoppt / 100f) * _percentage))) ? ((int)(0.5f + ((_autoppt / 100f) * _percentage))) : _minppt;
+                _tdc = App.pactive.ZenControlTDCAuto && !zencontrol_b_tdc ? 0 : _mintdc < ((int)(0.5f + ((_autotdc / 100f) * _percentage))) ? ((int)(0.5f + ((_autotdc / 100f) * _percentage))) : _mintdc;
+                _edc = App.pactive.ZenControlEDCAuto && !zencontrol_b_edc ? 0 : _minedc < ((int)(0.5f + ((_autoedc / 100f) * _percentage))) ? ((int)(0.5f + ((_autoedc / 100f) * _percentage))) : _minedc;
 
                 zenControlModes.Add(new ZenControlMode(_mode, _ppt, _tdc, _edc));
 
                 zencontrol_b = true;
+                zencontrol_activated = true;
             }
         }
         public static void ZenControlPBO(string _mode)
@@ -807,7 +919,7 @@ namespace CPUDoc
 
                     if (zcmode != null)
                     {
-                        if (zencontrol_b_ppt && zcmode.EDC != Zen_lastPPT)
+                        if (zencontrol_b_ppt && zcmode.PPT != Zen_lastPPT)
                         {
                             App.wsleep(20000);
                             App.systemInfo.Zen.SetPPTLimit((uint)zcmode.PPT);
@@ -815,7 +927,7 @@ namespace CPUDoc
                             Zen_lastPPT = zcmode.PPT;
                         }
 
-                        if (zencontrol_b_tdc && zcmode.EDC != Zen_lastTDC)
+                        if (zencontrol_b_tdc && zcmode.TDC != Zen_lastTDC)
                         {
                             App.wsleep(20000);
                             App.systemInfo.Zen.SetTDCVDDLimit((uint)zcmode.TDC);
@@ -1241,7 +1353,7 @@ namespace CPUDoc
 
                 try
                 {
-                    if ((App.lastSysCpuSetMask != App.SysCpuSetMask && !App.psact_deep_b) || (App.psact_deep_b && App.SysCpuSetMask == 0))
+                    if (((App.lastSysCpuSetMask != App.SysCpuSetMask && !App.psact_deep_b) || (App.psact_deep_b && App.SysCpuSetMask == 0)) && ThreadBooster.bInit)
                     {
                         App.LogInfo($"SSH Action [Cores:{basecores}+{addcores}={basecores+addcores}] 0x{App.lastSysCpuSetMask:X8} -> 0x{App.SysCpuSetMask:X8} - {CountBits(App.lastSysCpuSetMask)} -> {CountBits(App.SysCpuSetMask)}");
                         if (App.SetSysCpuSet(App.SysCpuSetMask) == 0)
@@ -1252,6 +1364,13 @@ namespace CPUDoc
                             {
                                 Processes.MaskParse();
                             }
+                        }
+                    } 
+                    else if (!ThreadBooster.bInit && !pactive.SysSetHack)
+                    {
+                        if (App.SetSysCpuSet(0) == 0)
+                        {
+                            App.lastSysCpuSetMask = App.SysCpuSetMask;
                         }
                     }
                 }
@@ -1306,8 +1425,8 @@ namespace CPUDoc
         }
         public static void ProcMask(string processname, bool sysm, bool sysm_full, bool bitm, bool bitm_full, bool bitm_pfull)
         {
-            if (sysm && (App.pactive.SysSetHack ?? false) && !App.IsInVisualStudio) ProcSetSysMask(processname, sysm_full);
-            if (bitm && (App.pactive.SysSetHack ?? false)) ProcSetAffinityMask(processname, bitm_full, bitm_pfull);
+            if (sysm && (App.pactive.SysSetHack) && !App.IsInVisualStudio) ProcSetSysMask(processname, sysm_full);
+            if (bitm && App.pactive.SysSetHack) ProcSetAffinityMask(processname, bitm_full, bitm_pfull);
         }
 
         public static void ProcSetAffinityMask(string processname, bool full, bool procfull)

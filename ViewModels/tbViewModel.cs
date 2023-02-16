@@ -88,7 +88,7 @@ namespace CPUDoc
                     },
                     CommandAction = () =>
                     {
-                        App.pactive.NumaZero = (App.pactive.NumaZero ?? false) ? false : true;
+                        App.pactive.NumaZero = (App.pactive.NumaZero) ? false : true;
                         App.SetActiveConfig();
                         App.LogDebug($"N0 Toggle: {App.pactive.NumaZero}");
                     }
@@ -112,7 +112,7 @@ namespace CPUDoc
                     },
                     CommandAction = () =>
                     {
-                        App.pactive.PowerSaverActive = (App.pactive.PowerSaverActive ?? false) ? false : true;
+                        App.pactive.PowerSaverActive = (App.pactive.PowerSaverActive) ? false : true;
                         App.SetActiveConfig();
                         App.LogDebug($"PSA Toggle: {App.pactive.PowerSaverActive}");
                     }
@@ -136,7 +136,7 @@ namespace CPUDoc
                     },
                     CommandAction = () =>
                     {
-                        App.pactive.SysSetHack = (App.pactive.SysSetHack ?? false) ? false : true;
+                        App.pactive.SysSetHack = (App.pactive.SysSetHack) ? false : true;
                         App.SetActiveConfig();
                         App.LogDebug($"SysSetHack Toggle: {App.pactive.SysSetHack}");
                     }

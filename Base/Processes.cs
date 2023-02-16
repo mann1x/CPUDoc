@@ -52,6 +52,7 @@ namespace CPUDoc
             listProcesses.Add(new ListProcessesItem("bf2042", true, true, true, true, true, true));
             listProcesses.Add(new ListProcessesItem("BFBC2Game", true, false, true, false, false, true));
             listProcesses.Add(new ListProcessesItem("valheim", true, false, true, false, false, true));
+            listProcesses.Add(new ListProcessesItem("huntgame", true, true, true, true, false, true));
             //listProcesses.Add(new ListProcessesItem("hunt", true, false, true, false, false, true));
 
             currentProcesses = new();
@@ -65,7 +66,9 @@ namespace CPUDoc
                 //App.LogDebug($"Process: {p.ProcessName}");
             }
             ProfileParse();
-            App.LogDebug("M1");
+            
+            //App.LogDebug("M1");
+            
             MaskParse();            
 
         }
@@ -112,7 +115,7 @@ namespace CPUDoc
 #nullable enable
                 void DoParse(CurrentProcessesItem p)
                 {
-                    if ((p.bitm || p.sysm) && (App.pactive.SysSetHack ?? false))
+                    if ((p.bitm || p.sysm) && (App.pactive.SysSetHack))
                     {
                         ThreadBooster.ProcMask(p.processName, p.sysm, p.sysm_full, p.bitm, p.bitm_full, p.bitm_pfull);
                         App.LogDebug($"MaskParse action: [{p.pid}] {p.processName} sysm={p.sysm} sysm_full={p.sysm_full} bitm={p.bitm} bitm_full={p.bitm_full} bitm_pfull={p.bitm_pfull}");
@@ -152,6 +155,10 @@ namespace CPUDoc
                 {
                     currentProcesses.Add(new CurrentProcessesItem(pid, processname, p.sysm, p.sysm_full, p.bitm, p.bitm_full, p.bitm_pfull, p.profile));
 
+                    if (processname.ToLower() == "hydra".ToLower()) {
+                        App.ZenBlockRefresh = true;
+                        App.ProcessDisableThrottle(pid);
+                    }
                     if (processname.ToLower() == "EasyFMSI".ToLower() 
                         || processname.ToLower() == "SystemInfoHelper".ToLower() 
                         || processname.ToLower() == "WatchDogsLegion".ToLower()
@@ -165,11 +172,12 @@ namespace CPUDoc
                         || processname.ToLower() == "BFBC2Game".ToLower()
                         || processname.ToLower().StartsWith("obs")
                         || processname.ToLower() == "valheim".ToLower()
+                        || processname.ToLower() == "huntgame".ToLower()
                         )
-                        App.setPowerThrottlingExecSpeed(pid, false);
+                        App.ProcessDisableThrottle(pid);
                     if (processname.StartsWith("3DMark"))
                     {
-                        App.setPowerThrottlingExecSpeed(pid, false);
+                        App.ProcessDisableThrottle(pid);
                         if (processname.ToLower().Contains("3DMarkCPUProfile".ToLower()) 
                             || processname.ToLower().Contains("3DMarkICFWorkload".ToLower()) 
                             || processname.ToLower().Contains("3DMarkTimeSpy".ToLower()) 
@@ -243,6 +251,7 @@ namespace CPUDoc
                 if (p != null)
                 {
                     currentProcesses.Remove(p);
+                    if (p.processName.ToLower() == "hydra".ToLower()) App.ZenBlockRefresh = false;
                     if (ThreadBooster.forceCustomBitMask)
                     {
                         if (processname.Contains("3DMarkCPUProfile") || processname.Contains("3DMarkICFWorkload") || processname.Contains("3DMarkTimeSpy") || processname.Contains("3DMarkNightRaid"))

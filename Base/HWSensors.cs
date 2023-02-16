@@ -110,7 +110,7 @@ namespace CPUDoc
                         _sensor.Enabled = _enabled;
                         _sensor.ZenMulti = _multi;
                         _sensor.ZenPTOffset = _offset;
-                        App.LogDebug($"Zen Added {_name} Offset {_offset}");
+                        //App.LogDebug($"Zen Added {_name} Offset {_offset}");
                     }
                 }
 
@@ -137,7 +137,7 @@ namespace CPUDoc
                         {
                             _sensor.MultiValues.Add(new HWSensorMultiValues());
                             _sensor.MultiValues[_index - 1].ZenPTOffset = _offset;
-                            App.LogDebug($"ZenMulti Added {_name} Index {_index - 1} Offset {_offset}");
+                            //App.LogDebug($"ZenMulti Added {_name} Index {_index - 1} Offset {_offset}");
                         }
                     }
                 }
@@ -160,7 +160,7 @@ namespace CPUDoc
                         _sensor.Enabled = true;
                         _sensor.LibreIdentifier = _libreId;
                         _sensor.LibreLabel = _libreLabel;
-                        App.LogDebug($"Libre Added {_name} Label {_libreLabel} Id {_libreId}");
+                        //App.LogDebug($"Libre Added {_name} Label {_libreLabel} Id {_libreId}");
                     }
                 }
 
@@ -188,7 +188,7 @@ namespace CPUDoc
                             _sensor.MultiValues.Add(new HWSensorMultiValues());
                             _sensor.MultiValues[_index - 1].LibreIdentifier = _libreMultiId;
                             _sensor.MultiValues[_index - 1].LibreLabel = _libreMultiLabel;
-                            App.LogDebug($"Libre Added {_name} Index {_index - 1} Label {_libreMultiLabel} Id {_libreMultiId}");
+                            //App.LogDebug($"Libre Added {_name} Index {_index - 1} Label {_libreMultiLabel} Id {_libreMultiId}");
                         }
 
 

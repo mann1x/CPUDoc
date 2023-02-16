@@ -135,6 +135,7 @@
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -183,7 +184,7 @@
                            Text="{Binding systemInfo.MemoryLabel, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}"/>
                             <TextBlock Grid.Column="0" Grid.Row="11" x:Name="COCounts" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center"
                            Text="CO Counts:" Visibility="Collapsed"/>
-                            <TextBlock Grid.Column="1" Grid.Row="11" x:Name="COCountsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Padding="5" VerticalAlignment="Center" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}" 
+                            <TextBlock Grid.Column="1" Grid.Row="11" x:Name="COCountsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Padding="5" VerticalAlignment="Center" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}" FontFamily="Consolas" 
                            Text="{Binding systemInfo.ZenCOLabel, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" Visibility="Collapsed"/>
                             <TextBlock Grid.Column="0" Grid.Row="12" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center"
                            Text="Core Order:"/>
@@ -191,7 +192,7 @@
                            Text="{Binding systemInfo.CPPCLabel}"/>
                             <TextBlock Grid.Column="0" Grid.Row="13" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right" VerticalAlignment="Center"
                            Text="Perf Tags:"/>
-                            <TextBlock Grid.Column="1" Grid.Row="13" Name="CPPCTagsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Padding="5" VerticalAlignment="Center" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}"
+                            <TextBlock Grid.Column="1" Grid.Row="13" Name="CPPCTagsLabel" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Padding="5" VerticalAlignment="Center" Background="{DynamicResource {x:Static adonisUi:Brushes.Layer3BackgroundBrush}}" FontFamily="Consolas" 
                            Text="{Binding systemInfo.CPPCTagsLabel}"/>
 
                             <TextBlock x:Name="ECoresLabel" Grid.Column="0" Grid.Row="14" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Right"  VerticalAlignment="Center" Text="E-Cores:" Visibility="Collapsed"/>
@@ -760,8 +761,12 @@
                                     Automatic updates notification
                                 </CheckBox>
 
-                                <CheckBox Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TraceInfoCheckBox_Click" x:Name="cbTraceInfo" Grid.ColumnSpan="2">
+                                <CheckBox Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TraceInfoCheckBox_Click" x:Name="cbTraceLog" Grid.ColumnSpan="2">
                                     Diagnostic log (DON'T enable unless requested, will slow down!)
+                                </CheckBox>
+
+                                <CheckBox Grid.Column="0" Grid.Row="10" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="InpoutCheckBox_Click" x:Name="cbInpoutdll" Grid.ColumnSpan="2">
+                                    Disable inpoutx64.dll loading (fixes issues with AV and AntiCheat but disables AMD and ZenControl features)
                                 </CheckBox>
 
                                 <Grid Grid.Column="0" Grid.Row="11" Grid.ColumnSpan="2" Margin="4,4,4,4">

@@ -9,6 +9,24 @@
 
 ## Changelog:
 
+- v1.2.6 Beta
+    - New: Optimizations for Hunt: Showdown
+    - New: Display of Zen Curve Optimizer Counts
+    - New: ZenControl auto PBO limits are now scaled based of PowerTweak setting
+    - New: Support for disabled cores in BIOS
+    - New: Display of CPU statistics (load + Zen specific: temperature, voltages, etc)
+    - Fix: ZenStates-Core updates
+    - Fix: Zen4 updates, disabled HSMP mailbox
+    - Fix: Display and update of Zen limits
+    - Fix: Implemented check to verify UserNotification and FocusAssist APIs
+    - Fix: Memory display with single DIMM and DDR5 ProcODT, Clock
+    - Fix: ZenControl PBO limits calculation
+    - Fix: Zen PPT detection and overall Zen values detection in UI
+    - Fix: Zen PPT detection when cores are disabled via BIOS
+    - Fix: ZenControl restores starting values
+    - Fix: NumaZero fall-back from Auto with one L3 cache
+    - Fix: Settings management re-factorization, INI files in Settings folder
+    - Fix: Enhanced compatibility with Hydra
 - v1.2.4 Beta
     - New: Added Process Lasso Performance Mode to detect GameMode
     - New: Added RTC Wake Timers option to PSA

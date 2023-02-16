@@ -70,6 +70,16 @@ If for some reason you don't want or can't use PSA, check one of my Custom Power
 - [ManniX's Custom Power Plans for Intel](https://www.overclock.net/threads/intel-custom-power-plans-for-windows.1802309/)
 
 ---
+## Troubleshooting
+
+- Enable the diagnostic logs, close and re-open CPUDoc and attach the LogInfo.txt and LogTrace.txt to the GitHub Issue
+- For AMD CPUs: Provide a ZenTimings debug report and if you can a Ryzen Master screen-shot
+- Please white-list the following drivers in your AntiVirus software if you have problems
+  - inpoutx64.dll
+  - WinIo32.dll
+  - WinIo32.sys
+  - WinRing0x64.dll
+  - WinRing0x64.sys
 
 ## Known issues
 

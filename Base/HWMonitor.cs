@@ -147,7 +147,7 @@ namespace CPUDoc
 
                 float _livetdc = 0;
                 float _liveedc = 0;
-                float _livevcore = 0;
+                float? _livevcore = 0;
 
                 if (!_refreshpt)
                 {
@@ -155,7 +155,7 @@ namespace CPUDoc
                     return;
                 }
 
-                float _cpuVcore, _cpuVsoc;
+                float? _cpuVcore, _cpuVsoc;
                 _cpuVcore = App.systemInfo.Zen.cpuVcore;
                 _cpuVsoc = App.systemInfo.Zen.cpuVsoc;
                 //App.LogDebug($"_cpuVcore: {_cpuVcore} _cpuVsoc: {_cpuVsoc}");
@@ -163,11 +163,7 @@ namespace CPUDoc
                 float _cpuBusClock;
                 _cpuBusClock = App.systemInfo.Zen.cpuBusClock;
                 //App.LogDebug($"_cpuBusClock: {_cpuBusClock}");
-                float _cpuMulti;
-                _cpuMulti = App.systemInfo.Zen.baseMulti;
                 //App.LogDebug($"_cpuMulti: {_cpuMulti}");
-                float _cpubaseClock;
-                _cpubaseClock = App.systemInfo.Zen.baseClock;
                 //App.LogDebug($"_cpubaseClock: {_cpubaseClock}");
                 //App.LogDebug($"_someClock: {App.systemInfo.Zen.GetSome1Clock()}");
                 //App.LogDebug($"teststring: {App.systemInfo.Zen.teststring}");
@@ -241,7 +237,7 @@ namespace CPUDoc
                     }
                 }
 
-                float _cputemp = App.systemInfo.Zen.cpuTemp;
+                float? _cputemp = App.systemInfo.Zen.cpuTemp;
                 float? _cpuload = (float)ProcessorInfo.cpuTotalLoad;
                 App.hwsensors.UpdateZenSensor(HWSensorName.CPULoad, _cpuload);
                 App.hwsensors.UpdateZenSensor(HWSensorName.CPUTemp, _cputemp);
@@ -250,13 +246,13 @@ namespace CPUDoc
                 if (App.systemInfo.ZenPerCCDTemp)
                 {
                     {
-                        float ccd1temp = App.systemInfo.Zen.ccd1Temp;
+                        float? ccd1temp = App.systemInfo.Zen.ccd1Temp;
                         //App.LogDebug($"CCD1T={ccd1temp}");
-                        if (App.systemInfo.Zen.ccd1TempSupported) App.hwsensors.UpdateZenSensor(HWSensorName.CCD1Temp, ccd1temp);
-                        float ccd2temp = App.systemInfo.Zen.ccd2Temp;
+                        if (ccd1temp != null) App.hwsensors.UpdateZenSensor(HWSensorName.CCD1Temp, ccd1temp);
+                        float? ccd2temp = App.systemInfo.Zen.ccd2Temp;
                         //App.LogDebug($"CCD2T={ccd2temp}");
-                        if (App.systemInfo.Zen.ccd2TempSupported) App.hwsensors.UpdateZenSensor(HWSensorName.CCD2Temp, ccd2temp);
-                        if (App.systemInfo.Zen.ccd1TempSupported && App.systemInfo.Zen.ccd2TempSupported) App.hwsensors.UpdateZenSensor(HWSensorName.CCDSTemp, (ccd1temp + ccd2temp) / 2);
+                        if (ccd1temp != null) App.hwsensors.UpdateZenSensor(HWSensorName.CCD2Temp, ccd2temp);
+                        if (ccd1temp != null && ccd2temp != null) App.hwsensors.UpdateZenSensor(HWSensorName.CCDSTemp, (ccd1temp + ccd2temp) / 2);
                     }
                 }
 
@@ -1057,6 +1053,7 @@ namespace CPUDoc
                 ProcessorInfo.CpuTotalLoadUpdate();
                 App.cpuTotalLoad.Push(ProcessorInfo.cpuTotalLoad);
                 App.cpuTotalLoadLong.Push(ProcessorInfo.cpuTotalLoad);
+                App.systemInfo.UpdateCpuTotalLoad(App.cpuTotalLoad.Current);
 
                 //App.LogDebug($"TL={ProcessorInfo.cpuTotalLoad:0} AvgTL={App.cpuTotalLoad.Current:0} MaxTL={App.cpuTotalLoad.GetMax:0}");
                 

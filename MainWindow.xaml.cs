@@ -27,6 +27,10 @@ using Hardcodet.Wpf.TaskbarNotification;
 using Microsoft.Win32.TaskScheduler;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using net.r_eg.Conari.Core;
+using Windows.ApplicationModel.Store;
+using net.r_eg.Conari;
+using Config.Net;
 
 namespace CPUDoc
 {
@@ -43,7 +47,7 @@ namespace CPUDoc
         private uint? _lastmask_current = uint.MaxValue;
         private int PoolingTick = 0;
 
-        public static appConfigs pcurrent;
+        public static IAppConfig pcurrent;
         public string WinTitle
         {
             get { return (string)GetValue(WinTitleProperty); }
@@ -68,6 +72,16 @@ namespace CPUDoc
             }
         }
 
+        private void pcurrentLoad(int id)
+        {
+            App.AppConfigs[id].CopyPropertiesTo(pcurrent);
+
+        }
+        private void pcurrentSave(int id)
+        {
+            pcurrent.CopyPropertiesTo(App.AppConfigs[id]);
+
+        }
         private void Window_SourceInitialized(object sender, EventArgs e)
         {
             try
@@ -75,7 +89,11 @@ namespace CPUDoc
                 App.LogDebug($"SourceInit Window Initialized {WindowSettings.Default.Initialized}");
                 App.systemInfo.WinMaxSize = System.Windows.SystemParameters.WorkArea.Height;
 
-                pcurrent = App.AppConfigs[0];
+                pcurrent = new ConfigurationBuilder<IAppConfig>()
+                    .UseInMemoryDictionary()
+                    .Build();
+
+                pcurrentLoad(0);
 
                 if (WindowSettings.Default.Initialized)
                 {
@@ -108,84 +126,14 @@ namespace CPUDoc
                     SaveWinPos();
                 }
 
-                if (App.tbtimer.Enabled) BtnThreadBoostLabel.Text = "Stop";
+                InitWindowUI();
 
                 //pcurrent = new appConfigs();
                 //appConfigs.Init();
 
-                App.systemInfo.SetSleepsAllowed();
-
-                cbTBAutoStart.IsChecked = (pcurrent.ThreadBooster ?? false) ? true : false;
-                cbNumaZero.IsChecked = (pcurrent.NumaZero ?? false) ? true : false;
-                cbPSA.IsChecked = (pcurrent.PowerSaverActive ?? false) ? true : false;
-                cbZC.IsChecked = (pcurrent.ZenControl ?? false) ? true : false;
-                cbSysSetHack.IsChecked = (pcurrent.SysSetHack ?? false) ? true : false;
-                cbTraceInfo.IsChecked = (App.AppSettings.LogInfo ?? false) ? true : false;
-                cbAUNotifications.IsChecked = (App.AppSettings.AUNotifications ?? false) ? true : false;
-                listNumaZeroType.SelectedIndex = (int)pcurrent.NumaZeroType;
-                cbPoolingRate.IsChecked = (pcurrent.ManualPoolingRate ?? false) ? true : false;
-                listPoolingRate.SelectedIndex = (int)pcurrent.PoolingRate;
-
-                PowerTweak_LowPo.IsChecked = (pcurrent.PowerTweak ?? 1) == 0 ? true : false;
-                PowerTweak_AutoPo.IsChecked = (pcurrent.PowerTweak ?? 1) == 1 ? true : false;
-                PowerTweak_HighPo.IsChecked = (pcurrent.PowerTweak ?? 1) == 2 ? true : false;
-                App.LogDebug($"Personality?{pcurrent.Personality}");
-                Persona_Auto.IsChecked = (pcurrent.Personality ?? 0) == 0;
-                Persona_Bala.IsChecked = (pcurrent.Personality ?? 0) == 1;
-                Persona_Ulti.IsChecked = (pcurrent.Personality ?? 0) == 2;
-                AMBias_Auto.IsChecked = (pcurrent.ActiveModeBias ?? -1) == -1 ? true : false;
-                AMBias_Economizer.IsChecked = (pcurrent.ActiveModeBias ?? -1) == 0 ? true : false;
-                AMBias_Standard.IsChecked = (pcurrent.ActiveModeBias ?? -1) == 1 ? true : false;
-                AMBias_Booster.IsChecked = (pcurrent.ActiveModeBias ?? -1) == 2 ? true : false;
-                GMBias_Auto.IsChecked = (pcurrent.GameModeBias ?? -1) == -1 ? true : false;
-                GMBias_Economizer.IsChecked = (pcurrent.GameModeBias ?? -1) == 0 ? true : false;
-                GMBias_Standard.IsChecked = (pcurrent.GameModeBias ?? -1) == 1 ? true : false;
-                GMBias_Booster.IsChecked = (pcurrent.GameModeBias ?? -1) == 2 ? true : false;
-
-                listSleepIdle.SelectedIndex = (pcurrent.SleepIdle ?? 0);
-                listMonitorIdle.SelectedIndex = (pcurrent.MonitorIdle ?? 0);
-                listHyberIdle.SelectedIndex = (pcurrent.HyberIdle ?? 0);
-                App.LogDebug($"MonitorIdle?{listMonitorIdle.SelectedIndex}={(int)pcurrent.MonitorIdle}");
-                cbWakeTimers.IsChecked = (pcurrent.WakeTimers ?? false) ? true : false;
-
-                GMDetect.IsChecked = (pcurrent.GameMode ?? false) ? true : false;
-                GMFocusAssist.IsChecked = (pcurrent.FocusAssist ?? false) ? true : false;
-                GMUserNotification.IsChecked = (pcurrent.UserNotification ?? false) ? true : false;
-                GMFGSecondary.IsChecked = (pcurrent.SecondaryMonitor ?? false) ? true : false;
-                cbPLPerfMode.IsChecked = (pcurrent.PLPerfMode ?? true) ? true : false;
-
-                SSHStatus.Text = (App.pactive.SysSetHack ?? false) ? "Enabled" : "Disabled";
-                PSAStatus.Text = (App.pactive.PowerSaverActive ?? false) ? "Enabled" : "Disabled";
-                N0Status.Text = (App.pactive.NumaZero ?? false) ? "Enabled" : "Disabled";
-
-                cbPPT.IsChecked = (pcurrent.ZenControlPPTAuto ?? false) ? true : false;
-                cbTDC.IsChecked = (pcurrent.ZenControlTDCAuto ?? false) ? true : false;
-                cbEDC.IsChecked = (pcurrent.ZenControlEDCAuto ?? false) ? true : false;
-
-                PPThpx.IsEnabled = !cbPPT.IsChecked == true;
-                TDChpx.IsEnabled = !cbTDC.IsChecked == true;
-                EDChpx.IsEnabled = !cbEDC.IsChecked == true;
-
-                if (App.systemInfo.ZenStates)
-                {
-                    if (App.systemInfo.ZenMaxPPT > 0) cbPPT.Content = $"Auto PPT (Max: {App.systemInfo.ZenMaxPPT})";
-                    if (App.systemInfo.ZenMaxTDC > 0) cbTDC.Content = $"Auto TDC (Max: {App.systemInfo.ZenMaxTDC})";
-                    if (App.systemInfo.ZenMaxEDC > 0) cbEDC.Content = $"Auto EDC (Max: {App.systemInfo.ZenMaxEDC})";
-                }
-
-                if (pcurrent.ZenControlPPThpx.ToString() == "" || pcurrent.ZenControlPPThpx == 0) pcurrent.ZenControlPPThpx = App.systemInfo.ZenMaxPPT;
-                if (pcurrent.ZenControlTDChpx.ToString() == "" || pcurrent.ZenControlTDChpx == 0) pcurrent.ZenControlTDChpx = App.systemInfo.ZenMaxTDC;
-                if (pcurrent.ZenControlEDChpx.ToString() == "" || pcurrent.ZenControlEDChpx == 0) pcurrent.ZenControlEDChpx = App.systemInfo.ZenMaxEDC;
-
-                PPThpx.Text = pcurrent.ZenControlPPThpx.ToString();
-                TDChpx.Text = pcurrent.ZenControlTDChpx.ToString();
-                EDChpx.Text = pcurrent.ZenControlEDChpx.ToString();
-
                 Create_CpuDisplay();
 
                 currentcpu_update();
-
-                Config_Init();
 
                 /*
                 uint eax = 0;
@@ -199,11 +147,15 @@ namespace CPUDoc
                     App.LogDebug($"CPPC ENABLE={eax:X8} {edx:X8}");
                 */
 
-
                 this.UpdateLayout();
                 SaveWinPos();
 
                 AutoStartTask = CheckStartTask();
+
+                App.AppSettings.PropertyChanged += (sender, e) =>
+                {
+                    App.LogDebug($"Changed {e.PropertyName}");
+                };
 
             }
             catch (Exception ex)
@@ -223,6 +175,89 @@ namespace CPUDoc
             }
 
         }
+        private void InitWindowUI()
+        {
+            App.systemInfo.SetSleepsAllowed();
+
+            cbTBAutoStart.IsChecked = pcurrent.ThreadBooster ? true : false;
+            cbNumaZero.IsChecked = pcurrent.NumaZero ? true : false;
+            cbPSA.IsChecked = pcurrent.PowerSaverActive ? true : false;
+            cbZC.IsChecked = pcurrent.ZenControl ? true : false;
+            cbSysSetHack.IsChecked = pcurrent.SysSetHack ? true : false;
+            cbTraceLog.IsChecked = App.AppSettings.LogTrace ? true : false;
+            cbInpoutdll.IsChecked = App.AppSettings.inpoutdlldisable ? true : false;
+            cbAUNotifications.IsChecked = App.AppSettings.AUNotifications ? true : false;
+            listNumaZeroType.SelectedIndex = (int)pcurrent.NumaZeroType;
+            cbPoolingRate.IsChecked = pcurrent.ManualPoolingRate ? true : false;
+            listPoolingRate.SelectedIndex = (int)pcurrent.PoolingRate;
+
+            PowerTweak_LowPo.IsChecked = (pcurrent.PowerTweak) == 0 ? true : false;
+            PowerTweak_AutoPo.IsChecked = (pcurrent.PowerTweak) == 1 ? true : false;
+            PowerTweak_HighPo.IsChecked = (pcurrent.PowerTweak) == 2 ? true : false;
+            App.LogDebug($"Personality? {pcurrent.Personality}");
+            Persona_Auto.IsChecked = (pcurrent.Personality) == 0;
+            Persona_Bala.IsChecked = (pcurrent.Personality) == 1;
+            Persona_Ulti.IsChecked = (pcurrent.Personality) == 2;
+            AMBias_Auto.IsChecked = pcurrent.ActiveModeBias == -1 ? true : false;
+            AMBias_Economizer.IsChecked = pcurrent.ActiveModeBias == 0 ? true : false;
+            AMBias_Standard.IsChecked = pcurrent.ActiveModeBias == 1 ? true : false;
+            AMBias_Booster.IsChecked = pcurrent.ActiveModeBias == 2 ? true : false;
+            GMBias_Auto.IsChecked = pcurrent.GameModeBias == -1 ? true : false;
+            GMBias_Economizer.IsChecked = pcurrent.GameModeBias == 0 ? true : false;
+            GMBias_Standard.IsChecked = pcurrent.GameModeBias == 1 ? true : false;
+            GMBias_Booster.IsChecked = pcurrent.GameModeBias == 2 ? true : false;
+
+            listSleepIdle.SelectedIndex = (pcurrent.SleepIdle);
+            listMonitorIdle.SelectedIndex = pcurrent.MonitorIdle;
+            listHyberIdle.SelectedIndex = (pcurrent.HyberIdle);
+            App.LogDebug($"MonitorIdle? {listMonitorIdle.SelectedIndex}={(int)pcurrent.MonitorIdle}");
+            cbWakeTimers.IsChecked = pcurrent.WakeTimers ? true : false;
+
+            GMDetect.IsChecked = pcurrent.GameMode ? true : false;
+            GMFocusAssist.IsChecked = pcurrent.FocusAssist ? true : false;
+            GMUserNotification.IsChecked = pcurrent.UserNotification ? true : false;
+            GMFGSecondary.IsChecked = pcurrent.SecondaryMonitor ? true : false;
+            cbPLPerfMode.IsChecked = pcurrent.PLPerfMode ? true : false;
+
+            SSHStatus.Text = App.pactive.SysSetHack ? "Enabled" : "Disabled";
+            PSAStatus.Text = App.pactive.PowerSaverActive ? "Enabled" : "Disabled";
+            N0Status.Text = App.pactive.NumaZero ? "Enabled" : "Disabled";
+
+            cbPPT.IsChecked = pcurrent.ZenControlPPTAuto ? true : false;
+            cbTDC.IsChecked = pcurrent.ZenControlTDCAuto ? true : false;
+            cbEDC.IsChecked = pcurrent.ZenControlEDCAuto ? true : false;
+
+            PPThpx.IsEnabled = !cbPPT.IsChecked == true;
+            TDChpx.IsEnabled = !cbTDC.IsChecked == true;
+            EDChpx.IsEnabled = !cbEDC.IsChecked == true;
+
+            if (App.systemInfo.ZenStates)
+            {
+                if (App.systemInfo.ZenMaxPPT > 0) cbPPT.Content = App.systemInfo.ZenMaxPPT > 0 ? $"Auto PPT (Max: {App.systemInfo.ZenMaxPPT})" : $"Auto PPT";
+                if (App.systemInfo.ZenMaxTDC > 0) cbTDC.Content = App.systemInfo.ZenMaxTDC > 0 ? $"Auto TDC (Max: {App.systemInfo.ZenMaxTDC})" : $"Auto TDC";
+                if (App.systemInfo.ZenMaxEDC > 0) cbEDC.Content = App.systemInfo.ZenMaxEDC > 0 ? $"Auto EDC (Max: {App.systemInfo.ZenMaxEDC})" : $"Auto EDC";
+            }
+
+            if (pcurrent.ZenControlPPThpx.ToString() == "" || pcurrent.ZenControlPPThpx < 1) pcurrent.ZenControlPPThpx = App.systemInfo.ZenMaxPPT > 0 ? App.systemInfo.ZenMaxPPT : App.systemInfo.ZenPPT > 0 ? App.systemInfo.ZenPPT : 142;
+            if (pcurrent.ZenControlTDChpx.ToString() == "" || pcurrent.ZenControlTDChpx < 1) pcurrent.ZenControlTDChpx = App.systemInfo.ZenMaxTDC > 0 ? App.systemInfo.ZenMaxTDC : App.systemInfo.ZenTDC > 0 ? App.systemInfo.ZenTDC : 90;
+            if (pcurrent.ZenControlEDChpx.ToString() == "" || pcurrent.ZenControlEDChpx < 1) pcurrent.ZenControlEDChpx = App.systemInfo.ZenMaxEDC > 0 ? App.systemInfo.ZenMaxEDC : App.systemInfo.ZenEDC > 0 ? App.systemInfo.ZenEDC : 95;
+
+            PPThpx.Text = pcurrent.ZenControlPPThpx.ToString();
+            TDChpx.Text = pcurrent.ZenControlTDChpx.ToString();
+            EDChpx.Text = pcurrent.ZenControlEDChpx.ToString();
+
+            if (App.systemInfo.ZenCOb)
+            {
+                COCounts.Visibility = Visibility.Visible;
+                COCountsLabel.Visibility = Visibility.Visible;
+            }
+
+            if (App.tbtimer.Enabled) BtnThreadBoostLabel.Text = "Stop";
+
+            Config_Init();
+
+        }
+
         private void Config_Init()
         {
             if (cbTBAutoStart.IsChecked == true)
@@ -359,6 +394,129 @@ namespace CPUDoc
 
                 }
 
+                _row = 0;
+
+                TextBox cpuLoadLabel = new TextBox { Name = "cpuLoadLabel", Text = "Load: ", VerticalAlignment = VerticalAlignment.Center, Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                _gridblock.Children.Add(cpuLoadLabel);
+                Grid.SetColumn(cpuLoadLabel, _col + 1);
+                Grid.SetRow(cpuLoadLabel, _row);
+
+                TextBox cpuLoad = new TextBox { Name = "cpuLoad", Text = "", VerticalAlignment = VerticalAlignment.Center, Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Left, Margin = curcpumar };
+                _gridblock.Children.Add(cpuLoad);
+                Grid.SetColumn(cpuLoad, _col + 2);
+                Grid.SetRow(cpuLoad, _row);
+
+                Binding bindLiveLoad = new Binding($"LiveCpuLoad");
+                bindLiveLoad.Mode = BindingMode.OneWay;
+                bindLiveLoad.Source = App.systemInfo;
+                BindingOperations.SetBinding(cpuLoad, TextBox.TextProperty, bindLiveLoad);
+
+                _row++;
+
+                if (App.systemInfo.ZenStates && !App.ZenBlockRefresh)
+                {
+
+                    if (App.systemInfo.Zen.cpuTemp != null)
+                    {
+                        TextBox cpuTempLabel = new TextBox { Name = "cpuTempLabel", Text = "CPU: ", VerticalAlignment = VerticalAlignment.Center, Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        _gridblock.Children.Add(cpuTempLabel);
+                        Grid.SetColumn(cpuTempLabel, _col + 1);
+                        Grid.SetRow(cpuTempLabel, _row);
+
+                        TextBox cpuTemp = new TextBox { Name = "cpuTemp", Text = "", VerticalAlignment = VerticalAlignment.Center, Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Left, Margin = curcpumar };
+                        _gridblock.Children.Add(cpuTemp);
+                        Grid.SetColumn(cpuTemp, _col + 2);
+                        Grid.SetRow(cpuTemp, _row);
+
+                        Binding bindLive = new Binding($"ZenCpuTemp");
+                        bindLive.Mode = BindingMode.OneWay;
+                        bindLive.Source = App.systemInfo;
+                        BindingOperations.SetBinding(cpuTemp, TextBox.TextProperty, bindLive);
+
+                        _row++;
+                    }
+
+                    if (App.systemInfo.Zen.ccd1Temp != null)
+                    {
+                        TextBox ccd1TempLabel = new TextBox { Name = "ccd1TempLabel", Text = "CCD1: ", VerticalAlignment = VerticalAlignment.Center, Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        _gridblock.Children.Add(ccd1TempLabel);
+                        Grid.SetColumn(ccd1TempLabel, _col + 1);
+                        Grid.SetRow(ccd1TempLabel, _row);
+
+                        TextBox ccd1Temp = new TextBox { Name = "ccd1Temp", Text = "", VerticalAlignment = VerticalAlignment.Center, Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Left, Margin = curcpumar };
+                        _gridblock.Children.Add(ccd1Temp);
+                        Grid.SetColumn(ccd1Temp, _col + 2);
+                        Grid.SetRow(ccd1Temp, _row);
+
+                        Binding bindLive = new Binding($"ZenCcd1Temp");
+                        bindLive.Mode = BindingMode.OneWay;
+                        bindLive.Source = App.systemInfo;
+                        BindingOperations.SetBinding(ccd1Temp, TextBox.TextProperty, bindLive);
+
+                        _row++;
+                    }
+
+                    if (App.systemInfo.Zen.ccd2Temp != null)
+                    {
+                        TextBox ccd2TempLabel = new TextBox { Name = "ccd2TempLabel", Text = "CCD2: ", VerticalAlignment = VerticalAlignment.Center, Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        _gridblock.Children.Add(ccd2TempLabel);
+                        Grid.SetColumn(ccd2TempLabel, _col + 1);
+                        Grid.SetRow(ccd2TempLabel, _row);
+                        
+                        TextBox ccd2Temp = new TextBox { Name = "ccd2Temp", Text = "", VerticalAlignment = VerticalAlignment.Center, Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Left, Margin = curcpumar };
+                        _gridblock.Children.Add(ccd2Temp);
+                        Grid.SetColumn(ccd2Temp, _col + 2);
+                        Grid.SetRow(ccd2Temp, _row);
+
+                        Binding bindLive = new Binding($"ZenCcd2Temp");
+                        bindLive.Mode = BindingMode.OneWay;
+                        bindLive.Source = App.systemInfo;
+                        BindingOperations.SetBinding(ccd2Temp, TextBox.TextProperty, bindLive);
+
+                        _row++;
+                    }
+
+                    if (App.systemInfo.Zen.cpuVcore != null)
+                    {
+                        TextBox cpuVcoreLabel = new TextBox { Name = "cpuVcoreLabel", Text = "vCore: ", VerticalAlignment = VerticalAlignment.Center, Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        _gridblock.Children.Add(cpuVcoreLabel);
+                        Grid.SetColumn(cpuVcoreLabel, _col + 1);
+                        Grid.SetRow(cpuVcoreLabel, _row);
+
+                        TextBox cpuVcore = new TextBox { Name = "cpuVcore", Text = "", VerticalAlignment = VerticalAlignment.Center, Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Left, Margin = curcpumar };
+                        _gridblock.Children.Add(cpuVcore);
+                        Grid.SetColumn(cpuVcore, _col + 2);
+                        Grid.SetRow(cpuVcore, _row);
+
+                        Binding bindLive = new Binding($"ZenCpuVcore");
+                        bindLive.Mode = BindingMode.OneWay;
+                        bindLive.Source = App.systemInfo;
+                        BindingOperations.SetBinding(cpuVcore, TextBox.TextProperty, bindLive);
+
+                        _row++;
+                    }
+
+                    if (App.systemInfo.Zen.cpuVsoc != null)
+                    {
+                        TextBox cpuVsocLabel = new TextBox { Name = "cpuVsocLabel", Text = "vSOC: ", VerticalAlignment = VerticalAlignment.Center, Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        _gridblock.Children.Add(cpuVsocLabel);
+                        Grid.SetColumn(cpuVsocLabel, _col + 1);
+                        Grid.SetRow(cpuVsocLabel, _row);
+
+                        TextBox cpuVsoc = new TextBox { Name = "cpuVsoc", Text = "", VerticalAlignment = VerticalAlignment.Center, Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Left, Margin = curcpumar };
+                        _gridblock.Children.Add(cpuVsoc);
+                        Grid.SetColumn(cpuVsoc, _col + 2);
+                        Grid.SetRow(cpuVsoc, _row);
+
+                        Binding bindLive = new Binding($"ZenCpuVsoc");
+                        bindLive.Mode = BindingMode.OneWay;
+                        bindLive.Source = App.systemInfo;
+                        BindingOperations.SetBinding(cpuVsoc, TextBox.TextProperty, bindLive);
+
+                        _row++;
+                    }
+                }
+
             }
             catch (Exception ex)
             {
@@ -486,9 +644,9 @@ namespace CPUDoc
                 {
                     App.systemInfo.SetThreadBoosterStatus("Stopped");
                 }
-                App.systemInfo.SetSSHStatus((App.pactive.SysSetHack ?? false));
-                App.systemInfo.SetPSAStatus((App.pactive.PowerSaverActive ?? false));
-                App.systemInfo.SetN0Status((App.pactive.NumaZero ?? false));
+                App.systemInfo.SetSSHStatus((App.pactive.SysSetHack));
+                App.systemInfo.SetPSAStatus((App.pactive.PowerSaverActive));
+                App.systemInfo.SetN0Status((App.pactive.NumaZero));
                 App.systemInfo.SetSleepsAllowed();
 
                 if (PoolingTick == 3) App.systemInfo.RefreshLabels();
@@ -496,6 +654,8 @@ namespace CPUDoc
                 PoolingTick++;
                 PoolingTick = PoolingTick > 3 ? 0 : PoolingTick;
 
+                if (App.systemInfo.ZenCOb) App.systemInfo.ZenRefreshCO();
+                if (App.systemInfo.ZenStates) App.systemInfo.ZenRefreshStatic(false);
                 if (WinLoaded) currentcpu_update();
 
             };
@@ -510,6 +670,7 @@ namespace CPUDoc
             try 
             {
                 uint? _lastmask = App.lastSysCpuSetMask;
+                //App.LogDebug($"UI Mask _lastmask:{_lastmask:X8} _lastmask_current:{_lastmask_current:X8}");
                 if (_lastmask != _lastmask_current || _lastmask_current == uint.MaxValue)
                 {
                     for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
@@ -835,8 +996,9 @@ namespace CPUDoc
             {
                 App.AppSettings.AUNotifications = false;
             }
-            App.AUNotifications((App.AppSettings.AUNotifications ?? false));
-            ProtBufSettings.WriteSettings();
+            App.LogInfo($"Set AU notifications logging: {App.AppSettings.AUNotifications}");
+            App.AUNotifications(App.AppSettings.AUNotifications);
+            //SettingsManager.WriteSettings();
         }
         private void TraceInfoCheckBox_Click(object sender, RoutedEventArgs e)
         {
@@ -844,16 +1006,30 @@ namespace CPUDoc
 
             if (cb.IsChecked == true)
             {
-                App.AppSettings.LogInfo = true;
                 App.AppSettings.LogTrace = true;
             }
             else
             {
-                App.AppSettings.LogInfo = false;
                 App.AppSettings.LogTrace = false;
             }
-            App.InfoLogging((App.AppSettings.LogInfo ?? false));
-            ProtBufSettings.WriteSettings();
+
+            App.LogInfo($"Set diagnostic logging: {App.AppSettings.LogTrace}");
+            App.TraceLogging(App.AppSettings.LogTrace);
+        }
+        private void InpoutCheckBox_Click(object sender, RoutedEventArgs e)
+        {
+            CheckBox cb = sender as CheckBox;
+
+            if (cb.IsChecked == true)
+            {
+                App.AppSettings.inpoutdlldisable = true;
+            }
+            else
+            {
+                App.AppSettings.inpoutdlldisable = false;
+            }
+
+            App.LogInfo($"Set inpoutx64.dll disable: {App.AppSettings.inpoutdlldisable}");
         }
         private void SysSetHack_Click(object sender, RoutedEventArgs e)
         {
@@ -1054,9 +1230,6 @@ namespace CPUDoc
                     pcurrent.PowerSaverActive = cbPSA.IsChecked == true ? true : false;
                     pcurrent.ZenControl = cbZC.IsChecked == true ? true : false;
                     pcurrent.SysSetHack = cbSysSetHack.IsChecked == true ? true : false;
-                    App.AppSettings.LogInfo = cbTraceInfo.IsChecked == true ? true : false;
-                    App.AppSettings.LogTrace = cbTraceInfo.IsChecked == true ? true : false;
-                    App.AppSettings.AUNotifications = cbAUNotifications.IsChecked == true ? true : false;
                     pcurrent.NumaZeroType = listNumaZeroType.SelectedIndex;
                     pcurrent.ManualPoolingRate = cbPoolingRate.IsChecked == true ? true : false;
                     pcurrent.PoolingRate = listPoolingRate.SelectedIndex;
@@ -1066,36 +1239,43 @@ namespace CPUDoc
                     pcurrent.WakeTimers = cbWakeTimers.IsChecked == true ? true : false;
                     pcurrent.PLPerfMode = cbPLPerfMode.IsChecked == true ? true : false;
 
-                    if (PowerTweak_LowPo.IsChecked ?? false) pcurrent.PowerTweak = 0;
-                    if (PowerTweak_AutoPo.IsChecked ?? false) pcurrent.PowerTweak = 1;
-                    if (PowerTweak_HighPo.IsChecked ?? false) pcurrent.PowerTweak = 2;
+                    if (PowerTweak_LowPo.IsChecked == true) pcurrent.PowerTweak = 0;
+                    if (PowerTweak_AutoPo.IsChecked == true) pcurrent.PowerTweak = 1;
+                    if (PowerTweak_HighPo.IsChecked == true)  pcurrent.PowerTweak = 2;
 
-                    if (Persona_Auto.IsChecked ?? false) pcurrent.Personality = 0;
-                    if (Persona_Bala.IsChecked ?? false) pcurrent.Personality = 1;
-                    if (Persona_Ulti.IsChecked ?? false) pcurrent.Personality = 2;
+                    if (Persona_Auto.IsChecked == true) pcurrent.Personality = 0;
+                    if (Persona_Bala.IsChecked == true) pcurrent.Personality = 1;
+                    if (Persona_Ulti.IsChecked == true) pcurrent.Personality = 2;
 
-                    if (AMBias_Auto.IsChecked ?? false) pcurrent.ActiveModeBias = -1;
-                    if (AMBias_Economizer.IsChecked ?? false) pcurrent.ActiveModeBias = 0;
-                    if (AMBias_Standard.IsChecked ?? false) pcurrent.ActiveModeBias = 1;
-                    if (AMBias_Booster.IsChecked ?? false) pcurrent.ActiveModeBias = 2;
+                    if (AMBias_Auto.IsChecked == true) pcurrent.ActiveModeBias = -1;
+                    if (AMBias_Economizer.IsChecked == true) pcurrent.ActiveModeBias = 0;
+                    if (AMBias_Standard.IsChecked == true) pcurrent.ActiveModeBias = 1;
+                    if (AMBias_Booster.IsChecked == true) pcurrent.ActiveModeBias = 2;
 
-                    if (GMBias_Auto.IsChecked ?? false) pcurrent.GameModeBias = -1;
-                    if (GMBias_Economizer.IsChecked ?? false) pcurrent.GameModeBias = 0;
-                    if (GMBias_Standard.IsChecked ?? false) pcurrent.GameModeBias = 1;
-                    if (GMBias_Booster.IsChecked ?? false) pcurrent.GameModeBias = 2;
+                    if (GMBias_Auto.IsChecked == true) pcurrent.GameModeBias = -1;
+                    if (GMBias_Economizer.IsChecked == true) pcurrent.GameModeBias = 0;
+                    if (GMBias_Standard.IsChecked == true) pcurrent.GameModeBias = 1;
+                    if (GMBias_Booster.IsChecked == true) pcurrent.GameModeBias = 2;
 
                     pcurrent.GameMode = GMDetect.IsChecked == true ? true : false;
                     pcurrent.FocusAssist = GMFocusAssist.IsChecked == true ? true : false;
                     pcurrent.UserNotification = GMUserNotification.IsChecked == true ? true : false;
                     pcurrent.SecondaryMonitor = GMFGSecondary.IsChecked == true ? true : false;
 
-                    App.AppConfigs[0] = pcurrent;
-                    App.SetActiveConfig((int)(pcurrent.id ?? 0));
-                    if (!ProtBufSettings.WriteSettings()) ProtBufSettings.WriteSettings();
-                    //App.LogDebug($"Wr Config[{App.pactive.id}] TBA={App.pactive.ThreadBooster} SSH={App.AppConfigs[0].SysSetHack}:{pcurrent.SysSetHack}:{App.pactive.SysSetHack} PSA={App.pactive.PowerSaverActive} N0={App.pactive.NumaZero}:{App.pactive.NumaZeroType}");
-                    if (!ProtBufSettings.ReadSettings()) ProtBufSettings.ReadSettings();
+                    pcurrentSave(pcurrent.id);
 
-                    if ((bool)pcurrent.ThreadBooster)
+                    //var dump = ObjectDumper.Dump(pcurrent);
+                    //App.LogDebug($"Dump pcurrent.id={pcurrent.id}\n{dump}");
+
+                    //dump = ObjectDumper.Dump(App.AppConfigs[pcurrent.id]);
+                    //App.LogDebug($"Dump AppConfigs={pcurrent.id}\n{dump}");
+
+                    App.SetActiveConfig(pcurrent.id);
+
+                    //dump = ObjectDumper.Dump(App.pactive);
+                    //App.LogDebug($"Dump pactive.id={App.pactive.id}\n{dump}");
+
+                    if (App.pactive.ThreadBooster)
                     {
                         BtnThreadBoost.IsEnabled = false;
                         App.TbSetStart(false);
@@ -1107,7 +1287,7 @@ namespace CPUDoc
                     _lastmask_current = uint.MaxValue;
                     ThreadBooster.bInit = false;
 
-                    Config_Init();
+                    InitWindowUI();
                     //App.LogDebug($"Rd Config[{App.pactive.id}] TBA={App.AppConfigs[App.pactive.id].ThreadBooster} SSH={App.AppConfigs[App.pactive.id].SysSetHack}:{App.pactive.SysSetHack} PSA={App.AppConfigs[App.pactive.id].PowerSaverActive} N0={App.pactive.NumaZero}:{App.AppConfigs[App.pactive.id].NumaZero}:{App.AppConfigs[App.pactive.id].NumaZeroType}");
                 }
             }
@@ -1121,12 +1301,16 @@ namespace CPUDoc
             //App.LogInfo($"NumaZeroType Index={cb.SelectedIndex} {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
             //App.LogInfo($"NumaZeroType {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
             //App.AppConfigs[pcurrent.id] = pcurrent;
-            ProtBufSettings.ResetSettings();
-            if (!ProtBufSettings.ReadSettings()) ProtBufSettings.ReadSettings();
+            /*
+            SettingsManager.ResetSettings();
+            if (!SettingsManager.ReadSettings()) SettingsManager.ReadSettings();
             App.SetActiveConfig(0);
-            if (!ProtBufSettings.WriteSettings()) ProtBufSettings.WriteSettings();
+            if (!SettingsManager.WriteSettings()) SettingsManager.WriteSettings();
             ThreadBooster.bInit = false;
-            Config_Init();
+            InitWindowUI();
+            */
+            App.resetSettings = true;
+            App.QuitApplication();
         }
         private void BtnAutoStartTask_Click(object sender, RoutedEventArgs e)
         {

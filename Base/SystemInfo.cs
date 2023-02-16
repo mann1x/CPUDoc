@@ -23,6 +23,10 @@ using static CPUDoc.ProcessorInfo;
 using static CPUDoc.MemoryConfig;
 using System.Windows.Markup;
 using CPUDoc.Windows;
+using System.Windows.Shapes;
+using static ZenStates.Core.Cpu;
+using net.r_eg.Conari.Types;
+using Windows.Devices.HumanInterfaceDevice;
 
 namespace CPUDoc
 {
@@ -71,6 +75,11 @@ namespace CPUDoc
         public int ZenPTVersion { get; set; }
         public int ZenBoost { get; set; }
         public int ZenScalar { get; set; }
+        public int ZenStartPPT { get; set; }
+        public int ZenStartTDC { get; set; }
+        public int ZenStartEDC { get; set; }
+        public int ZenStartTHM { get; set; }
+        public int ZenStartBoost { get; set; }
         public int ZenPPT { get; set; }
         public int ZenTDC { get; set; }
         public int ZenEDC { get; set; }
@@ -91,6 +100,8 @@ namespace CPUDoc
         public bool ZenCOb { get; set; }
         public bool ZenPerCCDTemp { get; set; }
         public int ZenCCDTotal { get; set; }
+        public int ZenCCXTotal { get; set; }
+        public int ZenCoresPerCCX { get; set; }
         public int[] ZenCO { get; set; }
         public int[] ZenCoreMap { get; set; }
         public string ZenCoreMapLabel { get; set; }
@@ -102,6 +113,11 @@ namespace CPUDoc
         public bool ZenPlus { get; set; }
         public bool Zen3 { get; set; }
         public bool Zen4 { get; set; }
+        public string ZenCpuTemp { get; set; }
+        public string ZenCcd1Temp { get; set; }
+        public string ZenCcd2Temp { get; set; }
+        public string ZenCpuVcore { get; set; }
+        public string ZenCpuVsoc { get; set; }
 
         public bool IntelAVX512 { get; set; }
         public bool IntelHybrid { get; set; }
@@ -176,6 +192,7 @@ namespace CPUDoc
         public string LiveCPUPower { get; set; }
         public string LiveCPUAdditional { get; set; }
         public string LiveFinished { get; set; }
+        public string LiveCpuLoad { get; set; }
 
 
         private int EmptyTags()
@@ -313,6 +330,11 @@ namespace CPUDoc
             ZenTDC = 0;
             ZenEDC = 0;
             ZenTHM = 0;
+            ZenStartBoost = 0;
+            ZenStartPPT = 0;
+            ZenStartTDC = 0;
+            ZenStartEDC = 0;
+            ZenStartTHM = 0;
             ZenMaxBoost = 0;
             ZenMaxPPT = 0;
             ZenMaxTDC = 0;
@@ -325,6 +347,9 @@ namespace CPUDoc
             ZenVDDG = 0;
             ZenVCCD = 0;
             ZenVIOD = 0;
+            ZenCCDTotal = 0;
+            ZenCCXTotal = 0;
+            ZenCoresPerCCX = 0;
             ZenCO = new int[CPUCores];
             ZenCoreMap = new int[CPUCores];
             ZenCOb = false;
@@ -390,7 +415,7 @@ namespace CPUDoc
 
                 App.LogInfo("SystemInfo: ZenMain Init");
 
-                ZenMainInit();
+                if (!App.inpoutdlldisable) ZenMainInit();
 
                 SplashWindow.Loading(65);
 
@@ -408,6 +433,8 @@ namespace CPUDoc
                         }
                     }
                 }
+                HWMonitor.computer.Close();
+                HWMonitor.computer = null;
             }
             catch (Exception ex)
             {
@@ -428,14 +455,14 @@ namespace CPUDoc
             }
             return (int)count;
         }
-        private uint BitSlice(uint arg, int start, int end)
+        static uint BitSlice(uint arg, int start, int end)
         {
             uint mask = (2U << end - start) - 1U;
             return arg >> start & mask;
         }
         public bool ZenRefreshStatic(bool refresh)
         {
-            if (!ZenStates) return false;
+            if (!ZenStates || App.ZenBlockRefresh) return false;
 
             if (refresh)
             {
@@ -444,9 +471,16 @@ namespace CPUDoc
                 if (!_refreshpt) return false;
             }
 
+            double? _busClock = Zen.GetBclk();
+            CpuBusClock = _busClock != null ? (double)_busClock : CpuBusClock;
+
+            int _zenPPT = Zen.GetPPTLimit();
+
+            ZenBoost = Zen.GetBoostLimit(0);
+
             if (ZenPTVersion == 0x380804)
             {
-                ZenPPT = (int)Zen.powerTable.Table[0];
+                ZenPPT = _zenPPT > 0 ? _zenPPT : (int)Zen.powerTable.Table[0];
                 ZenTDC = (int)Zen.powerTable.Table[2];
                 ZenTHM = (int)Zen.powerTable.Table[4];
                 ZenEDC = (int)Zen.powerTable.Table[8];
@@ -460,7 +494,7 @@ namespace CPUDoc
             }
             else if (ZenPTVersion == 0x380904)
             {
-                ZenPPT = (int)Zen.powerTable.Table[0];
+                ZenPPT = _zenPPT > 0 ? _zenPPT : (int)Zen.powerTable.Table[0];
                 ZenTDC = (int)Zen.powerTable.Table[2];
                 ZenTHM = (int)Zen.powerTable.Table[4];
                 ZenEDC = (int)Zen.powerTable.Table[8];
@@ -474,7 +508,7 @@ namespace CPUDoc
             }
             else if (ZenPTVersion == 0x380805)
             {
-                ZenPPT = (int)Zen.powerTable.Table[0];
+                ZenPPT = _zenPPT > 0 ? _zenPPT : (int)Zen.powerTable.Table[0];
                 ZenTDC = (int)Zen.powerTable.Table[2];
                 ZenTHM = (int)Zen.powerTable.Table[4];
                 ZenEDC = (int)Zen.powerTable.Table[8];
@@ -488,7 +522,7 @@ namespace CPUDoc
             }
             else if (ZenPTVersion == 0x380905)
             {
-                ZenPPT = (int)Zen.powerTable.Table[0];
+                ZenPPT = _zenPPT > 0 ? _zenPPT : (int)Zen.powerTable.Table[0];
                 ZenTDC = (int)Zen.powerTable.Table[2];
                 ZenTHM = (int)Zen.powerTable.Table[4];
                 ZenEDC = (int)Zen.powerTable.Table[8];
@@ -505,13 +539,15 @@ namespace CPUDoc
                 || ZenPTVersion == 0x540102
                 || ZenPTVersion == 0x540103
                 || ZenPTVersion == 0x540104
+                || ZenPTVersion == 0x540105
                 || ZenPTVersion == 0x540000
                 || ZenPTVersion == 0x540001
                 || ZenPTVersion == 0x540002
                 || ZenPTVersion == 0x540003
-                || ZenPTVersion == 0x540004)
+                || ZenPTVersion == 0x540004
+                || ZenPTVersion == 0x540005)
             {
-                ZenPPT = (int)Zen.powerTable.Table[2];
+                ZenPPT = _zenPPT > 0 ? _zenPPT : (int)Zen.powerTable.Table[2];
                 ZenTDC = (int)Zen.powerTable.Table[8];
                 ZenTHM = (int)Zen.powerTable.Table[10];
                 ZenEDC = (int)Zen.powerTable.Table[61];
@@ -523,7 +559,7 @@ namespace CPUDoc
             }
             else if (ZenPTVersion == 0x400004 || ZenPTVersion == 0x400005)
             {
-                ZenPPT = (int)Zen.powerTable.Table[4];
+                ZenPPT = _zenPPT > 0 ? _zenPPT : (int)Zen.powerTable.Table[4];
                 ZenTDC = (int)Zen.powerTable.Table[8];
                 ZenTHM = (int)Zen.powerTable.Table[16];
                 ZenEDC = (int)Zen.powerTable.Table[12];
@@ -535,7 +571,7 @@ namespace CPUDoc
             }
             else if (ZenPTVersion == 0x240903)
             {
-                ZenPPT = (int)Zen.powerTable.Table[0];
+                ZenPPT = _zenPPT > 0 ? _zenPPT : (int)Zen.powerTable.Table[0];
                 ZenTDC = (int)Zen.powerTable.Table[2];
                 ZenTHM = (int)Zen.powerTable.Table[4];
                 ZenEDC = (int)Zen.powerTable.Table[8];
@@ -548,7 +584,7 @@ namespace CPUDoc
             }
             else if (ZenPTVersion == 0x240803)
             {
-                ZenPPT = (int)Zen.powerTable.Table[0];
+                ZenPPT = _zenPPT > 0 ? _zenPPT : (int)Zen.powerTable.Table[0];
                 ZenTDC = (int)Zen.powerTable.Table[2];
                 ZenTHM = (int)Zen.powerTable.Table[4];
                 ZenEDC = (int)Zen.powerTable.Table[8];
@@ -580,8 +616,29 @@ namespace CPUDoc
             if (ZenUCLK > 0 && CpuBusClock > 0) ZenUCLK = Math.Round(ZenUCLK / 100 * CpuBusClock, 0);
             if (ZenMCLK > 0 && CpuBusClock > 0) ZenMCLK = Math.Round(ZenMCLK / 100 * CpuBusClock, 0);
 
-            App.LogDebug($"ZenRefreshStatic done");
+            if (ZenCOb) ZenRefreshCO();
+
+            ZenRefreshSensors();
+
+            //App.LogDebug($"ZenRefreshStatic done");
             return true;
+        }
+
+        public void ZenRefreshSensors()
+        {
+            Zen.RefreshSensors();
+
+            ZenCpuTemp = Zen.cpuTemp != null ? $"{Zen.cpuTemp:F1}°C" : "";
+            ZenCcd1Temp = Zen.ccd1Temp != null ? $"{Zen.ccd1Temp:F1}°C" : "";
+            ZenCcd2Temp = Zen.ccd2Temp != null ? $"{Zen.ccd2Temp:F1}°C" : "";
+            ZenCpuVcore = Zen.cpuVcore != null ? $"{Zen.cpuVcore:F3}V" : "";
+            ZenCpuVsoc = Zen.cpuVsoc != null ? $"{Zen.cpuVsoc:F3}V" : "";
+
+            OnChange("ZenCpuTemp");
+            OnChange("ZenCcd1Temp");
+            OnChange("ZenCcd2Temp");
+            OnChange("ZenCpuVcore");
+            OnChange("ZenCpuVsoc");
         }
         public bool ZenRefreshPowerTable()
         {
@@ -659,18 +716,32 @@ namespace CPUDoc
         }
         private uint MakePsmMarginArg(int margin)
         {
-            if (margin > 30)
-                margin = 30;
-            else if (margin < -30)
-                margin = -30;
+            int _maxm = Zen4 ? 60 : 30;
+            int _minm = Zen4 ? -60 : -30;
+            if (margin > _maxm)
+                margin = _maxm;
+            else if (margin < _minm)
+                margin = _minm;
 
             int offset = margin < 0 ? 0x100000 : 0;
             return Convert.ToUInt32(offset + margin) & 0xffff;
         }
-
-        public float GetPBOScalar()
+        private int MakePsmCount(int margin)
         {
-            int _wait = Zen.GetOcMode() ? 500 : 10;
+            int _maxm = Zen4 ? 30 : 30;
+            int _minm = Zen4 ? -16959 : -30;
+            if (margin > _maxm)
+                margin = _maxm;
+            else if (margin < _minm)
+                margin = _minm;
+
+            return margin;
+        }
+
+        public int GetPBOScalar()
+        {
+            /*
+            int _wait = Zen.GetOcMode() ? 50 : 10;
             float _scalar = 0;
             if (Ring0.WaitPciBusMutex(_wait))
             {
@@ -685,48 +756,55 @@ namespace CPUDoc
                 Ring0.ReleasePciBusMutex();
             }
             return _scalar;
+            */
+            return Zen.GetPBOScalar();
+        }
+        public int? GetPsmCount(int core)
+        {
+            /*
+            int _wait = Zen.GetOcMode() ? 50 : 10;
+
+            if (Ring0.WaitPciBusMutex(_wait))
+            {
+                int? _count = Zen.GetPsmMarginSingleCore(Zen.GetCoreMask(core));
+                Ring0.ReleasePciBusMutex();
+                return _count;
+            }
+            return null;
+            */
+            int? _count = Zen.GetPsmMarginSingleCore(Zen.GetCoreMask(core));
+            return _count;
+        }
+        public bool SetPsmCount(int core, int margin)
+        {
+            /*
+            int _wait = Zen.GetOcMode() ? 50 : 10;
+
+            if (Ring0.WaitPciBusMutex(_wait))
+            {
+                bool status = Zen.SetPsmMarginSingleCore(Zen.GetCoreMask(core), MakePsmCount(margin));
+                Ring0.ReleasePciBusMutex();
+                if (status) return true;
+            }
+            */
+            bool status = Zen.SetPsmMarginSingleCore(Zen.GetCoreMask(core), MakePsmCount(margin));
+            if (status) return true;
+            return false;
         }
         public bool SetPsmCounts(int margin)
         {
-            uint m = MakePsmMarginArg(margin);
-            uint[] args = MakeCmdArgs(m);
-            int _wait = Zen.GetOcMode() ? 500 : 10;
-            if (Ring0.WaitPciBusMutex(_wait))
-            {
-                SMU.Status status = Zen.smu.SendMp1Command(Zen.smu.Mp1Smu.SMU_MSG_SetAllDldoPsmMargin, ref args);
-                Ring0.ReleasePciBusMutex();
-                if (status == SMU.Status.OK) return true;
-            }
-            return false;
-        }
-        public int? GetPsmCount(uint core)
-        {
-            uint[] args = new uint[6];
-            args[0] = (uint)((uint)((core & 8) << 5 | (core & 7)) << 20);
+            /*
+            int _wait = Zen.GetOcMode() ? 50 : 10;
 
-            int _wait = Zen.GetOcMode() ? 500 : 10;
             if (Ring0.WaitPciBusMutex(_wait))
             {
-                if (Zen.smu.SendMp1Command(Zen.smu.Mp1Smu.SMU_MSG_GetDldoPsmMargin, ref args) == SMU.Status.OK)
-                {
-                    Ring0.ReleasePciBusMutex();
-                    return (int)args[0];
-                }
+                bool status = Zen.SetPsmMarginAllCores(MakePsmCount(margin));
                 Ring0.ReleasePciBusMutex();
+                if (status) return true;
             }
-            return null;
-        }
-        public bool SetPsmCount(int core, int count)
-        {
-            uint[] args = new uint[6];
-            args[0] = (uint)(((core & 8) << 5 | (core & 7)) << 20 | (count & 65535));
-            int _wait = Zen.GetOcMode() ? 500 : 10;
-            if (Ring0.WaitPciBusMutex(_wait))
-            {
-                SMU.Status status = Zen.smu.SendMp1Command(Zen.smu.Mp1Smu.SMU_MSG_SetDldoPsmMargin, ref args);
-                Ring0.ReleasePciBusMutex();
-                if (status == SMU.Status.OK) return true;
-            }
+            */
+            bool status = Zen.SetPsmMarginAllCores(MakePsmCount(margin));
+            if (status) return true;
             return false;
         }
 
@@ -734,21 +812,31 @@ namespace CPUDoc
         {
             try
             {
-                if (Zen.smu.SMU_TYPE == SMU.SmuType.TYPE_CPU3 && CPUCores <= ZenCoreMap.Length)
+                if ((Zen.smu.SMU_TYPE == SMU.SmuType.TYPE_CPU3 || Zen.smu.SMU_TYPE == SMU.SmuType.TYPE_CPU4) 
+                    && CPUCores <= ZenCoreMap.Length 
+                    && (Zen.smu.Rsmu.SMU_MSG_GetDldoPsmMargin != 0x0 || Zen.smu.Mp1Smu.SMU_MSG_GetDldoPsmMargin != 0x0
+                    && Zen.info.topology.coreFullMap != null
+                    && Zen.info.topology.coreFullMap.GetLength(0) >= CPUCores ))
                 {
                     ZenCOLabel = "";
                     for (int ix = 0; ix < CPUCores; ix++)
                     {
-                        int? count = GetPsmCount((uint)ZenCoreMap[ix]);
+                        int? count = GetPsmCount(ZenCoreMap[ix]);
                         ZenCO[ix] = count != null ? (int)count : 0;
                     }
+                    int ccd = 0, _ccd;
                     for (int ic = 0; ic < CPUCores; ic++)
                     {
-                        ZenCOLabel += String.Format("{0}#{1} ", ic, ZenCO[ic].ToString("+#;-#;0"));
-                        if (ic != CPUCores - 1) ZenCOLabel += ", ";
+                        _ccd = (int)Zen.info.topology.coreFullMap[ic, 2];
+                        if (ccd != _ccd)
+                        {
+                            ccd++;
+                            ZenCOLabel = ccd == 1 ? $"CCD{_ccd}: {ZenCOLabel}" : $"{ZenCOLabel}\nCCD{_ccd}: ";
+                        }
+                        ZenCOLabel += String.Format("{0,3}#{1,-4}", $"C{ic}", ZenCO[ic].ToString("+#;-#;+0"));
                     }
                     ZenCOb = true;
-                    App.LogDebug($"ZenRefreshCO: {string.Join(", ", ZenCO)}");
+                    //App.LogDebug($"ZenRefreshCO: {string.Join(", ", ZenCO)}");
                     OnChange("ZenCOLabel");
                 }
             }
@@ -792,12 +880,16 @@ namespace CPUDoc
                 string _MemoryLabel2 = "";
                 string _MemoryLabel3 = "";
 
+                bool _done = false;
+
                 if (MemPartNumbers.Any())
                 {
                     foreach (var mempart in MemPartNumbers)
                     {
-                        if (_MemoryLabel1.Length > 0) _MemoryLabel1 += $"\n";
+                        if (_MemoryLabel1.Length > 0 && mempart.Length > 0) _MemoryLabel1 += $"\n";
                         _MemoryLabel1 += $"{mempart}";
+                        if (MEMCFG.FrequencyString != null)
+                            if (MEMCFG.FrequencyString.Length > 0 && !_done) { _MemoryLabel1 += $" Clock: {MEMCFG.FrequencyString} MHz"; _done = true; }
                     }
                 }
 
@@ -808,22 +900,20 @@ namespace CPUDoc
                         _MemoryLabel2 += $" VTT: {MemVtt}";
                 }
 
-                if (ZenStates)
+                if (MEMCFG.Type != null)
                 {
-                    if (_MemoryLabel2.Length > 0) _MemoryLabel2 += " ";
-                    if (_MemoryLabel2.Length == 0 && MEMCFG.FrequencyString.Length > 0) _MemoryLabel2 += $"\n";
-                    if (MEMCFG.FrequencyString.Length > 0)
-                        _MemoryLabel2 += $"Clock: {MEMCFG.FrequencyString} MHz";
-
-                    if (MEMCFG.Type == MemType.DDR4)
+                    if (ZenStates && (MEMCFG.Type == MemType.DDR4 || MEMCFG.Type == MemType.DDR5))
                     {
-                        _MemoryLabel3 += $"RTT [Nom: {MemRttNom} Wr: {MemRttWr} Park: {MemRttPark}] pODT: {MemProcODT}";
-                    }
+                        if (MEMCFG.Type == MemType.DDR4)
+                        {
+                            _MemoryLabel3 += $"RTT [Nom: {MemRttNom} Wr: {MemRttWr} Park: {MemRttPark}] pODT: {MemProcODT}";
+                        }
 
-                    if (MEMCFG.Type == MemType.DDR5)
-                    {
-                        _MemoryLabel3 += $"RTT [NomRd: {MemRttNomRd} NomWr: {MemRttNomWr} Wr: {MemRttWrD5} Park: {MemRttParkD5} ParkDqs: {MemRttParkDqs}] pODT: {MemProcODT} ";
-                        _MemoryLabel3 += $"\nVDDIO: {MemVddio} VDDQ: {MemVddq} VPP: {MemVpp}";
+                        if (MEMCFG.Type == MemType.DDR5)
+                        {
+                            _MemoryLabel3 += $"RTT [NomRd: {MemRttNomRd} NomWr: {MemRttNomWr} Wr: {MemRttWrD5} Park: {MemRttParkD5} ParkDqs: {MemRttParkDqs}] pODT: {MemProcODT} ";
+                            _MemoryLabel3 += $"\nVDDIO: {MemVddio} VDDQ: {MemVddq} VPP: {MemVpp}";
+                        }
                     }
                 }
 
@@ -843,54 +933,44 @@ namespace CPUDoc
 
                     for (int r = 0; r < 20; ++r)
                     {
-                        if (Ring0.WaitPciBusMutex(50))
-                        {
-                            Zen.RefreshPowerTable();
-                            ZenPPT = Zen.GetPPTLimit();
-                            ZenBoost = Zen.GetBoostLimit();
-                            ZenScalar = Zen.GetPBOScalar();
-                            r = 99;
-                            Ring0.ReleasePciBusMutex();
-                        }
-                        else
-                        {
-                            Thread.Sleep(25);
-                        }
+                        bool _ok = ZenRefreshStatic(true);
+                        r = _ok ? 99 : r;
+                        Thread.Sleep(25);
                     }
 
                     string _CPULabel = "";
                     if (ZenPPT > 0 && ZenMaxPPT > 0 && ZenPPT != ZenMaxPPT)
                     {
-                        _CPULabel += $"PPT: {string.Format("{0:N0}/{1:N0}W", ZenPPT, ZenMaxPPT)} ";
+                        _CPULabel += $"PPT: {string.Format("{0:D0}/{1:D0}W", ZenPPT, ZenMaxPPT)} ";
                     } 
                     else if (ZenPPT > 0)
                     {
-                        _CPULabel += $"PPT: {string.Format("{0:N0}W", ZenPPT)} ";
+                        _CPULabel += $"PPT: {string.Format("{0:D0}W", ZenPPT)} ";
                     }
                     if (Zen.powerTable.TDC > 0 && ZenMaxTDC > 0 && Zen.powerTable.TDC != ZenMaxTDC)
                     {
-                        _CPULabel += $"TDC: {string.Format("{0:N0}/{1:N0}A", Zen.powerTable.TDC, ZenMaxTDC)} ";
+                        _CPULabel += $"TDC: {string.Format("{0:D0}/{1:D0}A", Zen.powerTable.TDC, ZenMaxTDC)} ";
                     }
                     else if (Zen.powerTable.TDC > 0)
                     {
-                        _CPULabel += $"TDC: {string.Format("{0:N0}A", Zen.powerTable.TDC)} ";
+                        _CPULabel += $"TDC: {string.Format("{0:D0}A", Zen.powerTable.TDC)} ";
                     }
                     if (Zen.powerTable.EDC > 0 && ZenMaxEDC > 0 && Zen.powerTable.EDC != ZenMaxEDC)
                     {
-                        _CPULabel += $"EDC: {string.Format("{0:N0}/{1:N0}A", Zen.powerTable.EDC, ZenMaxEDC)} ";
+                        _CPULabel += $"EDC: {string.Format("{0:D0}/{1:D0}A", Zen.powerTable.EDC, ZenMaxEDC)} ";
                     }
                     else if (Zen.powerTable.EDC > 0)
                     {
-                        _CPULabel += $"EDC: {string.Format("{0:N0}A", Zen.powerTable.EDC)} ";
+                        _CPULabel += $"EDC: {string.Format("{0:D0}A", Zen.powerTable.EDC)} ";
                     }
                     if (ZenScalar > 0) _CPULabel += $"Scalar: {ZenScalar}x ";
                     if (Zen.powerTable.THM > 0 && ZenMaxTHM > 0 && Zen.powerTable.THM != ZenMaxTHM)
                     {
-                        _CPULabel += $"THM: {string.Format("{0:N0}/{1:N0}°C", Zen.powerTable.THM, ZenMaxTHM)} ";
+                        _CPULabel += $"THM: {string.Format("{0:D0}/{1:D0}°C", Zen.powerTable.THM, ZenMaxTHM)} ";
                     }
                     else if (Zen.powerTable.THM > 0)
                     {
-                        _CPULabel += $"THM: {string.Format("{0:N0}°C", Zen.powerTable.THM)} ";
+                        _CPULabel += $"THM: {string.Format("{0:D0}°C", Zen.powerTable.THM)} ";
                     }
 
                     if (_CPULabel.Length > 0) CPULabel += $"\n{_CPULabel}";
@@ -1172,8 +1252,8 @@ namespace CPUDoc
 
                     for (int i = 0; i < CPPCTags.Length; i++)
                     {
-                        CPPCTagsLabel += String.Format("{0}#{1}", i, CPPCTags[i]);
-                        if (i != CPPCTags.Length - 1) CPPCTagsLabel += ", ";
+                        CPPCTagsLabel += (CPPCTags.Length > 8 && i == CPPCTags.Length / 2) ? "\n" : "";
+                        CPPCTagsLabel += String.Format("{0,3}:{1,-3} ", $"C{i}", CPPCTags[i]);
                     }
                     App.LogInfo($"CPPC: {CPPCTagsLabel}");
 
@@ -1181,8 +1261,8 @@ namespace CPUDoc
 
                     for (int ii = 0; ii < CPPC.GetLength(0); ii++)
                     {
-                        CPPC[ii, 0] = -100;
-                        CPPC[ii, 1] = -100;
+                        CPPC[ii, 0] = -10;
+                        CPPC[ii, 1] = -10;
                     }
 
                     CPPCOrder = new int[CPUCores];
@@ -1626,8 +1706,8 @@ namespace CPUDoc
 
                     for (int ii = 0; ii < CPPC.GetLength(0); ii++)
                     {
-                        CPPC[ii, 0] = -100;
-                        CPPC[ii, 1] = -100;
+                        CPPC[ii, 0] = -10;
+                        CPPC[ii, 1] = -10;
                     }
 
                     CPPCOrder = new int[CPUCores];
@@ -1757,8 +1837,9 @@ namespace CPUDoc
             }
             catch (Exception ex)
             {
-                App.LogDebug($"ZenInit Exception: {ex.Message}");
                 if (ex.Message.Contains("inpoutx64.dll")) ZenDLLFail = true;
+                App.LogDebug($"ZenInit ZenDLLFail: {ZenDLLFail} ");
+                App.LogDebug($"ZenInit Exception: {ex.Message} ");
                 return false;
             }
         }
@@ -1768,6 +1849,18 @@ namespace CPUDoc
             {
                 if (CPUSocket == "AM4" || CPUSocket == "AM5")
                 {
+                    for (int r = 0; r < 20; ++r)
+                    {
+                        if (Ring0.WaitPciBusMutex(100))
+                        {
+                            r = 99;
+                        }
+                        else
+                        {
+                            Thread.Sleep(25);
+                        }
+                    }
+
                     bool smucheck = false;
 
                     try
@@ -1793,18 +1886,96 @@ namespace CPUDoc
                             App.LogInfo($"Zen CpuID: {Zen.info.cpuid:X8}");
                             App.LogInfo($"Zen SVI2: {Zen.info.svi2.coreAddress:X8}:{Zen.info.svi2.socAddress:X8}");
                             App.LogInfo($"Zen SMU Type: {Zen.smu.SMU_TYPE}");
+                            App.LogInfo($"Zen HSMP Version: {Zen.smu.Hsmp.InterfaceVersion}");
+                            if (Zen.smu.Hsmp.InterfaceVersion > 0)
+                            {
+                                uint[] _args = { 0, 0, 0, 0, 0, 0, 0, 0 };
+                                _args[0] = 0;
+                                Zen.smu.SendHsmpCommand(Zen.smu.Hsmp.ReadCurrentFclkMemclk, ref _args);
+                                App.LogInfo($"Zen HSMP FCLK: {_args[0]} MCLK: {_args[1]}");
+                            }
                             App.LogInfo($"Zen OCMode: {Zen.GetOcMode()}");
-                            //App.LogInfo($"Zen Base Clock: {Zen.baseClock} MHz [x{Zen.baseMulti}]");
+                            App.LogInfo($"Zen Cores: Physical={Zen.info.topology.cores} Logical={Zen.info.topology.logicalCores} ThreadsPerCore={Zen.info.topology.threadsPerCore}");
+                            App.LogInfo($"Zen Topology: CCDs={Zen.info.topology.ccds} CCXs={Zen.info.topology.ccxs} CoresPerCcx={Zen.info.topology.coresPerCcx} CcxPerCcd={Zen.info.topology.ccxPerCcd} Nodes={Zen.info.topology.cpuNodes}");
+                            App.LogInfo($"Zen EnabledCores: {Zen.info.topology.enabledCores}");
+                            App.LogInfo($"Zen CoreEnabledMap: 0x{Zen.info.topology.coreEnabledMap:X8}");
+                            App.LogInfo($"Zen CoreDisableMap: 0x{Zen.info.topology.coreDisableMap:X8}");
+
+                            StringBuilder sbz = new StringBuilder();
+
+                            sbz.Append($"Zen CoreIds Map:");
+                            for (int i = 0; i < Zen.info.topology.coreIds.Length; ++i)
+                                sbz.Append($" [{i}]=[{Zen.info.topology.coreIds[i]}]");
+
+                            App.LogInfo($"{sbz}");
+
+                            sbz.Clear();
+
+                            sbz.Append($"Zen Cores2apicId Map:");
+                            for (int i = 0; i < Zen.info.topology.cores2apicId.Length; ++i)
+                                sbz.Append($" [{i}]=[{Zen.info.topology.cores2apicId[i]}]");
+
+                            App.LogInfo($"{sbz}");
+
+                            sbz.Clear();
+
+                            sbz.Append($"Zen Logical2apicIds Map:");
+                            for (int i = 0; i < Zen.info.topology.logical2apicIds.Length; ++i)
+                                sbz.Append($" [{i}]=[{Zen.info.topology.logical2apicIds[i]}]");
+
+                            App.LogInfo($"{sbz}");
+                            
+                            sbz.Clear();
+
+                            sbz.AppendLine($"Zen coreFullMap:");
+
+                            string _header = $"{(char)0x2554}{(char)0x2550}{(char)0x2550}{(char)0x2550}{(char)0x2550}{(char)0x2566}{(char)0x2550}{(char)0x2550}{(char)0x2550}{(char)0x2566}{(char)0x2550}{(char)0x2550}{(char)0x2550}{(char)0x2557}";
+                            string _divider = $"{(char)0x2560}{(char)0x2550}{(char)0x2550}{(char)0x2550}{(char)0x2550}{(char)0x256C}{(char)0x2550}{(char)0x2550}{(char)0x2550}{(char)0x256C}{(char)0x2550}{(char)0x2550}{(char)0x2550}{(char)0x2563}";
+                            string _footer = $"{(char)0x255A}{(char)0x2550}{(char)0x2550}{(char)0x2550}{(char)0x2550}{(char)0x2569}{(char)0x2550}{(char)0x2550}{(char)0x2550}{(char)0x2569}{(char)0x2550}{(char)0x2550}{(char)0x2550}{(char)0x255D}";
+                            sbz.AppendLine(_header);
+                            sbz.AppendLine($"{(char)0x2551}CORE{(char)0x2551}CCD{(char)0x2551}CCX{(char)0x2551}");
+                            sbz.AppendLine(_divider);
+                            for (int i = 0; i < Zen.info.topology.coreFullMap.GetLength(0); ++i)
+                            {
+                                sbz.AppendLine(String.Format((char)0x2551 + "{0,4}" + (char)0x2551 + "{1,-3}" + (char)0x2551 + "{2,-3}" + (char)0x2551, $"C{i}", Zen.info.topology.coreFullMap[i, 2], Zen.info.topology.coreFullMap[i, 1]));
+                                if (i < (Zen.info.topology.coreFullMap.GetLength(0) - 1)) sbz.AppendLine(_divider);
+                                //sbz.AppendLine($" C{i}={Zen.info.topology.coreFullMap[i, 0]}-CCX{Zen.info.topology.coreFullMap[i, 1]}-CCD{Zen.info.topology.coreFullMap[i, 2]}");
+                            }
+
+                            sbz.AppendLine(_footer);
+                            App.LogInfo($"{sbz}");
+
+                            sbz.Clear();
+
+                            sbz.AppendLine($"Zen coreCcxMap:");
+                            for (int i = 0; i < Zen.info.topology.coreCcxMap.GetLength(0); ++i)
+                            {
+                                sbz.AppendLine($"C{i}=b:{Zen.info.topology.coreCcxMap[i, 0]} ccxSharing:{Zen.info.topology.coreCcxMap[i, 1]} logical:{Zen.info.topology.coreCcxMap[i, 2]} numSharingCache:{Zen.info.topology.coreCcxMap[i, 3]} numSharingCacheId:{Zen.info.topology.coreCcxMap[i, 4]} prevNumSharingCacheId:{Zen.info.topology.coreCcxMap[i, 5]} _logicalCoreIdLog2:{Zen.info.topology.coreCcxMap[i, 6]} numSharingCacheLog2:{Zen.info.topology.coreCcxMap[i, 7]}");
+                            }
+
+                            App.LogInfo($"{sbz}");
+
+                            sbz.Clear();
+
+                            //App.Current.Shutdown();
+                            //Environment.Exit(0);
+
+                            sbz = null;
+
+                            ZenCCDTotal = (int)Zen.info.topology.ccds;
+                            ZenCCXTotal = (int)Zen.info.topology.ccxs;
+                            ZenCoresPerCCX = (int)Zen.info.topology.coresPerCcx;
+
                         }
                         else
                         {
-                            App.LogInfo($"ZenCore DLL: CPU not supported");
+                            App.LogInfo($"ZenStates-Core DLL: CPU not supported");
                         }
 
                     }
                     catch (Exception ex)
                     {
-                        App.LogInfo($"ZenCore DLL couldn't be loaded: {ex.Message}");
+                        App.LogInfo($"ZenStates-Core DLL couldn't be loaded: {ex.Message}");
                     }
 
                     if (smucheck)
@@ -1827,24 +1998,6 @@ namespace CPUDoc
                         }
 
                         CpuBusClock = Zen.cpuBusClock;
-
-                        for (int r = 0; r < 20; ++r)
-                        {
-                            if (Ring0.WaitPciBusMutex(50))
-                            {
-                                ZenMaxBoost = Zen.GetMaxBoostLimit();
-                                ZenMaxPPT = Zen.GetMaxPPTLimit();
-                                ZenMaxTDC = Zen.GetMaxTDCLimit();
-                                ZenMaxEDC = Zen.GetMaxEDCLimit();
-                                ZenMaxTHM = Zen.GetMaxTHMLimit();
-                                r = 99;
-                                Ring0.ReleasePciBusMutex();
-                            }
-                            else
-                            {
-                                Thread.Sleep(25);
-                            }
-                        }
 
                         App.LogInfo($"Zen BCLK: {CpuBusClock}");
 
@@ -1876,77 +2029,20 @@ namespace CPUDoc
                         string line = $"SMU Ver [{ZenSMUVer}]";
                         App.LogInfo(line);
 
-                        uint[] args = new uint[6];
-                        uint cmd = Zen.smu.Hsmp.ReadBoostLimit;
+                        ZenBoost = Zen.GetBoostLimit(0);
 
-                        SMU.Status status = Zen.smu.SendHsmpCommand(cmd, ref args);
-                        if (status == SMU.Status.OK)
+                        App.LogInfo($"ZenCoreLayoutInit: {Zen.info.topology.coreLayout:X8}");
+                        App.LogInfo($"ZenCoreLayout: {Zen.info.topology.coreLayoutInit:X8}");
+
+                        if (ZenCCDTotal > 0)
                         {
-                            ZenBoost = (int)args[0];
-                        }
-                        else
-                        {
-                            App.LogInfo($"Failed SMU check for BoostClock: {status}");
-                        }
-
-                        uint ccd_fuse1a = 0x5D218;
-                        uint ccd_fuse2a = 0x5D21C;
-                        uint core_fuse1a = 0x30081800 + 0x238;
-                        uint core_fuse2a = 0x30081800 + 0x238 + 0x2000000;
-
-                        if (Zen.info.family == Cpu.Family.FAMILY_17H && Zen.info.model != 0x71)
-                        {
-                            ccd_fuse1a += 0x40;
-                            ccd_fuse2a += 0x40;
-                        }
-                        uint ZenCCD_Fuse1 = Zen.ReadDword(ccd_fuse1a);
-                        uint ZenCCD_Fuse2 = Zen.ReadDword(ccd_fuse2a);
-
-                        if (Zen.info.family == Cpu.Family.FAMILY_19H)
-                        {
-                            core_fuse1a = 0x30081800 + 0x598;
-                            core_fuse2a = 0x30081800 + 0x598 + 0x2000000;
-                        }
-                        uint ZenCore_Fuse1 = Zen.ReadDword(core_fuse1a);
-                        uint ZenCore_Fuse2 = Zen.ReadDword(core_fuse2a);
-                        uint ZenCCDS_Total = BitSlice(ZenCCD_Fuse1, 22, 23);
-                        uint ZenCCDS_Disabled = BitSlice(ZenCCD_Fuse1, 30, 31);
-                        uint ZenCCDS_Total2 = BitSlice(ZenCCD_Fuse2, 22, 23);
-                        uint ZenCCDS_Disabled2 = BitSlice(ZenCCD_Fuse2, 30, 31);
-                        uint ZenCCD1_Fuse = BitSlice(ZenCore_Fuse1, 0, 7);
-                        uint ZenCCD2_Fuse = BitSlice(ZenCore_Fuse2, 0, 7);
-
-                        uint ZenCore_Layout = ZenCCD1_Fuse | ZenCCD2_Fuse << 8 | 0xFFFF0000;
-                        int ZenCores_per_ccd = (ZenCCD1_Fuse == 0 || ZenCCD2_Fuse == 0) ? 8 : 6;
-                        int ZenCCD_Total = CountSetBits(ZenCCDS_Total);
-                        int ZenCCD_Total2 = CountSetBits(ZenCCDS_Total2);
-                        int ZenCCD_Disabled = CountSetBits(ZenCCDS_Disabled);
-
-                        uint cores_t = ZenCore_Layout;
-
-                        ZenCCDTotal = (int)Zen.info.topology.ccds;
-
-                        App.LogInfo($"ZenCCD_Total {ZenCCD_Total:X2}");
-                        App.LogInfo($"ZenCCD_Total2 {ZenCCD_Total2:X2}");
-                        App.LogInfo($"ZenCore_Fuse1 {ZenCore_Fuse1:X8}");
-                        App.LogInfo($"ZenCore_Fuse2 {ZenCore_Fuse2:X8}");
-                        App.LogInfo($"ZenCCD_Disabled {ZenCCDS_Disabled:X2}");
-                        App.LogInfo($"ZenCCD_Disabled2 {ZenCCDS_Disabled2:X2}");
-                        App.LogInfo($"ZenCCD_Fuse1 {ZenCCD_Fuse1:X8}");
-                        App.LogInfo($"ZenCCD_Fuse2 {ZenCCD_Fuse2:X8}");
-                        App.LogInfo($"ZenCCD1_Fuse {ZenCCD1_Fuse:X8}");
-                        App.LogInfo($"ZenCCD2_Fuse {ZenCCD2_Fuse:X8}");
-                        App.LogInfo($"ZenCore_Layout {ZenCore_Layout:X8}");
-                        App.LogInfo($"ZenCores_per_ccd {ZenCores_per_ccd}");
-
-                        if (ZenCCD_Total > 0 && cores_t > 0)
-                        {
-                            ZenCoreMap = new int[CountSetBits(~ZenCore_Layout)];
-                            int last = ZenCCD_Total * 8;
-                            for (int i = 0, k = 0; i < ZenCCD_Total * 8; cores_t = cores_t >> 1)
+                            uint cores_t = Zen.info.topology.coreLayout;
+                            ZenCoreMap = new int[CountSetBits(~Zen.info.topology.coreLayout)];
+                            int last = ZenCCDTotal * 8;
+                            for (int i = 0, k = 0; i < last; cores_t = cores_t >> 1)
                             {
                                 ZenCoreMapLabel += (i == 0) ? "[" : (i % 8 != 0) ? "." : "";
-                                if ((cores_t & 1) == 0)
+                                if ((cores_t & 1) == 1)
                                 {
                                     ZenCoreMap[k++] = i;
                                     ZenCoreMapLabel += $"{i}";
@@ -1964,22 +2060,44 @@ namespace CPUDoc
 
                         ZenRefreshCO();
 
-                        bool _refreshpt = ZenRefreshPowerTable();
+                        bool _refreshpt = false, _done = false;
+                        while (_done)
+                        {
+                            _refreshpt = ZenRefreshPowerTable();
+                            if (Zen.powerTable != null && _refreshpt) _done = true;
+                        }
+
+
+                        StringBuilder sbz = new StringBuilder();
+
+                        if (Zen.powerTable != null)
+                        {
+                            try
+                            {
+                                sbz.AppendLine($"Zen PM Table dump:");
+                                for (var i = 0; i < Zen.powerTable.Table.Length; ++i)
+                                {
+                                    var temp = BitConverter.GetBytes(Zen.powerTable.Table[i]);
+                                    sbz.AppendLine($"Offset {i:D4} {i * 0x4:X3}: {BitConverter.ToSingle(temp, 0):F8}");
+                                }
+                            }
+                            catch
+                            {
+                                sbz.AppendLine("Dump FAILED");
+                            }
+                            App.LogInfo($"{sbz}");
+
+                            sbz.Clear();
+                        }
 
                         if (_refreshpt || ver_maj > 0)
                         {
                             bool ZenPTKnown = false;
 
-                            StringBuilder sb = new StringBuilder();
-
                             ZenPTVersion = (int)Zen.GetTableVersion();
 
-                            line = $"SMU Ver [{ZenSMUVer}] PT Ver [0x{ZenPTVersion:X}]";
+                            line = $"PT Ver [0x{ZenPTVersion:X}] SMU Ver [{ZenSMUVer}]";
                             App.LogInfo(line);
-
-                            sb.AppendLine(line);
-                            sb.AppendLine($"CPUName {CPUName}");
-                            sb.AppendLine($"CPUFamily {CPUFamily:X}h");
 
                             if (ZenSMUVer == "25.86.0")
                             {
@@ -2288,7 +2406,7 @@ namespace CPUDoc
                                 App.LogInfo($"Configuring Zen Source done");
 
                             }
-                            else if (ZenPTVersion == 0x540100 || ZenPTVersion == 0x540101 || ZenPTVersion == 0x540102 || ZenPTVersion == 0x540103 || ZenPTVersion == 0x540104)
+                            else if (ZenPTVersion == 0x540100 || ZenPTVersion == 0x540101 || ZenPTVersion == 0x540102 || ZenPTVersion == 0x540103 || ZenPTVersion == 0x540104 || ZenPTVersion == 0x540105)
                             {
                                 ZenPTKnown = true;
                                 int _maxcores = 16;
@@ -2355,7 +2473,7 @@ namespace CPUDoc
                                 App.LogInfo($"Configuring Zen Source done");
 
                             }
-                            else if (ZenPTVersion == 0x540000 || ZenPTVersion == 0x540001 || ZenPTVersion == 0x540002 || ZenPTVersion == 0x540003 || ZenPTVersion == 0x540004)
+                            else if (ZenPTVersion == 0x540000 || ZenPTVersion == 0x540001 || ZenPTVersion == 0x540002 || ZenPTVersion == 0x540003 || ZenPTVersion == 0x540004 || ZenPTVersion == 0x540005)
                             {
                                 ZenPTKnown = true;
                                 int _maxcores = 16;
@@ -2675,10 +2793,10 @@ namespace CPUDoc
                                 App.LogInfo($"Configuring Zen Source done");
                             }
 
-                            float _cpuVcore, _cpuVsoc;
+                            float? _cpuVcore, _cpuVsoc;
                             _cpuVcore = Zen.cpuVcore;
                             _cpuVsoc = Zen.cpuVsoc;
-                            //App.LogInfo($"_cpuVcore: {_cpuVcore} _cpuVsoc: {_cpuVsoc}");
+                            App.LogInfo($"Zen cpuVcore: {_cpuVcore} _cpuVsoc: {_cpuVsoc}");
 
                             if (_cpuVcore > 0)
                             {
@@ -2689,22 +2807,54 @@ namespace CPUDoc
                                 App.hwsensors.InitZen(HWSensorName.SOCVoltage, -1);
                             }
 
-                            sb.Clear();
-                            sb = null;
+                            ZenStartBoost = Zen.GetMaxBoostLimit();
+                            ZenStartPPT = Zen.GetPPTLimit();
+                            ZenStartTDC = Zen.info.TDCSupported ? Zen.powerTable.TDC : 0;
+                            ZenStartEDC = Zen.info.EDCSupported ? Zen.powerTable.EDC : 0;
+                            ZenStartTHM = Zen.info.THMSupported ? Zen.powerTable.THM : 0;
+                            ZenMaxBoost = Zen.GetMaxBoostLimit();
+                            ZenMaxPPT = Zen.GetMaxPPTLimit();
+                            ZenMaxTDC = Zen.GetMaxTDCLimit();
+                            ZenMaxEDC = Zen.GetMaxEDCLimit();
+                            ZenMaxTHM = Zen.GetMaxTHMLimit();
 
                             App.LogInfo($"Zen PowerTable Known: {ZenPTKnown}");
+                            App.LogInfo($"Zen HSMP isSupported: {Zen.smu.Hsmp.IsSupported}");
                             App.LogInfo($"Zen Boost: {ZenBoost}/{ZenMaxBoost}");
-                            App.LogInfo($"Zen PPT: {ZenPPT}/{ZenMaxPPT} Supported?({Zen.info.PPTSupported})");
-                            App.LogInfo($"Zen TDC: {ZenTDC}/{ZenMaxTDC} Supported?({Zen.info.TDCSupported})");
-                            App.LogInfo($"Zen EDC: {ZenEDC}/{ZenMaxEDC} Supported?({Zen.info.EDCSupported})");
-                            App.LogInfo($"Zen THM: {ZenTHM}/{ZenMaxTHM} Supported?({Zen.info.THMSupported})");
+                            App.LogInfo($"Zen PPT: {ZenPPT}/{ZenMaxPPT}");
+                            App.LogInfo($"Zen TDC: {ZenTDC}/{ZenMaxTDC}");
+                            App.LogInfo($"Zen EDC: {ZenEDC}/{ZenMaxEDC}");
+                            App.LogInfo($"Zen THM: {ZenTHM}/{ZenMaxTHM}");
+                            App.LogInfo($"Zen PPT PowerTable Supported? {Zen.info.PPTSupported}: {Zen.powerTable.PPT}");
+                            App.LogInfo($"Zen TDC PowerTable Supported? {Zen.info.TDCSupported}: {Zen.powerTable.TDC}");
+                            App.LogInfo($"Zen EDC PowerTable Supported? {Zen.info.EDCSupported}: {Zen.powerTable.EDC}");
+                            App.LogInfo($"Zen THM PowerTable Supported? {Zen.info.THMSupported}: {Zen.powerTable.THM}");
 
+                            ZenMaxBoost = ZenMaxBoost > 0 ? ZenMaxBoost : ZenBoost > 0 ? ZenBoost : 0;
+                            ZenMaxPPT = ZenMaxPPT > 0 ? ZenMaxPPT : ZenPPT > 0 ? ZenPPT : 0;
+                            ZenMaxTDC = ZenMaxTDC > 0 ? ZenMaxTDC : ZenTDC > 0 ? ZenTDC : 0;
+                            ZenMaxEDC = ZenMaxEDC > 0 ? ZenMaxEDC : ZenEDC > 0 ? ZenEDC : 0;
+                            ZenMaxTHM = ZenMaxTHM > 0 ? ZenMaxTHM : ZenTHM > 0 ? ZenTHM : 0;
+
+                            App.LogInfo($"Zen Max Boost: {ZenMaxBoost}");
+                            App.LogInfo($"Zen Max PPT: {ZenMaxPPT}");
+                            App.LogInfo($"Zen Max TDC: {ZenMaxTDC}");
+                            App.LogInfo($"Zen Max EDC: {ZenMaxEDC}");
+                            App.LogInfo($"Zen Max THM: {ZenMaxTHM}");
+
+                            App.LogInfo($"Zen Start PPT: {ZenStartPPT}");
+                            App.LogInfo($"Zen Start TDC: {ZenStartTDC}");
+                            App.LogInfo($"Zen Start EDC: {ZenStartEDC}");
+                            App.LogInfo($"Zen Start THM: {ZenStartTHM}");
                         }
                         else
                         {
-                            App.LogInfo($"Failed SMU PowerTable refresh: {status}");
+                            App.LogInfo($"Failed SMU PowerTable refresh: {_refreshpt} ver: {ver_maj}");
                         }
                     }
+
+                    Ring0.ReleasePciBusMutex();
+
                 }
             }
             catch (Exception ex)
@@ -2968,7 +3118,7 @@ namespace CPUDoc
                     MemVddq = $"{Data.MemVddq / 1000.0:F4}V";
                     MemVpp = $"{Data.MemVpp / 1000.0:F4}V";
 
-                    MemProcODT = AOD.GetProcODTString(BMC.Config.ProcODT);
+                    MemProcODT = AOD.GetProcODTString(Data.ProcODT);
                     MemCadBusDrvStren = AOD.GetCadBusDrvStrenString(Data.CadBusDrvStren);
                     MemDramDataDrvStren = AOD.GetDramDataDrvStrenString(Data.DramDataDrvStren);
                     MemProcDataDrvStren = AOD.GetProcDataDrvStrenString(Data.ProcDataDrvStren);
@@ -3282,6 +3432,16 @@ namespace CPUDoc
             }
             catch { }
         }
+        public void UpdateCpuTotalLoad(double _value)
+        {
+            try
+            {
+                LiveCpuLoad = _value > 0 ? $"{_value:F0}%" : "N/A";
+                //App.LogInfo($"{_value}");
+                OnChange("LiveCpuLoad");
+            }
+            catch { }
+        }
         public void SetLastVersionOnServer(string _value)
         {
             try
@@ -3359,7 +3519,7 @@ namespace CPUDoc
             try
             {
                 SSHStatus = _status == true ? $"Enabled" : "Disabled";
-                if (_status == true) SSHStatus = App.systimer.Enabled && (App.pactive.SysSetHack ?? false) ? $"{SSHStatus} {ThreadBooster.CountBits(App.lastSysCpuSetMask)}/{ThreadBooster.CountBits(ThreadBooster.defFullBitMask)}" : $"{SSHStatus} (Inactive)";
+                if (_status == true) SSHStatus = App.systimer.Enabled && App.pactive.SysSetHack ? $"{SSHStatus} {ThreadBooster.CountBits(App.lastSysCpuSetMask)}/{ThreadBooster.CountBits(ThreadBooster.defFullBitMask)}" : $"{SSHStatus} (Inactive)";
                 SSHStatus = ThreadBoosterRunning ? SSHStatus : $"<Inactive> {SSHStatus}";
                 TogglePSA = _status ? $"Toggle SysSetHack OFF" : "Toggle SysSetHack ON";
                 OnChange("SSHStatus");

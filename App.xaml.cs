@@ -48,6 +48,11 @@ using Microsoft.Extensions.Hosting.WindowsServices;
 using static LibreHardwareMonitor.Interop.AdvApi32;
 using Newtonsoft.Json.Linq;
 using PowerManagerAPI;
+using Windows.UI.Notifications;
+using Config.Net;
+using LibreHardwareMonitor.Hardware;
+using ImpromptuInterface;
+using net.r_eg.Conari.Extension;
 
 namespace CPUDoc
 {
@@ -119,7 +124,7 @@ namespace CPUDoc
 
         public static string ZenPTSubject = "";
         public static string ZenPTBody = "";
-
+        public static bool ZenBlockRefresh = false;
         public static bool Win10 = false;
         public static bool Win11 = false;
 
@@ -149,6 +154,7 @@ namespace CPUDoc
         public static string boot_ppname;
         public static Guid? boot_ppguid = null;
 
+        public static bool resetSettings = false;
         public static bool psact_b = false;
         public static bool psact_plan = false;
         public static bool psact_light_b = false;
@@ -156,6 +162,9 @@ namespace CPUDoc
         public static int PPImportErrCnt = 0;
         public static bool PPImportErrStatus = false;
         public static bool numazero_b = false;
+
+        public static bool FocusAssistAvailable = false;
+        public static bool UserNotificationAvailable = false;
 
         public static int PPDutyCycling = 1;
         public static int PPUSBSSuspend = 0;
@@ -169,6 +178,7 @@ namespace CPUDoc
 
         public static MovingAverage TBPoolingAverage;
 
+        public static bool inpoutdlldisable = false;
         public static bool reapplyProfile = false;
 
         public static List<HWSensorItem> hwsensors;
@@ -202,9 +212,11 @@ namespace CPUDoc
         public static List<int> n0disabledT0;
         public static List<int> n0disabledT1;
 
-        public static appSettings AppSettings;
-        public static appConfigs pactive;
-        public static List<appConfigs> AppConfigs = new List<appConfigs>();
+        public static IAppSettings AppSettings;
+        public static ICommandLineArgs cmdargs;
+        public static IAppConfigs iAppConfigs;
+        public static IAppConfig[] AppConfigs;
+        public static IAppConfig pactive;
         public static appProfiles AppProfiles;
         
         public static DispatcherTimer autimer;
@@ -731,6 +743,10 @@ namespace CPUDoc
             public int dmPanningWidth;
             public int dmPanningHeight;
         }
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr LoadLibrary(string lib);
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr GetProcAddress(IntPtr module, string proc);
         public static bool IsForegroundWindowFullScreen(bool primaryonly)
         {
             IntPtr handle = GetForegroundWindow();
@@ -879,38 +895,75 @@ namespace CPUDoc
                 return 1;
             }
         }
+        public static bool IsFocusAssistAvailable()
+        {
+            try
+            {
+                var qhsettings = (IQuietHoursSettings)new QuietHoursSettings();
+                var qhprofileId = qhsettings.UserSelectedProfile;
+                FocusAssistResult faresult = GetFocusAssistState();
+                if (faresult == FocusAssistResult.FAILED)
+                    return false;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
         public static FocusAssistResult GetFocusAssistState()
         {
-            //  Focus Assist:   Windows 10 build >= 17083
-            WNF_STATE_NAME WNF_SHEL_QUIETHOURS_ACTIVE_PROFILE_CHANGED = new WNF_STATE_NAME(0xA3BF1C75, 0xD83063E);
-            uint nBufferSize = (uint)Marshal.SizeOf(typeof(IntPtr));
-            IntPtr pStateName = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(WNF_STATE_NAME)));
-            Marshal.StructureToPtr(WNF_SHEL_QUIETHOURS_ACTIVE_PROFILE_CHANGED, pStateName, false);
-            bool success = NtQueryWnfStateData(pStateName, IntPtr.Zero, IntPtr.Zero, out uint nChangeStamp, out IntPtr pBuffer, ref nBufferSize) == 0;
-            Marshal.FreeHGlobal(pStateName);
-            if (success)
+            try
             {
-                return (FocusAssistResult)pBuffer;
+                //  Focus Assist:   Windows 10 build >= 17083
+                WNF_STATE_NAME WNF_SHEL_QUIETHOURS_ACTIVE_PROFILE_CHANGED = new WNF_STATE_NAME(0xA3BF1C75, 0xD83063E);
+                uint nBufferSize = (uint)Marshal.SizeOf(typeof(IntPtr));
+                IntPtr pStateName = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(WNF_STATE_NAME)));
+                Marshal.StructureToPtr(WNF_SHEL_QUIETHOURS_ACTIVE_PROFILE_CHANGED, pStateName, false);
+                bool success = NtQueryWnfStateData(pStateName, IntPtr.Zero, IntPtr.Zero, out uint nChangeStamp, out IntPtr pBuffer, ref nBufferSize) == 0;
+                Marshal.FreeHGlobal(pStateName);
+                if (success)
+                {
+                    return (FocusAssistResult)pBuffer;
+                }
+                return FocusAssistResult.FAILED;
             }
-            return FocusAssistResult.FAILED;
+            catch
+            {
+                return FocusAssistResult.FAILED;
+            }
         }
-        public static bool IsAvailableUserNotification()
+        public static bool IsUserNotificationAvailable()
         {
-            //  Quiet Hours:   Windows 10 build < 17083
-            QUERY_USER_NOTIFICATION_STATE state;
-            bool success = SHQueryUserNotificationState(out state) == 0;
-            return success;
+            try
+            {
+                //  Quiet Hours:   Windows 10 build < 17083
+                QUERY_USER_NOTIFICATION_STATE state;
+                bool success = SHQueryUserNotificationState(out state) == 0;
+                return success;
+            }
+            catch
+            {
+                return false;
+            }
         }
         public static QUERY_USER_NOTIFICATION_STATE GetUserNotificationState()
         {
-            //  Quiet Hours:   Windows 10 build < 17083
-            QUERY_USER_NOTIFICATION_STATE state;
-            bool success = SHQueryUserNotificationState(out state) == 0;
-            if (success)
+            try
             {
-                return (QUERY_USER_NOTIFICATION_STATE)state;
+                //  Quiet Hours:   Windows 10 build < 17083
+                QUERY_USER_NOTIFICATION_STATE state;
+                bool success = SHQueryUserNotificationState(out state) == 0;
+                if (success)
+                {
+                    return (QUERY_USER_NOTIFICATION_STATE)state;
+                }
+                return QUERY_USER_NOTIFICATION_STATE.QUNS_FAILED;
             }
-            return QUERY_USER_NOTIFICATION_STATE.QUNS_FAILED;
+            catch
+            {
+                return QUERY_USER_NOTIFICATION_STATE.QUNS_FAILED;
+            }
         }
 
         public static (List<int>, List<int>) GetTieredLists()
@@ -944,7 +997,7 @@ namespace CPUDoc
                     if ((!systemInfo.IntelHybrid || (systemInfo.IntelHybrid && !systemInfo.Ecores.Contains(tcore))) && ProcessorInfo.HardwareCores[tcore].LogicalCores.Length > 1)
                     {
                         //App.LogDebug($"t2 add {tcore} logical={ProcessorInfo.HardwareCores[tcore].LogicalCores[1]}");
-                        _runcores.Add(tcore);
+                        ///_runcores.Add(tcore);
                         _runlogicals.Add(ProcessorInfo.HardwareCores[tcore].LogicalCores[1]);
                     }
                 }
@@ -1391,10 +1444,93 @@ namespace CPUDoc
                 LogManager.ReconfigExistingLoggers();
             }
         }
-        [DllImport("kernel32.dll")]
-        public static extern IntPtr LoadLibrary(string lib);
-        [DllImport("kernel32.dll")]
-        public static extern IntPtr GetProcAddress(IntPtr module, string proc);
+
+        public static void AppReboot(string reason = "Unknown")
+        {
+            ProcessStartInfo objProcessInfo = new ProcessStartInfo();
+            objProcessInfo.UseShellExecute = true;
+            objProcessInfo.FileName = System.AppContext.BaseDirectory + Assembly.GetExecutingAssembly().GetName().Name + ".exe";
+            objProcessInfo.Verb = "runas";
+            try
+            {
+                LogInfo($"AppReboot reason: {reason}");
+                Process proc = Process.Start(objProcessInfo);
+                Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                LogExError($"AppReboot exception reason[{reason}]: {ex.Message}", ex);
+            }
+        }
+        public static void ConfigInit()
+        {
+            try
+            {
+                AppSettings = new ConfigurationBuilder<IAppSettings>()
+                    .UseIniFile(SettingsManager.fileAppSettingsINI)
+                    .Build();
+
+                iAppConfigs = new ConfigurationBuilder<IAppConfigs>()
+                    .UseIniFile(SettingsManager.fileAppConfigsINI)
+                    .Build();
+
+                cmdargs = new ConfigurationBuilder<ICommandLineArgs>()
+                    .UseCommandLineArgs(
+                        new KeyValuePair<string, int>(nameof(ICommandLineArgs.LogTrace), 1))
+                    .Build();
+
+                //App.LogDebug($"Profile 1 ThreadBooster Active={App.AppConfigs.profile1.ThreadBooster}");
+
+                int cntprofile = 10;
+
+                AppConfigs = new IAppConfig[cntprofile];
+
+                AppConfigs[0] = iAppConfigs.profile0.ActLike<IAppConfig>();
+                AppConfigs[1] = iAppConfigs.profile1.ActLike<IAppConfig>();
+                AppConfigs[2] = iAppConfigs.profile2.ActLike<IAppConfig>();
+                AppConfigs[3] = iAppConfigs.profile3.ActLike<IAppConfig>();
+                AppConfigs[4] = iAppConfigs.profile4.ActLike<IAppConfig>();
+                AppConfigs[5] = iAppConfigs.profile5.ActLike<IAppConfig>();
+                AppConfigs[6] = iAppConfigs.profile6.ActLike<IAppConfig>();
+                AppConfigs[7] = iAppConfigs.profile7.ActLike<IAppConfig>();
+                AppConfigs[8] = iAppConfigs.profile8.ActLike<IAppConfig>();
+                AppConfigs[9] = iAppConfigs.profile9.ActLike<IAppConfig>();
+
+                for (int p = 0; p < cntprofile; p++)
+                {
+                    AppConfigs[p].id = p;
+                    AppConfigs[p].Description = AppConfigs[p].Description.ToString() == "" ? "Default" : AppConfigs[p].Description.ToString().Trim();
+                }
+
+                SettingsManager.SanitizeProfiles();
+
+                foreach (IAppConfig profile in AppConfigs)
+                {
+                    profile.WritePropertiesToItself();
+                }
+
+                AppSettings.WritePropertiesToItself();
+
+                pactive = new ConfigurationBuilder<IAppConfig>()
+                    .UseInMemoryDictionary()
+                    .Build();
+
+                int _id = AppSettings.BootProfile < 0 || AppSettings.BootProfile > 9 ? 0 : AppSettings.BootProfile;
+
+                App.AppConfigs[_id].CopyPropertiesTo(pactive);
+
+                App.LogDebug($"Active Config Profile id={pactive.id} Description{pactive.Description}");
+
+                App.LogDebug($"Active Profile ThreadBooster Active={pactive.ThreadBooster}");
+
+            }
+            catch (Exception ex)
+            {
+                LogExError($"ConfigInit exception: {ex.Message}", ex);
+                AppReboot("Cannot lock INI files");
+            }
+        }
+
         protected override void OnStartup(StartupEventArgs e)
         {
             try
@@ -1431,10 +1567,6 @@ namespace CPUDoc
                 
                 Directory.CreateDirectory(@".\Logs");
 
-                if (Process.GetProcessesByName("vgc").Length <= 0 && File.Exists("inpoutx64.dlh")) File.Move("inpoutx64.dlh", "inpoutx64.dll");
-                if (Process.GetProcessesByName("vgc").Length > 0 && File.Exists("inpoutx64.dll")) File.Move("inpoutx64.dll", "inpoutx64.dlh");
-                //if (IsModuleLoaded("CPUDoc.sys")) UnloadModule("CPUDoc.sys");
-
                 SplashWindow.Loading(10);
 
                 CleanUpOldFiles();
@@ -1449,8 +1581,6 @@ namespace CPUDoc
 
                 SplashWindow.Loading(15);
 
-                Ring0.Open();
-
                 SplashWindow.Loading(20);
 
                 WindowsIdentity identity = WindowsIdentity.GetCurrent();
@@ -1458,20 +1588,21 @@ namespace CPUDoc
 
                 if (principal.IsInRole(WindowsBuiltInRole.Administrator) == false && principal.IsInRole(WindowsBuiltInRole.User) == true)
                 {
-                    ProcessStartInfo objProcessInfo = new ProcessStartInfo();
-                    objProcessInfo.UseShellExecute = true;
-                    objProcessInfo.FileName = System.AppContext.BaseDirectory + Assembly.GetExecutingAssembly().GetName().Name + ".exe";
-                    objProcessInfo.Verb = "runas";
-                    try
-                    {
-                        Process proc = Process.Start(objProcessInfo);
-                        Application.Current.Shutdown();
-                    }
-                    catch (Exception ex)
-                    {
-                        LogExError($"OnStartup exception: {ex.Message}", ex);
-                    }
+                    AppReboot("Missing administrator privileges");
                 }
+
+                ConfigInit();
+
+                App.LogInfo($"cmdargs LogTrace={cmdargs.LogTrace}");
+
+                bool vgc = Process.GetProcessesByName("vgc").Length > 0 ? true : false;
+
+                if (cmdargs.inpoutdlldisable == 1 || AppSettings.inpoutdlldisable == true || vgc) inpoutdlldisable = true;
+
+                App.LogInfo($"cmdargs.inpoutdlldisable={cmdargs.inpoutdlldisable} AppSettings.inpoutdlldisable={AppSettings.inpoutdlldisable} inpoutdlldisable={inpoutdlldisable} vgc={vgc}");
+
+                if (inpoutdlldisable == false && File.Exists("inpoutx64.dlh")) { File.Delete("inpoutx64.dll"); File.Move("inpoutx64.dlh", "inpoutx64.dll"); }
+                if (inpoutdlldisable == true && File.Exists("inpoutx64.dll")) { File.Delete("inpoutx64.dlh"); File.Move("inpoutx64.dll", "inpoutx64.dlh"); }
 
                 SplashWindow.Loading(25);
 
@@ -1515,9 +1646,6 @@ namespace CPUDoc
 
                 SplashWindow.Loading(80);
 
-                TraceLogging((AppSettings.LogTrace ?? false));
-                InfoLogging((AppSettings.LogInfo ?? false));
-
                 SetLastT0Affinity();
 
                 SplashWindow.Loading(90);
@@ -1535,7 +1663,7 @@ namespace CPUDoc
                 AutoUpdater.ParseUpdateInfoEvent += AutoUpdaterOnParseUpdateInfoEvent;
                
                 autimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-                AUNotifications(App.AppSettings.AUNotifications ?? false);
+                AUNotifications(AppSettings.AUNotifications);
                 autimer.Tick += (sender, args) =>
                 {
                     autimer.Interval = TimeSpan.FromSeconds(3600);
@@ -1543,7 +1671,6 @@ namespace CPUDoc
                 };
 
                 UAStamp = DateTime.Now;
-
 
                 SubscribeGlobal();
 
@@ -1636,6 +1763,10 @@ namespace CPUDoc
                 {
                     LogExError("Could not start listening to WMI events: ", ex);
                 }
+                
+                bool enableTrace = cmdargs.LogTrace == 1 || AppSettings.LogTrace ? true : false;
+                
+                TraceLogging(enableTrace);
 
             }
             catch (Exception ex)
@@ -1713,8 +1844,11 @@ namespace CPUDoc
 
             try
             {
-                boot_ppname = powerManager.GetActivePlanFriendlyName();
-                boot_ppguid = powerManager.GetActiveGuid();
+                if (boot_ppguid == null)
+                {
+                    boot_ppname = powerManager.GetActivePlanFriendlyName();
+                    boot_ppguid = powerManager.GetActiveGuid();
+                }
 
                 if (Win11)
                 {
@@ -1737,7 +1871,7 @@ namespace CPUDoc
                 ThreadBooster.hepfgdeep = 4;
                 ThreadBooster.hepbgdeep = 4;
 
-                App.LogDebug($"Power Plan at boot: {boot_ppname}");
+                App.LogInfo($"Power Plan at boot: {boot_ppname} Guid: {boot_ppguid}");
             }
             catch (Exception ex)
             {
@@ -1775,17 +1909,18 @@ namespace CPUDoc
             try
             {
                 bool fallback = false;
+                psact_b = false;
                 if (boot_ppguid != null)
                 {
                     if (boot_ppguid.ToString().ToUpper().Contains("FBB9C3D1-AF6E-46CF-B02B-C41192"))
                     {
                         fallback = PSAPlanFallback();
-                        App.LogDebug($"PSA Disabled Power Plan fall back to: {boot_ppname}");
+                        App.LogInfo($"PSA Disabled Power Plan exit={fallback} Fall back to: {powerManager.GetActivePlanFriendlyName()}");
                     }
                     else
                     {
                         fallback = powerManager.SetActiveGuid((Guid)boot_ppguid);
-                        App.LogDebug($"PSA Disabled Power Plan set back to: {boot_ppname}");
+                        App.LogInfo($"PSA Disabled Power Plan exit={fallback} Set back to: {powerManager.GetActivePlanFriendlyName()}");
                     }
                 }
                 if (fallback) psact_plan = false;
@@ -1832,6 +1967,7 @@ namespace CPUDoc
                     if (plan.name == planname)
                     {
                         powerManager.SetActiveGuid(plan.guid);
+                        Thread.Sleep(2000);
                         _done = true;
                     }
                 }
@@ -1848,7 +1984,14 @@ namespace CPUDoc
             try
             {
                 bool isactive = false;
-                if ((App.pactive.PowerSaverActive ?? false) && !PPImportErrStatus)
+
+                if (PPImportErrStatus)
+                {
+                    psact_b = false;
+                    psact_plan = false;
+                }
+
+                if (pactive.PowerSaverActive && !PPImportErrStatus)
                 {
                     if (systemInfo.CPUName.Contains("Intel"))
                     {
@@ -1862,8 +2005,8 @@ namespace CPUDoc
                     }
 
                     int _personality = 1;
-                    int _activepersonality = (App.pactive.Personality ?? 0);
-                    int _activepowertweak = (App.pactive.PowerTweak ?? 1);
+                    int _activepersonality = pactive.Personality;
+                    int _activepowertweak = pactive.PowerTweak;
 
                     string planName = "";
 
@@ -1890,10 +2033,10 @@ namespace CPUDoc
 
                     if (_activepowertweak == 0)
                     {
-                        App.pactive.PSALightSleepSeconds = 15;
-                        App.pactive.PSADeepSleepSeconds = 60;
-                        App.pactive.PSALightSleepThreshold = 12;
-                        App.pactive.PSADeepSleepThreshold = 6;
+                        pactive.PSALightSleepSeconds = 15;
+                        pactive.PSADeepSleepSeconds = 60;
+                        pactive.PSALightSleepThreshold = 12;
+                        pactive.PSADeepSleepThreshold = 6;
                         ThreadBooster.ProcPerfBoostEco = 95;
                         if (App.systemInfo.Ecores.Count > 0 && App.systemInfo.Pcores.Count > 0 && App.systemInfo.IntelHybrid)
                         {
@@ -1907,10 +2050,10 @@ namespace CPUDoc
                     }
                     else if (_activepowertweak == 2)
                     {
-                        App.pactive.PSALightSleepSeconds = 90;
-                        App.pactive.PSADeepSleepSeconds = 240;
-                        App.pactive.PSALightSleepThreshold = 8;
-                        App.pactive.PSADeepSleepThreshold = 4;
+                        pactive.PSALightSleepSeconds = 90;
+                        pactive.PSADeepSleepSeconds = 240;
+                        pactive.PSALightSleepThreshold = 8;
+                        pactive.PSADeepSleepThreshold = 4;
                         ThreadBooster.ProcPerfBoostEco = 100;
                         if (App.systemInfo.Ecores.Count > 0)
                         {
@@ -1932,10 +2075,10 @@ namespace CPUDoc
                     }
                     else
                     {
-                        App.pactive.PSALightSleepSeconds = 30;
-                        App.pactive.PSADeepSleepSeconds = 90;
-                        App.pactive.PSALightSleepThreshold = 14;
-                        App.pactive.PSADeepSleepThreshold = 8;
+                        pactive.PSALightSleepSeconds = 30;
+                        pactive.PSADeepSleepSeconds = 90;
+                        pactive.PSALightSleepThreshold = 14;
+                        pactive.PSADeepSleepThreshold = 8;
                         ThreadBooster.ProcPerfBoostEco = 100;
                         if (App.systemInfo.Ecores.Count > 0 && App.systemInfo.Pcores.Count > 0 && App.systemInfo.IntelHybrid)
                         {
@@ -1966,6 +2109,8 @@ namespace CPUDoc
                             {
                                 PPImportErrCnt = 0;
                                 PPImportErrStatus = true;
+                                psact_b = false;
+                                psact_plan = false;
                             }
                         }
                     }
@@ -1980,16 +2125,19 @@ namespace CPUDoc
                         _value = (uint)App.PPUSBSSuspendTimeout;
                         App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.USB_SUBGROUP, new Guid("0853a681-27c8-4100-a2fd-82013e970683"), PowerManagerAPI.PowerMode.AC, _value);
 
-                        if (pactive.MonitorIdle == null || pactive.SleepIdle == null || pactive.HyberIdle == null)
+                        if (pactive.MonitorIdle == -1 || pactive.SleepIdle == -1 || pactive.HyberIdle == -1)
                         {
                             pactive.MonitorIdle = PPSecToIdx((int)PowerManager.GetPlanSetting(PPGuid, SettingSubgroup.VIDEO_SUBGROUP, Setting.VIDEOIDLE, PowerMode.AC));
                             pactive.SleepIdle = PPSecToIdx((int)PowerManager.GetPlanSetting(PPGuid, SettingSubgroup.SLEEP_SUBGROUP, Setting.STANDBYIDLE, PowerMode.AC));
                             pactive.HyberIdle = PPSecToIdx((int)PowerManager.GetPlanSetting(PPGuid, SettingSubgroup.SLEEP_SUBGROUP, Setting.HIBERNATEIDLE, PowerMode.AC));
-                        } 
+                            AppConfigs[pactive.id].MonitorIdle = pactive.MonitorIdle;
+                            AppConfigs[pactive.id].SleepIdle = pactive.SleepIdle;
+                            AppConfigs[pactive.id].HyberIdle = pactive.HyberIdle;
+                        }
 
-                        App.powerManager.SetDynamic(SettingSubgroup.VIDEO_SUBGROUP, new Guid("3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)PPIdxToSec((pactive.MonitorIdle ?? 0)));
-                        App.powerManager.SetDynamic(SettingSubgroup.SLEEP_SUBGROUP, new Guid("29f6c1db-86da-48c5-9fdb-f2b67b1f44da"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)PPIdxToSec((pactive.SleepIdle ?? 0)));
-                        App.powerManager.SetDynamic(SettingSubgroup.SLEEP_SUBGROUP, new Guid("9d7815a6-7ee4-497e-8888-515a05f02364"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)PPIdxToSec((pactive.HyberIdle ?? 0)));
+                        App.powerManager.SetDynamic(SettingSubgroup.VIDEO_SUBGROUP, new Guid("3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)PPIdxToSec((pactive.MonitorIdle)));
+                        App.powerManager.SetDynamic(SettingSubgroup.SLEEP_SUBGROUP, new Guid("29f6c1db-86da-48c5-9fdb-f2b67b1f44da"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)PPIdxToSec((pactive.SleepIdle)));
+                        App.powerManager.SetDynamic(SettingSubgroup.SLEEP_SUBGROUP, new Guid("9d7815a6-7ee4-497e-8888-515a05f02364"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)PPIdxToSec((pactive.HyberIdle)));
 
                         App.powerManager.SetDynamic(SettingSubgroup.SLEEP_SUBGROUP, new Guid("bd3b718a-0680-4d9d-8ab2-e1d2b4ac806d"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)(pactive.WakeTimers == true ? 1 : 0));
 
@@ -2169,13 +2317,13 @@ namespace CPUDoc
 
             if (enable)
             {
-                App.pactive.ThreadBooster = true;
+                pactive.ThreadBooster = true;
                 tbtimer.Enabled = true;
                 ThreadBooster.ForceCustomBitMask(false);
             }
             else
             {
-                App.pactive.ThreadBooster = false;
+                pactive.ThreadBooster = false;
                 tbtimer.Enabled = false;
                 SysCpuSetMask = ThreadBooster.defFullBitMask;
                 lastSysCpuSetMask = ThreadBooster.defFullBitMask;
@@ -2217,13 +2365,10 @@ namespace CPUDoc
                 _runlogicals = null;
                 _runcores = null;
 
-                if (!ProtBufSettings.ReadSettings()) ProtBufSettings.ReadSettings();
+                UserNotificationAvailable = IsUserNotificationAvailable();
+                FocusAssistAvailable = IsFocusAssistAvailable();
 
-                App.LogDebug($"Profile 0 ThreadBooster Active={AppConfigs[0].ThreadBooster}");
-
-                pactive = AppConfigs[0];
-
-                App.LogDebug($"Active Profile ThreadBooster Active={pactive.ThreadBooster}");
+                App.LogInfo($"Awareness API status: UserNotification={UserNotificationAvailable} FocusAssist={FocusAssistAvailable}");
 
             }
             catch (Exception ex)
@@ -2233,13 +2378,16 @@ namespace CPUDoc
         }
 
         public static void AddConfig(int _id, bool enabled = false, string description = "") {
+            /*
             AppConfigs.Add(new appConfigs()
             {
                 id = _id,
                 Enabled = enabled,
                 Description = description,
             });
+            */
         }
+
         private static void Monitor_ElapsedEventHandler(object sender, ElapsedEventArgs e)
         {
             //App.LogDebug("HWM ELAPSED");
@@ -2447,11 +2595,22 @@ namespace CPUDoc
 
             return _exitcode;
         }
+        public static void QuitApplication()
+        {
+            Thread.Sleep(500);
+            iAppConfigs = null;
+            AppSettings = null;
+            if (resetSettings)
+            {
+                SettingsManager.ResetSettings();
+            }
+            Current.Shutdown();
+        }
 
         private void Application_Exit(object sender, ExitEventArgs e)
         {
             Application_Cleanup();
-            Current.Shutdown();
+            QuitApplication();
             Environment.Exit(0);
         }
         private void Application_Cleanup()
@@ -2489,9 +2648,9 @@ namespace CPUDoc
                 syscts?.Dispose();
                 tbIcon.Dispose();
 
-                if (ThreadBooster.zencontrol_b) ThreadBooster.ZenControlPBO("hpx");
+                if (ThreadBooster.zencontrol_b) ThreadBooster.ZenControlDisable();
 
-                Ring0.Close();
+                if (Ring0.IsOpen) Ring0.Close();
             }
             catch (Exception ex)
             {
@@ -2535,7 +2694,7 @@ namespace CPUDoc
                 if (IsModuleLoaded("CPUDoc.sys")) UnloadModule("CPUDoc.sys");
                 if (IsModuleLoaded("CPUTools.dll")) UnloadModule("CPUTools.dll");
                 int _stopR0 = Stop_WinRing0();
-                if (_stopR0 != 0) LogDebug($"WinRing0 could not stop: {_stopR0}");
+                if (_stopR0 > 0) LogDebug($"WinRing0 could not stop: {_stopR0}");
             }
             catch (Exception ex)
             {
@@ -2709,10 +2868,10 @@ namespace CPUDoc
             }
         }
 
-        public static void SetActiveConfig(int id = -1)
+        public static void SetActiveConfig(int id = 0)
         {
-            if (id >= 0) 
-                pactive = AppConfigs[id];
+            if (id >= 0 && id < 10) 
+              AppConfigs[id].CopyPropertiesTo(pactive);
 
             if (Win10)
             {
@@ -2727,11 +2886,11 @@ namespace CPUDoc
                 pactive.SysSetHack = false;
             }
 
-            if (pactive.ThreadBooster ?? false)
+            if (pactive.ThreadBooster)
             {
                 tbtimer.Enabled = true;
-                if (!(pactive.ManualPoolingRate ?? false)) SetPoolingRate();
-                if (pactive.ManualPoolingRate ?? false) SetPoolingRate((int)(pactive.PoolingRate ?? 250));
+                if (!pactive.ManualPoolingRate) SetPoolingRate();
+                if (pactive.ManualPoolingRate) SetPoolingRate((int)pactive.PoolingRate);
             }
             else
             {
@@ -2740,10 +2899,11 @@ namespace CPUDoc
                 hwmtimer.Enabled = false;
             }
 
-            if (!(pactive.SysSetHack ?? false) && !(pactive.NumaZero ?? false))
+            lastSysCpuSetMask = uint.MaxValue;
+            SetSysCpuSet(0);
+
+            if (!pactive.SysSetHack && pactive.NumaZero)
             {
-                lastSysCpuSetMask = 0;
-                SetSysCpuSet(0);
                 systimer.Enabled = false;
                 systimer.Stop();
             }
@@ -2761,9 +2921,10 @@ namespace CPUDoc
 
             try
             {
-                if ((pactive.NumaZero ?? false))
+                if (pactive.NumaZero)
                 {
                     int _found = 0;
+                    string ttype0, ttype1;
 
                     if (pactive.NumaZeroType == 0)
                     {
@@ -2778,7 +2939,9 @@ namespace CPUDoc
                                     {
                                         if (logicalsT1.Contains(i)) n0enabledT1.Add(i);
                                         if (logicalsT0.Contains(i)) n0enabledT0.Add(i);
-                                        App.LogDebug($"N0 ENABLED CoresN0={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
+                                        ttype0 = logicalsT0.Contains(i) ? "T0" : "";
+                                        ttype1 = logicalsT1.Contains(i) ? "T1" : "";
+                                        App.LogDebug($"N0 ENABLED LogicalN0={i} {ttype0}{ttype1}");
                                     }
                                 }
                             }
@@ -2793,7 +2956,9 @@ namespace CPUDoc
                                         _found++;
                                         if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
                                         if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
-                                        App.LogDebug($"N0 DISABLED CoresEfficient={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
+                                        ttype0 = logicalsT0.Contains(i) ? "T0" : "";
+                                        ttype1 = logicalsT1.Contains(i) ? "T1" : "";
+                                        App.LogDebug($"N0 DISABLED LogicalEfficient={i} {ttype0}{ttype1}");
                                     }
                                 }
                             }
@@ -2808,7 +2973,9 @@ namespace CPUDoc
                                         _found++;
                                         if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
                                         if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
-                                        App.LogDebug($"N0 DISABLED CoresCache={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
+                                        ttype0 = logicalsT0.Contains(i) ? "T0" : "";
+                                        ttype1 = logicalsT1.Contains(i) ? "T1" : "";
+                                        App.LogDebug($"N0 DISABLED LogicalCache={i} {ttype0}{ttype1}");
                                     }
                                 }
                             }
@@ -2823,7 +2990,9 @@ namespace CPUDoc
                                         _found++;
                                         if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
                                         if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
-                                        App.LogDebug($"N0 DISABLED CoresIndex={i} T0={logicalsT0.Contains(i)} T1={logicalsT1.Contains(i)}");
+                                        ttype0 = logicalsT0.Contains(i) ? "T0" : "";
+                                        ttype1 = logicalsT1.Contains(i) ? "T1" : "";
+                                        App.LogDebug($"N0 DISABLED LogicalIndex={i}  {ttype0} {ttype1}");
                                     }
                                 }
                             }
@@ -2831,7 +3000,7 @@ namespace CPUDoc
                     }
 
                     if (_found > 0) numazero_b = true;
-                    App.LogDebug($"N0={pactive.NumaZero} N0Type={pactive.NumaZeroType} CORES={ProcessorInfo.LogicalCoresCount - _found}/{ProcessorInfo.LogicalCoresCount}[{_found}] HT={systemInfo.HyperThreading}");
+                    App.LogDebug($"N0={pactive.NumaZero} N0Type={pactive.NumaZeroType} LOGICALCORES={ProcessorInfo.LogicalCoresCount - _found}/{ProcessorInfo.LogicalCoresCount}[{_found}] HT={systemInfo.HyperThreading}");
                     App.LogDebug($"N0_ENABLED={n0enabledT0.Count+n0enabledT1.Count} N0_DISABLED={n0disabledT0.Count + n0disabledT1.Count} E-CORES={App.systemInfo.Ecores.Count}");
 
                     if (pactive.NumaZeroType > 0 || _found < 1)
@@ -2841,9 +3010,13 @@ namespace CPUDoc
                         _forced = pactive.NumaZeroType == 0 ? _auto : _forced;
                         if (_forced > 0)
                         {
+                            n0enabledT0 = new List<int>();
+                            n0enabledT1 = new List<int>();
+                            n0disabledT0 = new List<int>();
+                            n0disabledT1 = new List<int>();
                             numazero_b = true;
                             if (systemInfo.HyperThreading) _forced = _forced * 2;
-                            App.LogDebug($"N0={pactive.NumaZero} N0Type={pactive.NumaZeroType} FORCED={_forced} HT={systemInfo.HyperThreading}");
+                            App.LogDebug($"N0={pactive.NumaZero} N0Type={pactive.NumaZeroType} Forced Threads={_forced} HT={systemInfo.HyperThreading}");
                             for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
                             {
                                 if (i > _forced - 1)
@@ -2877,7 +3050,7 @@ namespace CPUDoc
                     }
                 }
 
-                if (n0disabledT0.Count() > 0 || n0disabledT1.Count() > 0 && (pactive.NumaZero ?? false)) numazero_b = true;
+                if (n0disabledT0.Count() > 0 || n0disabledT1.Count() > 0 && (pactive.NumaZero)) numazero_b = true;
 
                 if (systemInfo.IntelHybrid)
                 {
@@ -2897,9 +3070,9 @@ namespace CPUDoc
             {
                 App.LogExError($"NumaZero Init Exception:", ex);
             }
-            App.systemInfo.SetSSHStatus(pactive.SysSetHack ?? false);
-            App.systemInfo.SetPSAStatus(pactive.PowerSaverActive ?? false);
-            App.systemInfo.SetN0Status(pactive.NumaZero ?? false);
+            App.systemInfo.SetSSHStatus(pactive.SysSetHack);
+            App.systemInfo.SetPSAStatus(pactive.PowerSaverActive);
+            App.systemInfo.SetN0Status(pactive.NumaZero);
 
             App.LogDebug($"N0={pactive.NumaZero} N0Active={numazero_b} HT={systemInfo.HyperThreading}");
 
@@ -2936,6 +3109,12 @@ namespace CPUDoc
             res = Ring0.WrmsrTx(msr, eax, edx, GroupAffinity.Single(0, (int)index));
 
             return res;
+        }
+
+        public static void ProcessDisableThrottle(int pid)
+        {
+            SetThrottleExecSpeed(pid, false);
+            SetIgnoreTimer(pid, false);
         }
 
         public static void SetPoolingRate(int rate = -1)
