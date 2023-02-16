@@ -9,6 +9,8 @@
 
 ## Changelog:
 
+- v1.2.9 Beta
+  - Fix: Small Hotfix for AMD Zen initialization
 - v1.2.8 Beta
     - Fix: Skipped unnecessary bindings for the UI, lower CPU background load back to 1.1.x values
     - Fix: UI doesn't stop updating after kept idle for a while
