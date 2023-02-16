@@ -9,6 +9,9 @@
 
 ## Changelog:
 
+- v1.2.8 Beta
+    - Fix: Skipped unnecessary bindings for the UI, lower CPU background load back to 1.1.x values
+    - Fix: UI doesn't stop updating after kept idle for a while
 - v1.2.7 Beta
     - Fix: Toggles from System Tray icon not functional
     - Fix: Win11 support for SSH and NumaZero

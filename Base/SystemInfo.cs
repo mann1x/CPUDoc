@@ -27,6 +27,10 @@ using System.Windows.Shapes;
 using static ZenStates.Core.Cpu;
 using net.r_eg.Conari.Types;
 using Windows.Devices.HumanInterfaceDevice;
+using System.Windows.Threading;
+using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
+using net.r_eg.Conari.Extension;
 
 namespace CPUDoc
 {
@@ -3367,6 +3371,7 @@ namespace CPUDoc
         }
         public void UpdateLoadThread(int _thread, int _value)
         {
+            if (!App.MainWindowOpen) return;
             try
             {
                 cpuTload[_thread] = _value;
@@ -3376,6 +3381,7 @@ namespace CPUDoc
         }
         public void UpdateLoadThreads()
         {
+            if (!App.MainWindowOpen) return;
             try
             {
                 OnChange("CpuTload");
@@ -3432,13 +3438,19 @@ namespace CPUDoc
             }
             catch { }
         }
+        
         public void UpdateCpuTotalLoad(double _value)
         {
+            if (!App.MainWindowOpen) return;
             try
             {
-                LiveCpuLoad = _value > 0 ? $"{_value:F0}%" : "N/A";
-                //App.LogInfo($"{_value}");
-                OnChange("LiveCpuLoad");
+                DispatcherOperationStatus result = App.Current.Dispatcher.BeginInvoke(
+                    DispatcherPriority.Send,
+                    new Action(() => {
+                        App.systemInfo.LiveCpuLoad = _value > 0 ? $"{_value:F0}%" : "N/A";
+                    })).Wait();
+                if (result == DispatcherOperationStatus.Completed) { OnChange("LiveCpuLoad"); }
+               
             }
             catch { }
         }
@@ -3454,6 +3466,7 @@ namespace CPUDoc
         }
         public void SetThreadBoosterStatus(string _value)
         {
+            if (!App.MainWindowOpen) return;
             try
             {
                 ThreadBoosterStatus = _value.Length > 0 ? _value : "N/A";
@@ -3476,6 +3489,7 @@ namespace CPUDoc
 
         public void SetPSAStatus(bool _status)
         {
+            if (!App.MainWindowOpen) return;
             try
             {
                 string sleep = "", mode = "";
@@ -3502,6 +3516,7 @@ namespace CPUDoc
 
         public void SetSleepsAllowed()
         {
+            if (!App.MainWindowOpen) return;
             try
             {
                 bool _sleep = App.IsPwrSuspendAllowed();
@@ -3516,6 +3531,7 @@ namespace CPUDoc
         }
         public void SetSSHStatus(bool _status)
         {
+            if (!App.MainWindowOpen) return;
             try
             {
                 SSHStatus = _status == true ? $"Enabled" : "Disabled";
@@ -3529,6 +3545,7 @@ namespace CPUDoc
         }
         public void SetN0Status(bool _status)
         {
+            if (!App.MainWindowOpen) return;
             try
             {
                 N0Status = _status == true ? $"Enabled" : "Disabled";

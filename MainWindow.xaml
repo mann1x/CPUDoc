@@ -18,7 +18,7 @@
                             SourceInitialized="Window_SourceInitialized"
                             Loaded="MainWindow_Loaded"
                             SizeChanged="Window_SizeChanged"
-                            Closing="Window_Closing" Visibility="Visible" StateChanged="Window_StateChanged"
+                            Closing="MainWindow_Closing" Visibility="Visible" StateChanged="Window_StateChanged" Closed="MainWindow_Closed"
                             >
 
     <Window.Resources>

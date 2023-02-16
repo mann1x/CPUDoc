@@ -117,6 +117,8 @@ namespace CPUDoc
         public static Thread thrSys;
         public static int thridSys;
 
+        public static bool MainWindowOpen = false;
+
         public static SystemInfo systemInfo;
         public static string version;
         public static string ss_filename;

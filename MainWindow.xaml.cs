@@ -97,8 +97,8 @@ namespace CPUDoc
 
                 if (WindowSettings.Default.Initialized)
                 {
-                    App.LogDebug($"Restoring Window Position {WindowSettings.Default.Top} {WindowSettings.Default.Left} {WindowSettings.Default.Height} {WindowSettings.Default.Width} {WindowSettings.Default.Maximized}");
-                    App.LogDebug($"Restoring Window WorkArea {SystemParameters.WorkArea.Top} {SystemParameters.WorkArea.Left} {SystemParameters.WorkArea.Height} {SystemParameters.WorkArea.Width}");
+                    //App.LogDebug($"Restoring Window Position {WindowSettings.Default.Top} {WindowSettings.Default.Left} {WindowSettings.Default.Height} {WindowSettings.Default.Width} {WindowSettings.Default.Maximized}");
+                    //App.LogDebug($"Restoring Window WorkArea {SystemParameters.WorkArea.Top} {SystemParameters.WorkArea.Left} {SystemParameters.WorkArea.Height} {SystemParameters.WorkArea.Width}");
 
                     WindowState = WindowState.Normal;
                     Top = WindowSettings.Default.Top < SystemParameters.WorkArea.Top ? SystemParameters.WorkArea.Top : WindowSettings.Default.Top;
@@ -120,7 +120,7 @@ namespace CPUDoc
                     this.Left = (screenWidth / 2) - (windowWidth / 2);
                     this.Top = (screenHeight / 2) - (windowHeight / 2);
                     WindowStartupLocation = WindowStartupLocation.CenterScreen;
-                    App.LogDebug($"SizeChanged Set Center and Save");
+//                    App.LogDebug($"SizeChanged Set Center and Save");
                     WindowSettings.Default.Initialized = true;
                     this.UpdateLayout();
                     SaveWinPos();
@@ -554,15 +554,15 @@ namespace CPUDoc
                     WindowSettings.Default.Maximized = false;
                 }
                 WindowSettings.Default.Save();
-                App.LogDebug($"Saving Window Position {WindowSettings.Default.Top} {WindowSettings.Default.Left} {WindowSettings.Default.Height} {WindowSettings.Default.Width} {WindowSettings.Default.Maximized}");
+                //App.LogDebug($"Saving Window Position {WindowSettings.Default.Top} {WindowSettings.Default.Left} {WindowSettings.Default.Height} {WindowSettings.Default.Width} {WindowSettings.Default.Maximized}");
             }
         }
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             if (IsActive && WindowSettings.Default.Initialized)
             {
                 SaveWinPos();
-                App.LogDebug($"Saved Window Position Closing {WindowSettings.Default.Top} {WindowSettings.Default.Left} {WindowSettings.Default.Height} {WindowSettings.Default.Width} {WindowSettings.Default.Maximized}");
+                //App.LogDebug($"Saved Window Position Closing {WindowSettings.Default.Top} {WindowSettings.Default.Left} {WindowSettings.Default.Height} {WindowSettings.Default.Width} {WindowSettings.Default.Maximized}");
             }
 
             uitimer.IsEnabled = false;
@@ -615,7 +615,9 @@ namespace CPUDoc
         }
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            
+
+            App.MainWindowOpen = true;
+
             InitMainUI();
 
             string LicensePath = @".\LICENSE";
@@ -1397,6 +1399,11 @@ namespace CPUDoc
 
             SetValue(MinWidthProperty, ActualWidth);
             SetValue(MinHeightProperty, ActualHeight);
+        }
+
+        private void MainWindow_Closed(object sender, EventArgs e)
+        {
+            App.MainWindowOpen= false;
         }
     }
     public class NumericValidationRule : ValidationRule
