@@ -31,6 +31,7 @@ using System.Windows.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using net.r_eg.Conari.Extension;
+using System.Windows.Media.Imaging;
 
 namespace CPUDoc
 {
@@ -44,7 +45,7 @@ namespace CPUDoc
         public string BoardManufacturer { get; set; }
         public string BoardModel { get; set; }
         public string BoardBIOS { get; set; }
-        public string CPUBits { get; set; }
+        public string CPUBits { get; set; } = "N/A";
         public string CPUDescription { get; set; }
         public string CPUName { get; set; }
         public int CPUFamily { get; set; }
@@ -177,10 +178,9 @@ namespace CPUDoc
         public bool CpuVAESExt { get; set; }
         public double TBLoopTime { get; set; }
         public double TBLoopEvery { get; set; }
+
         public string ThreadBoosterStatus { get; set; }
         public string ThreadBoosterButton { get; set; }
-        public bool ThreadBoosterRunning { get; set; }
-
         public string SleepAllowed { get; set; }
         public string HiberAllowed { get; set; }
 
@@ -254,7 +254,6 @@ namespace CPUDoc
         }
         public SystemInfo()
         {
-            CPUBits = "N/A";
             CPUDescription = "N/A";
             CPUName = "N/A";
             CPUCores = ProcessorInfo.PhysicalCoresCount;
@@ -383,7 +382,7 @@ namespace CPUDoc
                 HWMonitor.CPUSource = HWSensorSource.Libre;
                 HWMonitor.NewSensors();
 
-                SplashWindow.Loading(36);
+                SetProgress(12, "WMI basics query");
 
                 App.LogInfo("SystemInfo: WMI basics query");
 
@@ -391,37 +390,34 @@ namespace CPUDoc
 
                 if (CPULogicalProcessors > CPUCores) HyperThreading = true;
 
-                SplashWindow.Loading(40);
-
                 App.LogInfo("SystemInfo: CPPC Tags Init");
 
                 CPPCTagsInit();
 
-                SplashWindow.Loading(45);
+                SetProgress(15, "CPUID Init");
 
                 App.LogInfo("SystemInfo: CPUID Init");
 
                 CpuIdInit();
 
-                SplashWindow.Loading(50);
+                SetProgress(40, "CPUSet Init");
 
                 App.LogInfo("SystemInfo: CPUSet Init");
 
                 CpuSetInit();
 
-                SplashWindow.Loading(55);
+                SetProgress(65, "OS Info Init");
 
                 App.LogInfo("SystemInfo: Windows OS Info Init");
 
                 GetWindowsLabel();
 
-                SplashWindow.Loading(60);
+                SetProgress(70, "Zen Init");
 
-                App.LogInfo("SystemInfo: ZenMain Init");
+                App.LogInfo($"SystemInfo: ZenMain Init dllDisable={App.inpoutdlldisable}");
 
                 if (!App.inpoutdlldisable) ZenMainInit();
 
-                SplashWindow.Loading(65);
 
                 if (!MemPartNumbers.Any())
                 {
@@ -466,7 +462,7 @@ namespace CPUDoc
         }
         public bool ZenRefreshStatic(bool refresh)
         {
-            if (!ZenStates || App.ZenBlockRefresh) return false;
+            if (!ZenStates || App.ZenBlockRefresh || Zen == null) return false;
 
             if (refresh)
             {
@@ -638,16 +634,21 @@ namespace CPUDoc
             ZenCpuVcore = Zen.cpuVcore != null ? $"{Zen.cpuVcore:F3}V" : "";
             ZenCpuVsoc = Zen.cpuVsoc != null ? $"{Zen.cpuVsoc:F3}V" : "";
 
-            OnChange("ZenCpuTemp");
-            OnChange("ZenCcd1Temp");
-            OnChange("ZenCcd2Temp");
-            OnChange("ZenCpuVcore");
-            OnChange("ZenCpuVsoc");
+            if (App.MainWindowOpen)
+            {
+                OnChange("ZenCpuTemp");
+                OnChange("ZenCcd1Temp");
+                OnChange("ZenCcd2Temp");
+                OnChange("ZenCpuVcore");
+                OnChange("ZenCpuVsoc");
+            }
         }
         public bool ZenRefreshPowerTable()
         {
             try
             {
+                App.LogDebug("ZenRefreshPowerTable...");
+
                 SMU.Status? status = SMU.Status.UNKNOWN_CMD;
 
                 if (Ring0.WaitPciBusMutex(50))
@@ -658,8 +659,11 @@ namespace CPUDoc
 
                 if (status != SMU.Status.OK)
                 {
+                    App.LogDebug("ZenRefreshPowerTable retry");
+
                     for (int r = 0; r < 10; ++r)
                     {
+                        if (r > 0) App.LogDebug($"ZenRefreshPowerTable retry n.{r}");
                         Thread.Sleep(25);
                         if (Ring0.WaitPciBusMutex(50))
                         {
@@ -670,6 +674,7 @@ namespace CPUDoc
                     }
                 }
 
+                if (status == SMU.Status.OK) App.LogDebug("ZenRefreshPowerTable OK");
                 if (status == SMU.Status.OK) return true;
                 return false;
             }
@@ -904,20 +909,17 @@ namespace CPUDoc
                         _MemoryLabel2 += $" VTT: {MemVtt}";
                 }
 
-                if (MEMCFG.Type != null)
+                if (ZenStates && (MEMCFG.Type == MemType.DDR4 || MEMCFG.Type == MemType.DDR5))
                 {
-                    if (ZenStates && (MEMCFG.Type == MemType.DDR4 || MEMCFG.Type == MemType.DDR5))
+                    if (MEMCFG.Type == MemType.DDR4)
                     {
-                        if (MEMCFG.Type == MemType.DDR4)
-                        {
-                            _MemoryLabel3 += $"RTT [Nom: {MemRttNom} Wr: {MemRttWr} Park: {MemRttPark}] pODT: {MemProcODT}";
-                        }
+                        _MemoryLabel3 += $"RTT [Nom: {MemRttNom} Wr: {MemRttWr} Park: {MemRttPark}] pODT: {MemProcODT}";
+                    }
 
-                        if (MEMCFG.Type == MemType.DDR5)
-                        {
-                            _MemoryLabel3 += $"RTT [NomRd: {MemRttNomRd} NomWr: {MemRttNomWr} Wr: {MemRttWrD5} Park: {MemRttParkD5} ParkDqs: {MemRttParkDqs}] pODT: {MemProcODT} ";
-                            _MemoryLabel3 += $"\nVDDIO: {MemVddio} VDDQ: {MemVddq} VPP: {MemVpp}";
-                        }
+                    if (MEMCFG.Type == MemType.DDR5)
+                    {
+                        _MemoryLabel3 += $"RTT [NomRd: {MemRttNomRd} NomWr: {MemRttNomWr} Wr: {MemRttWrD5} Park: {MemRttParkD5} ParkDqs: {MemRttParkDqs}] pODT: {MemProcODT} ";
+                        _MemoryLabel3 += $"\nVDDIO: {MemVddio} VDDQ: {MemVddq} VPP: {MemVpp}";
                     }
                 }
 
@@ -930,92 +932,97 @@ namespace CPUDoc
 
                 if (MemoryLabel.Length == 0) MemoryLabel = "N/A";
 
-                if (object.ReferenceEquals(null, Zen)) ZenInit();
+                if (App.inpoutdlldisable == false)  
+                    {                    
 
-                if (ZenStates)
-                {
+                    if (object.ReferenceEquals(null, Zen)) ZenInit();
 
-                    for (int r = 0; r < 20; ++r)
+                    if (ZenStates)
                     {
-                        bool _ok = ZenRefreshStatic(true);
-                        r = _ok ? 99 : r;
-                        Thread.Sleep(25);
+
+                        for (int r = 0; r < 20; ++r)
+                        {
+                            bool _ok = ZenRefreshStatic(true);
+                            r = _ok ? 99 : r;
+                            Thread.Sleep(25);
+                        }
+
+                        string _CPULabel = "";
+                        if (ZenPPT > 0 && ZenMaxPPT > 0 && ZenPPT != ZenMaxPPT)
+                        {
+                            _CPULabel += $"PPT: {string.Format("{0:D0}/{1:D0}W", ZenPPT, ZenMaxPPT)} ";
+                        } 
+                        else if (ZenPPT > 0)
+                        {
+                            _CPULabel += $"PPT: {string.Format("{0:D0}W", ZenPPT)} ";
+                        }
+                        if (Zen.powerTable.TDC > 0 && ZenMaxTDC > 0 && Zen.powerTable.TDC != ZenMaxTDC)
+                        {
+                            _CPULabel += $"TDC: {string.Format("{0:D0}/{1:D0}A", Zen.powerTable.TDC, ZenMaxTDC)} ";
+                        }
+                        else if (Zen.powerTable.TDC > 0)
+                        {
+                            _CPULabel += $"TDC: {string.Format("{0:D0}A", Zen.powerTable.TDC)} ";
+                        }
+                        if (Zen.powerTable.EDC > 0 && ZenMaxEDC > 0 && Zen.powerTable.EDC != ZenMaxEDC)
+                        {
+                            _CPULabel += $"EDC: {string.Format("{0:D0}/{1:D0}A", Zen.powerTable.EDC, ZenMaxEDC)} ";
+                        }
+                        else if (Zen.powerTable.EDC > 0)
+                        {
+                            _CPULabel += $"EDC: {string.Format("{0:D0}A", Zen.powerTable.EDC)} ";
+                        }
+                        if (ZenScalar > 0) _CPULabel += $"Scalar: {ZenScalar}x ";
+                        if (Zen.powerTable.THM > 0 && ZenMaxTHM > 0 && Zen.powerTable.THM != ZenMaxTHM)
+                        {
+                            _CPULabel += $"THM: {string.Format("{0:D0}/{1:D0}°C", Zen.powerTable.THM, ZenMaxTHM)} ";
+                        }
+                        else if (Zen.powerTable.THM > 0)
+                        {
+                            _CPULabel += $"THM: {string.Format("{0:D0}°C", Zen.powerTable.THM)} ";
+                        }
+
+                        if (_CPULabel.Length > 0) CPULabel += $"\n{_CPULabel}";
+
+                        _CPULabel = "";
+
+                        if (ZenMCLK > 0 || ZenFCLK > 0 || ZenUCLK > 0) _CPULabel += $"MCLK/FCLK/UCLK: {ZenMCLK.ToString("0.##")}/{ZenFCLK.ToString("0.##")}/{ZenUCLK.ToString("0.##")} ";
+                        if (ZenBoost > 0 && ZenMaxBoost > 0 && ZenBoost != ZenMaxBoost)
+                        {
+                            _CPULabel += $"Boost Clock: {ZenBoost}/{ZenMaxBoost} MHz ";
+                        }
+                        else if (ZenBoost > 0)
+                        {
+                            _CPULabel += $"Boost Clock: {ZenBoost} MHz ";
+                        }
+
+                        if (_CPULabel.Length > 0) CPULabel += $"\n{_CPULabel}";
+
+                        _CPULabel = "";
+
+                        if (ZenVDDP > 0) _CPULabel += $"VDDP: {ZenVDDP}mV ";
+                        if (ZenVDDG > 0) _CPULabel += $"VDDG: {ZenVDDG}mV ";
+                        if (ZenVCCD > 0) _CPULabel += $"VDDG CCD: {ZenVCCD}mV ";
+                        if (ZenVIOD > 0) _CPULabel += $"VDDG IOD: {ZenVIOD}mV ";
+
+                        if (_CPULabel.Length > 0) CPULabel += $"\n{_CPULabel}";
+
+                        _CPULabel = "";
+                        string _SMUVer = ZenSMUVer;
+
+                        if (CpuVtt.Length > 0) _CPULabel += $"VDD18: {CpuVtt} ";
+                        if (ZenSMUVer.Length > 0) {
+                            if (ZenSMUVer != "N/A") _SMUVer = $"v{ZenSMUVer}"; 
+                            _CPULabel += $"SMU: {_SMUVer} ";
+                        }
+                        if (ZenPTVersion > 0) _CPULabel += $"PT: 0x{ZenPTVersion:X} ";
+
+                        if (_CPULabel.Length > 0) CPULabel += $"\n{_CPULabel}";
+
+                        if (ZenCoreMapLabel.Length > 0) ProcessorsLabel += $"\nCoreMap: {ZenCoreMapLabel} ";
                     }
-
-                    string _CPULabel = "";
-                    if (ZenPPT > 0 && ZenMaxPPT > 0 && ZenPPT != ZenMaxPPT)
-                    {
-                        _CPULabel += $"PPT: {string.Format("{0:D0}/{1:D0}W", ZenPPT, ZenMaxPPT)} ";
-                    } 
-                    else if (ZenPPT > 0)
-                    {
-                        _CPULabel += $"PPT: {string.Format("{0:D0}W", ZenPPT)} ";
-                    }
-                    if (Zen.powerTable.TDC > 0 && ZenMaxTDC > 0 && Zen.powerTable.TDC != ZenMaxTDC)
-                    {
-                        _CPULabel += $"TDC: {string.Format("{0:D0}/{1:D0}A", Zen.powerTable.TDC, ZenMaxTDC)} ";
-                    }
-                    else if (Zen.powerTable.TDC > 0)
-                    {
-                        _CPULabel += $"TDC: {string.Format("{0:D0}A", Zen.powerTable.TDC)} ";
-                    }
-                    if (Zen.powerTable.EDC > 0 && ZenMaxEDC > 0 && Zen.powerTable.EDC != ZenMaxEDC)
-                    {
-                        _CPULabel += $"EDC: {string.Format("{0:D0}/{1:D0}A", Zen.powerTable.EDC, ZenMaxEDC)} ";
-                    }
-                    else if (Zen.powerTable.EDC > 0)
-                    {
-                        _CPULabel += $"EDC: {string.Format("{0:D0}A", Zen.powerTable.EDC)} ";
-                    }
-                    if (ZenScalar > 0) _CPULabel += $"Scalar: {ZenScalar}x ";
-                    if (Zen.powerTable.THM > 0 && ZenMaxTHM > 0 && Zen.powerTable.THM != ZenMaxTHM)
-                    {
-                        _CPULabel += $"THM: {string.Format("{0:D0}/{1:D0}°C", Zen.powerTable.THM, ZenMaxTHM)} ";
-                    }
-                    else if (Zen.powerTable.THM > 0)
-                    {
-                        _CPULabel += $"THM: {string.Format("{0:D0}°C", Zen.powerTable.THM)} ";
-                    }
-
-                    if (_CPULabel.Length > 0) CPULabel += $"\n{_CPULabel}";
-
-                    _CPULabel = "";
-
-                    if (ZenMCLK > 0 || ZenFCLK > 0 || ZenUCLK > 0) _CPULabel += $"MCLK/FCLK/UCLK: {ZenMCLK.ToString("0.##")}/{ZenFCLK.ToString("0.##")}/{ZenUCLK.ToString("0.##")} ";
-                    if (ZenBoost > 0 && ZenMaxBoost > 0 && ZenBoost != ZenMaxBoost)
-                    {
-                        _CPULabel += $"Boost Clock: {ZenBoost}/{ZenMaxBoost} MHz ";
-                    }
-                    else if (ZenBoost > 0)
-                    {
-                        _CPULabel += $"Boost Clock: {ZenBoost} MHz ";
-                    }
-
-                    if (_CPULabel.Length > 0) CPULabel += $"\n{_CPULabel}";
-
-                    _CPULabel = "";
-
-                    if (ZenVDDP > 0) _CPULabel += $"VDDP: {ZenVDDP}mV ";
-                    if (ZenVDDG > 0) _CPULabel += $"VDDG: {ZenVDDG}mV ";
-                    if (ZenVCCD > 0) _CPULabel += $"VDDG CCD: {ZenVCCD}mV ";
-                    if (ZenVIOD > 0) _CPULabel += $"VDDG IOD: {ZenVIOD}mV ";
-
-                    if (_CPULabel.Length > 0) CPULabel += $"\n{_CPULabel}";
-
-                    _CPULabel = "";
-                    string _SMUVer = ZenSMUVer;
-
-                    if (CpuVtt.Length > 0) _CPULabel += $"VDD18: {CpuVtt} ";
-                    if (ZenSMUVer.Length > 0) {
-                        if (ZenSMUVer != "N/A") _SMUVer = $"v{ZenSMUVer}"; 
-                        _CPULabel += $"SMU: {_SMUVer} ";
-                    }
-                    if (ZenPTVersion > 0) _CPULabel += $"PT: 0x{ZenPTVersion:X} ";
-
-                    if (_CPULabel.Length > 0) CPULabel += $"\n{_CPULabel}";
-
-                    if (ZenCoreMapLabel.Length > 0) ProcessorsLabel += $"\nCoreMap: {ZenCoreMapLabel} ";
                 }
+
                 OnChange("CPULabel");
                 OnChange("BoardLabel");
                 OnChange("SystemLabel");
@@ -1060,6 +1067,8 @@ namespace CPUDoc
                     }
                 }
 
+                SetProgress(12);
+
                 ClassName = "Win32_BaseBoard";
 
                 SIManagementClass = new ManagementClass(ClassName);
@@ -1089,6 +1098,8 @@ namespace CPUDoc
                         }
                     }
                 }
+
+                SetProgress(13);
 
                 ClassName = "Win32_Processor";
 
@@ -1429,8 +1440,12 @@ namespace CPUDoc
                 App.LogInfo($"CPU Manufacturer: {cpumanufacturer}");
                 App.LogInfo("");
 
+                int _deltap = 20 / CPULogicalProcessors;
+
                 for (int j = 0; j < CPULogicalProcessors; j++)
                 {
+                    SetProgress(16 + _deltap * j);
+
                     App.LogInfo($" CPU Logical Processor: {j}");
 
                     LibreHardwareMonitor.Hardware.CPU.CpuId _cpuid = LibreHardwareMonitor.Hardware.CPU.CpuId.Get(0, j);
@@ -1765,8 +1780,12 @@ namespace CPUDoc
                     }
                 }
                 App.LogInfo($"");
+
+                int _deltap = 20 / CPULogicalProcessors;
+
                 for (int i = 0; i < CPULogicalProcessors; ++i)
                 {
+                    SetProgress(42 + _deltap * i);
                     App.LogInfo($"CPU Logical Processor: {i + 1}");
                     App.LogInfo($" ProcessorInfo.LogicalProcessorIndex: {ProcessorInfo.CpuSetLogicalProcessorIndex(i) + 1}");
                     App.LogInfo($" ProcessorInfo.EfficiencyClass: {ProcessorInfo.CpuSetEfficiencyClass(i)}");
@@ -1792,7 +1811,7 @@ namespace CPUDoc
         {
             try
             {
-                if (!ZenDLLFail)
+                if (!ZenDLLFail && App.inpoutdlldisable == false)
                 {
                     ZenStates = false;
                     Zen?.Dispose();
@@ -2062,20 +2081,27 @@ namespace CPUDoc
                             App.LogInfo($"ZenCoreMapLabel: {ZenCoreMapLabel}");
                         }
 
+                        App.LogInfo("ZenRefreshCO...");
                         ZenRefreshCO();
 
                         bool _refreshpt = false, _done = false;
 
+                        int _ptr = 0;
+
                         while (!_done)
                         {
                             _refreshpt = ZenRefreshPowerTable();
-                            if (Zen.powerTable != null && _refreshpt) _done = true;
+                            _ptr++;
+                            App.LogInfo($"ZenRefreshPT Init Loop n.{_ptr}...");
+                            if ((Zen.powerTable != null && _refreshpt) || _ptr > 10) _done = true;
                         }
 
                         StringBuilder sbz = new StringBuilder();
 
                         if (Zen.powerTable != null)
                         {
+                            App.LogInfo("ZenPT Dump...");
+
                             try
                             {
                                 sbz.AppendLine($"Zen PM Table dump:");
@@ -2093,6 +2119,8 @@ namespace CPUDoc
 
                             sbz.Clear();
                         }
+
+                        App.LogInfo("ZenPT Init...");
 
                         if (_refreshpt || ver_maj > 0)
                         {
@@ -3438,7 +3466,7 @@ namespace CPUDoc
             }
             catch { }
         }
-        
+       
         public void UpdateCpuTotalLoad(double _value)
         {
             if (!App.MainWindowOpen) return;
@@ -3454,6 +3482,21 @@ namespace CPUDoc
             }
             catch { }
         }
+        public void SetProgress(int progress, string content = "")
+        {
+            return;
+            try
+            {
+                DispatcherOperationStatus result = App.Current.Dispatcher.BeginInvoke(
+                    DispatcherPriority.Input,
+                    new Action(() => {
+                        App.splashInfo.SetProgress(progress, content);
+                    })).Wait();
+                if (result == DispatcherOperationStatus.Completed) { return; }
+            }
+            catch { }
+        }
+
         public void SetLastVersionOnServer(string _value)
         {
             try
@@ -3464,52 +3507,24 @@ namespace CPUDoc
             }
             catch { }
         }
+
         public void SetThreadBoosterStatus(string _value)
         {
-            if (!App.MainWindowOpen) return;
             try
             {
                 ThreadBoosterStatus = _value.Length > 0 ? _value : "N/A";
                 //App.LogInfo($"{_value}");
-                if (App.thrThreadBooster.ThreadState == System.Threading.ThreadState.Running || App.thrThreadBooster.ThreadState == System.Threading.ThreadState.Background || App.tbtimer.Enabled == true)
+                //if (App.thrThreadBooster.ThreadState == System.Threading.ThreadState.Running || App.thrThreadBooster.ThreadState == System.Threading.ThreadState.Background || App.tbtimer.Enabled == true)
+                if (App.thrThreadBoosterRunning)
                 {
                     ThreadBoosterButton = "Stop";
-                    ThreadBoosterRunning = true;
                 }
                 else
                 {
                     ThreadBoosterButton = "Start";
-                    ThreadBoosterRunning = false;
                 }
                 OnChange("ThreadBoosterStatus");
                 OnChange("ThreadBoosterButton");
-            }
-            catch { }
-        }
-
-        public void SetPSAStatus(bool _status)
-        {
-            if (!App.MainWindowOpen) return;
-            try
-            {
-                string sleep = "", mode = "";
-                if (_status)
-                {
-                    PSABias = (App.PSABiasCurrent == 0) ? " [Economizer]" : (App.PSABiasCurrent == 1) ? " [Standard]" : " [Booster]";
-                    sleep = App.psact_deep_b ? " [Deep Sleep]" : App.psact_light_b ? " [Light Sleep]" : "";
-                    mode = ThreadBooster.GameMode ? " [GameMode]" : ThreadBooster.ActiveMode ? " [ActiveMode]" : "";
-                    mode += ThreadBooster.FocusAssist ? " [FocusAssist]" : "";
-                    mode += ThreadBooster.UserNotification ? " [UserNotification]" : "";
-                    mode += ThreadBooster.PLEvtPerfMode ? " [PL PerfMode]" : "";
-                }
-
-                if (App.PPImportErrStatus) sleep = "[Error Initialization]";
-                PSAStatus = _status ? $"Enabled {PSABias}{sleep}{mode}" : "Disabled";
-                TogglePSA = _status ? $"Toggle PowerSaverActive OFF" : "Toggle PowerSaverActive ON";
-                PSAStatus = ThreadBoosterRunning || !App.psact_b ? PSAStatus : $"<Inactive> {PSAStatus}";
-                OnChange("PSAStatus");
-                OnChange("PSABias");
-                OnChange("TogglePSA");
             }
             catch { }
         }
@@ -3529,34 +3544,97 @@ namespace CPUDoc
             }
             catch { }
         }
-        public void SetSSHStatus(bool _status)
+
+        public void UpdateSSHStatus(bool _status)
         {
-            if (!App.MainWindowOpen) return;
             try
             {
                 SSHStatus = _status == true ? $"Enabled" : "Disabled";
-                if (_status == true) SSHStatus = App.systimer.Enabled && App.pactive.SysSetHack ? $"{SSHStatus} {ThreadBooster.CountBits(App.lastSysCpuSetMask)}/{ThreadBooster.CountBits(ThreadBooster.defFullBitMask)}" : $"{SSHStatus} (Inactive)";
-                SSHStatus = ThreadBoosterRunning ? SSHStatus : $"<Inactive> {SSHStatus}";
-                TogglePSA = _status ? $"Toggle SysSetHack OFF" : "Toggle SysSetHack ON";
+                if (_status == true) SSHStatus = App.thrSysRunning && App.pactive.SysSetHack ? $"{SSHStatus} {ThreadBooster.CountBits(App.lastSysCpuSetMask)}/{ThreadBooster.CountBits(ThreadBooster.defFullBitMask)}" : $"{SSHStatus} (Inactive)";
+                SSHStatus = App.thrThreadBoosterRunning ? SSHStatus : $"<Inactive> {SSHStatus}";
+            }
+            catch { }
+        }
+
+        public void SetSSHStatus(bool _status)
+        {
+            try
+            {
+                UpdateSSHStatus(_status);
+                TogglePSA = _status ? $"Disable SSH" : "Enable SSH";
+                App.StripItemToggleSSH.Text = _status ? $"Disable SSH" : "Enable SSH";
+                App.StripItemToggleSSH.Checked = _status;
                 OnChange("SSHStatus");
                 OnChange("ToggleSSH");
             }
             catch { }
         }
-        public void SetN0Status(bool _status)
+
+        public void UpdatePSAStatus(bool _status)
         {
-            if (!App.MainWindowOpen) return;
             try
             {
-                N0Status = _status == true ? $"Enabled" : "Disabled";
-                if (_status == true) N0Status = App.numazero_b ? $"{N0Status} Selected: {App.n0enabledT0.Count() + App.n0enabledT1.Count()}T Excluded: {App.n0disabledT0.Count() + App.n0disabledT1.Count()}T" : $"{N0Status} (Inactive)";
-                N0Status = ThreadBoosterRunning ? N0Status : $"<Inactive> {N0Status}";
-                ToggleN0 = _status ? $"Toggle NumaZero OFF" : "Toggle NumaZero ON";
-                OnChange("ToggleN0");
-                OnChange("N0Status");
+                string sleep = "", mode = "";
+                if (_status)
+                {
+                    PSABias = App.GetPSABiasLabel();
+                    sleep = App.psact_deep_b ? " [Deep Sleep]" : App.psact_light_b ? " [Light Sleep]" : "";
+                    mode = ThreadBooster.GameMode ? " [GameMode]" : ThreadBooster.ActiveMode ? " [ActiveMode]" : "";
+                    mode += ThreadBooster.FocusAssist ? " [FocusAssist]" : "";
+                    mode += ThreadBooster.UserNotification ? " [UserNotification]" : "";
+                    mode += ThreadBooster.PLEvtPerfMode ? " [PL PerfMode]" : "";
+                }
+
+                if (App.PPImportErrStatus) sleep = "[Error Initialization]";
+                PSAStatus = _status ? $"Enabled {PSABias}{sleep}{mode}" : "Disabled";
+                TogglePSA = _status ? $"Disable PSA" : "Enable PSA";
+                PSAStatus = App.psact_b ? PSAStatus : $"<Inactive> {PSAStatus}";
             }
             catch { }
         }
+        public void SetPSAStatus(bool _status)
+        {
+            try
+            {
+                UpdatePSAStatus(_status);
+                App.StripItemTogglePSA.Text = _status ? $"Disable PSA" : "Enable PSA";
+                App.StripItemTogglePSA.Checked = _status;
+                OnChange("PSAStatus");
+                OnChange("PSABias");
+                OnChange("TogglePSA");
+            }
+            catch { }
+        }
+        public void UpdateN0Status(bool _status)
+        {
+            try
+            {
+                N0Status = _status ? $"Enabled" : "Disabled";
+                if (_status == true) N0Status = App.numazero_b ? $"{N0Status} Selected: {App.n0enabledT0.Count() + App.n0enabledT1.Count()}T Excluded: {App.n0disabledT0.Count() + App.n0disabledT1.Count()}T" : $"{N0Status} (Inactive)";
+                N0Status = App.thrThreadBoosterRunning ? N0Status : $"<Inactive> {N0Status}";
+            }
+            catch { }
+        }
+        public void SetN0Status(bool _status)
+        {
+            try
+            {
+                UpdateN0Status(_status);
+                ToggleN0 = _status ? $"Disable NumaZero" : "Enable NumaZero";
+                OnChange("ToggleN0");
+                OnChange("N0Status");
+                App.StripItemToggleNumaZero.Text = _status ? $"Disable NumaZero" : "Enable NumaZero";
+                App.StripItemToggleNumaZero.Checked = _status;
+                /*
+                if (App.Current.Dispatcher.CheckAccess())
+                    App.StripItemToggleNumaZero.Text = _status ? $"Disable NumaZero" : "Enable NumaZero";
+                else
+                    App.Current.Dispatcher.Invoke(new Action(() => App.StripItemToggleNumaZero.Text = _status ? $"Disable NumaZero" : "Enable NumaZero"));
+                */
+            }
+            catch { }
+        }
+
         protected void OnChange(string info)
         {
             try
@@ -3568,6 +3646,7 @@ namespace CPUDoc
             }
             catch { }
         }
+
         public class UpdateVisitor : IVisitor
         {
             public void VisitComputer(IComputer computer)

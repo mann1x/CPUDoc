@@ -136,6 +136,22 @@
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                     <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                    <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -585,6 +601,22 @@
                                         Allow RTC Wake Timers
                                     </CheckBox>
 
+                                    <TextBlock Grid.Column="1" Grid.Row="25" HorizontalAlignment="Right" VerticalAlignment="Center" Text="Enabled Sleep modes:"/>
+                                    <CheckBox Grid.Column="2" Grid.Row="25" Grid.ColumnSpan="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="cbPSALightSleep" IsChecked="True">
+                                        Light Sleep
+                                    </CheckBox>
+                                    <CheckBox Grid.Column="3" Grid.Row="25" Grid.ColumnSpan="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="cbPSADeepSleep" IsChecked="True">
+                                        Deep Sleep
+                                    </CheckBox>
+
+                                    <TextBlock Grid.Column="1" Grid.Row="27" HorizontalAlignment="Right" VerticalAlignment="Center" Text="Audio playback prevents entering:"/>
+                                    <CheckBox Grid.Column="2" Grid.Row="27" Grid.ColumnSpan="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="cbPSAAudioBlocksLightSleep" IsChecked="False">
+                                        Light Sleep
+                                    </CheckBox>
+                                    <CheckBox Grid.Column="3" Grid.Row="27" Grid.ColumnSpan="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="cbPSAAudioBlocksDeepSleep" IsChecked="True">
+                                        Deep Sleep
+                                    </CheckBox>
+
                                 </Grid>
 
                                 <CheckBox Grid.Column="0" Grid.Row="9" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="ZC_Click" x:Name="cbZC">
@@ -658,6 +690,11 @@
 
                                     <TextBox Grid.Column="2" Grid.Row="3" Width="64" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="EDChpx" PreviewTextInput="pbolimit_PreviewTextInput">
                                     </TextBox>
+
+                                    <CheckBox Grid.Column="1" Grid.Row="10" Grid.ColumnSpan="3" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="cbZCCPUTemp" IsChecked="False">
+                                        Show CPU Temperature, if available, on the system tray icon
+                                    </CheckBox>
+
                                 </Grid>
 
 
@@ -669,10 +706,16 @@
                                 <ComboBox Grid.Column="2" Grid.Row="20" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroType_Select" x:Name="listNumaZeroType">
 
                                     <ComboBoxItem Tag="0">Auto</ComboBoxItem>
-                                    <ComboBoxItem Tag="1">First 8 Cores</ComboBoxItem>
-                                    <ComboBoxItem Tag="2">First 6 Cores</ComboBoxItem>
-                                    <ComboBoxItem Tag="3">First 4 Cores</ComboBoxItem>
-                                    <ComboBoxItem Tag="4">First 2 Cores</ComboBoxItem>
+                                    <ComboBoxItem Tag="1">First 20 Cores</ComboBoxItem>
+                                    <ComboBoxItem Tag="2">First 18 Cores</ComboBoxItem>
+                                    <ComboBoxItem Tag="3">First 16 Cores</ComboBoxItem>
+                                    <ComboBoxItem Tag="4">First 14 Cores</ComboBoxItem>
+                                    <ComboBoxItem Tag="5">First 12 Cores</ComboBoxItem>
+                                    <ComboBoxItem Tag="6">First 10 Cores</ComboBoxItem>
+                                    <ComboBoxItem Tag="7">First 8 Cores</ComboBoxItem>
+                                    <ComboBoxItem Tag="8">First 6 Cores</ComboBoxItem>
+                                    <ComboBoxItem Tag="9">First 4 Cores</ComboBoxItem>
+                                    <ComboBoxItem Tag="10">First 2 Cores</ComboBoxItem>
                                 </ComboBox>
 
                                 <CheckBox Grid.Column="0" Grid.Row="21" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="PoolingRate_Click" x:Name="cbPoolingRate">
@@ -776,12 +819,18 @@
                                     </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <Button Grid.Column="0" Grid.Row="0" Name="BtnLogsFolder" Click="ButtonLogsFolder" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4">
+                                    <Button Grid.Column="1" Grid.Row="0" Name="BtnLogsFolder" Click="ButtonLogsFolder" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4">
                                         <TextBlock Margin="{adonisUi:Space}" Text="Open Logs folder">
                                         </TextBlock>
                                     </Button>
-                                    <Button Grid.Column="0" Grid.Row="1" Name="BtnResetSettings" Click="ResetSettings_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4">
+                                    <Button Grid.Column="0" Grid.Row="1" Name="BtnPopulateSettings" Click="PopulateSettings_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4" Visibility="Collapsed">
+                                        <TextBlock Margin="{adonisUi:Space}" Text="Populate settings">
+                                        </TextBlock>
+                                    </Button>
+                                    <Button Grid.Column="1" Grid.Row="1" Name="BtnResetSettings" Click="ResetSettings_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4">
                                         <TextBlock Margin="{adonisUi:Space}" Text="Reset settings">
                                         </TextBlock>
                                     </Button>

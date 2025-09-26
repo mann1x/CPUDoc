@@ -6,7 +6,8 @@
         xmlns:adonisUi="clr-namespace:AdonisUI;assembly=AdonisUI"
         xmlns:adonisControls="clr-namespace:AdonisUI.Controls;assembly=AdonisUI"
         xmlns:adonisExtensions="clr-namespace:AdonisUI.Extensions;assembly=AdonisUI"
-        xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
+        xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity" 
+        xmlns:cpudoc="clr-namespace:CPUDoc" d:DataContext="{d:DesignInstance Type=cpudoc:SplashInfo}"
         mc:Ignorable="d"
         Title="SplashWindow"
         Height="96"
@@ -28,7 +29,7 @@
         AllowsTransparency="True"
         Padding="0"
         UseLayoutRounding="False"
-        Background="#FF2A2B34" Closing="AdonisWindow_Closing"
+        Background="#FF2A2B34"
         >
 
     <Grid>
@@ -43,17 +44,19 @@
         <Image HorizontalAlignment="Left" Height="64" Width="64" Grid.Column="0" Grid.Row="0"
         	   Source="/Images/CPUDoc.ico" Margin="2,0,0,0"
                VerticalAlignment="Top" />
-        
+
         <Label Name="name" Height="64" FontSize="52" Content="CPUDoc" FontWeight="Bold" Grid.Column="1" Grid.Row="0"
                Foreground="#cdcdcd" Margin="6,-8,6,0" VerticalContentAlignment="Top" Panel.ZIndex="1"
                HorizontalAlignment="Center" VerticalAlignment="Top" />
-        
-        <ProgressBar adonisExtensions:ProgressBarExtension.IsProgressAnimationEnabled="False" adonisExtensions:ProgressBarExtension.Content="Initializing..." Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2"
-             Minimum="0"
-             Value="0"
-             Maximum="100"
-             Padding="0, 0"
-             x:Name="status"/>
+
+        <ProgressBar d:DataContext="{d:DesignInstance Type=cpudoc:SplashInfo}" adonisExtensions:ProgressBarExtension.IsProgressAnimationEnabled="False" 
+                     adonisExtensions:ProgressBarExtension.Content="{Binding Path=SplashContent, UpdateSourceTrigger=PropertyChanged}" 
+                     Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2"
+                     Minimum="0"
+                     Value="{Binding Path=SplashProgress, UpdateSourceTrigger=PropertyChanged}"
+                     Maximum="100"
+                     Padding="0, 0"
+                     x:Name="status"/>
 
 
     </Grid>

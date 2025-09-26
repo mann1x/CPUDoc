@@ -53,6 +53,20 @@ using Config.Net;
 using LibreHardwareMonitor.Hardware;
 using ImpromptuInterface;
 using net.r_eg.Conari.Extension;
+using AdonisUI;
+using Microsoft.Extensions.Logging;
+using WindowsForms = System.Windows.Forms;
+using AdonisUI.Extensions;
+using PInvoke;
+using Vanara.PInvoke;
+using H.NotifyIcon;
+using H.NotifyIcon.EfficiencyMode;
+using net.r_eg.Conari.Static;
+using Windows.UI.ViewManagement;
+using WalkmanLib;
+using Windows.Devices.Sensors;
+using System.Drawing.Printing;
+using Castle.Components.DictionaryAdapter.Xml;
 
 namespace CPUDoc
 {
@@ -70,6 +84,8 @@ namespace CPUDoc
         public static Logger logger = LogManager.GetCurrentClassLogger();
         public static bool logger_b = false;
 
+        public event PropertyChangedEventHandler PropertyChanged;
+
         private static readonly EventHook.EventHookFactory eventHookFactory = new EventHook.EventHookFactory();
         private static EventHook.ApplicationWatcher applicationWatcher;
         private static EventHook.KeyboardWatcher keyboardWatcher;
@@ -83,7 +99,6 @@ namespace CPUDoc
         public static DateTime UAStamp;
 
         private static LoggingRule logtraceRule;
-
         private static LoggingRule logfileRule;
 
         internal const string mutexName = "Local\\CPUDoc";
@@ -97,6 +112,14 @@ namespace CPUDoc
         public static int InterlockHWM = 0;
         public static int InterlockTB = 0;
         public static int InterlockSys = 0;
+        public static readonly object lockApply = new object();
+        public static readonly object lockPSAInit = new object();
+        public static readonly object lockPSADisable = new object();
+        public static readonly object lockSysCpuSet = new object();
+        public static readonly object lockModeApply = new object();
+        public static readonly object lockZCInit = new object();
+
+        public static uint mmcsTaskIndex = 0;
 
         public static CancellationTokenSource hwmcts = new CancellationTokenSource();
         public static CancellationTokenSource tbcts = new CancellationTokenSource();
@@ -106,20 +129,41 @@ namespace CPUDoc
         public static ManualResetEventSlim mrestb = new ManualResetEventSlim(false);
         public static ManualResetEventSlim mressys = new ManualResetEventSlim(false);
 
-        public static System.Timers.Timer hwmtimer = new System.Timers.Timer();
-        public static System.Timers.Timer tbtimer = new System.Timers.Timer();
-        public static System.Timers.Timer systimer = new System.Timers.Timer();
+        //public static System.Timers.Timer hwmtimer = new System.Timers.Timer();
+        //public static System.Timers.Timer tbtimer = new System.Timers.Timer();
+        //public static System.Timers.Timer systimer = new System.Timers.Timer();
 
         public static Thread thrMonitor;
         public static int thridMonitor;
+        public static volatile bool thrMonitorRunning = false;
         public static Thread thrThreadBooster;
         public static int thridThreadBooster;
+        public static volatile bool thrThreadBoosterRunning = false;
         public static Thread thrSys;
         public static int thridSys;
+        public static volatile bool thrSysRunning = false;
+
+        //public static Hardcodet.Wpf.TaskbarNotification.TaskbarIcon tbIcon;
+        //public static TaskbarIcon tbIcon;
+        public static System.Windows.Forms.NotifyIconPlus trayIconMonitor;
+        public static System.Windows.Forms.NotifyIcon trayIcon;
+        //public static H.NotifyIcon.TaskbarIcon trayIcon2;
+        public static WindowsForms.ToolStripMenuItem StripItemCPUDocVer = new WindowsForms.ToolStripMenuItem();
+        public static WindowsForms.ToolStripSeparator StripItemSeparator = new WindowsForms.ToolStripSeparator();
+        public static WindowsForms.ToolStripMenuItem StripItemToggleSSH = new WindowsForms.ToolStripMenuItem();
+        public static WindowsForms.ToolStripMenuItem StripItemTogglePSA = new WindowsForms.ToolStripMenuItem();
+        public static WindowsForms.ToolStripMenuItem StripItemToggleNumaZero = new WindowsForms.ToolStripMenuItem();
+        public static WindowsForms.ToolStripSeparator StripItemSeparator2 = new WindowsForms.ToolStripSeparator();
+        public static WindowsForms.ToolStripMenuItem StripItemQuit = new WindowsForms.ToolStripMenuItem();
+        public static int sysTrayIconSize = 16;
+
+        public static H.NotifyIcon.TaskbarIcon notifyIcon;
 
         public static bool MainWindowOpen = false;
 
         public static SystemInfo systemInfo;
+        public static SplashInfo splashInfo;
+        public static SplashWindow splash;
         public static string version;
         public static string ss_filename;
         public static string _versionInfo;
@@ -130,16 +174,14 @@ namespace CPUDoc
         public static bool Win10 = false;
         public static bool Win11 = false;
 
-        public static uint? SysCpuSetMask = 0x0;
-        public static uint? lastSysCpuSetMask = null;
+        public static ulong? SysCpuSetMask = 0x0;
+        public static ulong? lastSysCpuSetMask = null;
 
         public static int? PSABiasCurrent = null;
         public static int? lastPSABiasCurrent = null;
 
         public static bool CoreBestT1T0 = false;
         public static bool CoreZeroT1T0 = false;
-
-        public static int SysMaskPooling = 25;
 
         public static IPowerPlanManager powerManager = PowerManagerProvider.CreatePowerManager();
         public static Guid PPGuidV1 = new Guid("FBB9C3D1-AF6E-46CF-B02B-C411928D1BE1");
@@ -167,6 +209,7 @@ namespace CPUDoc
 
         public static bool FocusAssistAvailable = false;
         public static bool UserNotificationAvailable = false;
+        public static WNF_STATE_NAME WNF_SHEL_QUIETHOURS_ACTIVE_PROFILE_CHANGED;
 
         public static int PPDutyCycling = 1;
         public static int PPUSBSSuspend = 0;
@@ -203,8 +246,6 @@ namespace CPUDoc
         public static SolidColorBrush whitebrush = new SolidColorBrush();
         public static Thickness thickness;
 
-        public static TaskbarIcon tbIcon;
-
         public static List<int> logicalsT0;
         public static List<int> logicalsT1;
 
@@ -218,7 +259,11 @@ namespace CPUDoc
         public static ICommandLineArgs cmdargs;
         public static IAppConfigs iAppConfigs;
         public static IAppConfig[] AppConfigs;
+        public static IAppZenProfilesOC iAppZenProfilesOC;
+        public static IAppZenProfileOC[] ZenProfilesOC;
+        public static IApp3DMark iApp3DMark;
         public static IAppConfig pactive;
+        public static Dictionary<string, IAppProcessProfile> bench3DMark;
         public static appProfiles AppProfiles;
         
         public static DispatcherTimer autimer;
@@ -226,6 +271,18 @@ namespace CPUDoc
         private static IDictionary<uint, string> _map;
         private static ManagementEventWatcher _processStartedWatcher;
         private static ManagementEventWatcher _processStoppedwatcher;
+
+        protected void OnChange(string info)
+        {
+            try
+            {
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs(info));
+                }
+            }
+            catch { }
+        }
 
         // © Rafael Rivera
         // License: MIT
@@ -476,13 +533,13 @@ namespace CPUDoc
         );
 
         [DllImport(@"cputools.dll")]
-        private static extern int SetSystemCpuSet(uint bitMask);
+        private static extern int SetSystemCpuSet(ulong bitMask);
 
         [DllImport(@"cputools.dll")]
         public static extern void wsleep(uint us);
 
         [DllImport(@"cputools.dll")]
-        private static extern int ResetSystemCpuSetProc(int pid, uint bitMask);
+        private static extern int ResetSystemCpuSetProc(int pid, ulong bitMask);
 
         [DllImport(@"cputools.dll")]
         public static extern ulong GetTimerResolution();
@@ -530,6 +587,9 @@ namespace CPUDoc
 
         [DllImport(@"cputools.dll")]
         public static extern int resetPowerThrottling(int pid);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        public extern static bool DestroyIcon(IntPtr handle);
 
         [DllImport(@"kernel32.dll", SetLastError = true)]
         static extern bool FreeLibrary(IntPtr hModule);
@@ -600,6 +660,7 @@ namespace CPUDoc
 
         public const int SM_CXSCREEN = 0;
         public const int SM_CYSCREEN = 1;
+        public const int SM_CXSMICON = 49;
 
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -843,11 +904,11 @@ namespace CPUDoc
             }
         }
 
-        public static int SetSysCpuSet(uint? BitMask = 0)
+        public static int SetSysCpuSet(ulong? BitMask = 0)
         {
-            uint _BitMask = 0x0;
+            ulong _BitMask = 0x0;
             int _ret = 0;
-            if (BitMask != null) _BitMask = (uint)BitMask;
+            if (BitMask != null) _BitMask = (ulong)BitMask;
             using (var lam = new ConariX(@"cputools.dll"))
             {
                 _ret = lam.DLR.SetSystemCpuSet<int>(_BitMask);
@@ -857,7 +918,7 @@ namespace CPUDoc
             */
             return _ret;
         }
-        public static int ProcSetCpuSet(int pid, uint BitMask = 0)
+        public static int ProcSetCpuSet(int pid, ulong BitMask = 0)
         {
             int _ret = 0;
             using (var lam = new ConariL(@"cputools.dll"))
@@ -918,7 +979,7 @@ namespace CPUDoc
             try
             {
                 //  Focus Assist:   Windows 10 build >= 17083
-                WNF_STATE_NAME WNF_SHEL_QUIETHOURS_ACTIVE_PROFILE_CHANGED = new WNF_STATE_NAME(0xA3BF1C75, 0xD83063E);
+                WNF_SHEL_QUIETHOURS_ACTIVE_PROFILE_CHANGED = new WNF_STATE_NAME(0xA3BF1C75, 0xD83063E);
                 uint nBufferSize = (uint)Marshal.SizeOf(typeof(IntPtr));
                 IntPtr pStateName = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(WNF_STATE_NAME)));
                 Marshal.StructureToPtr(WNF_SHEL_QUIETHOURS_ACTIVE_PROFILE_CHANGED, pStateName, false);
@@ -1256,7 +1317,7 @@ namespace CPUDoc
             try
             {
                 int _reset = resetPowerThrottling(_pid);
-                if (_reset != 0) LogInfo($"Power Throttling reset failed [PID={_pid}]: Error {_reset}");
+                if (_reset != 0) LogDebug($"Power Throttling reset failed [PID={_pid}]: Error {_reset}");
             }
             catch (Exception ex)
             {
@@ -1270,7 +1331,7 @@ namespace CPUDoc
             try
             {
                 int _execspeed = setPowerThrottlingExecSpeed(_pid, enable);
-                if (_execspeed != 0) LogInfo($"Power Throttling failed to set Execution Speed {enable} [PID={_pid}]: Error {_execspeed}");
+                if (_execspeed != 0) LogDebug($"Power Throttling failed to set Execution Speed {enable} [PID={_pid}]: Error {_execspeed}");
             }
             catch (Exception ex)
             {
@@ -1283,7 +1344,7 @@ namespace CPUDoc
             try
             {
                 int _ignoretimer = setPowerThrottlingIgnoreTimer(_pid, enable);
-                if (_ignoretimer != 0) LogInfo($"Power Throttling failed to set Ignore Timer {enable} [PID={_pid}]: Error {_ignoretimer}");
+                if (_ignoretimer != 0) LogDebug($"Power Throttling failed to set Ignore Timer {enable} [PID={_pid}]: Error {_ignoretimer}");
             }
             catch (Exception ex)
             {
@@ -1337,7 +1398,7 @@ namespace CPUDoc
                 if (IsInVisualStudio)
                 {
                     // set internal log level
-                    NLog.Common.InternalLogger.LogLevel = LogLevel.Debug;
+                    NLog.Common.InternalLogger.LogLevel = NLog.LogLevel.Debug;
                     // enable internal logging to the console
                     NLog.Common.InternalLogger.LogToTrace = false;
                     NLog.Common.InternalLogger.LogFile = ".\\Logs\\nlog-internal.txt";
@@ -1379,8 +1440,8 @@ namespace CPUDoc
                 logtracewrap.QueueLimit = 5000;
                 logtracewrap.OverflowAction = AsyncTargetWrapperOverflowAction.Grow;
 
-                logtraceRule = new LoggingRule("*", LogLevel.Trace, LogLevel.Fatal, logtracewrap);
-                logfileRule = new LoggingRule("*", LogLevel.Info, LogLevel.Fatal, logfilewrap);
+                logtraceRule = new LoggingRule("*", NLog.LogLevel.Trace, NLog.LogLevel.Fatal, logtracewrap);
+                logfileRule = new LoggingRule("*", NLog.LogLevel.Info, NLog.LogLevel.Fatal, logfilewrap);
 
                 logconfig.LoggingRules.Add(logfileRule);
 
@@ -1395,7 +1456,7 @@ namespace CPUDoc
                     logdebuggerwrap.QueueLimit = 5000;
                     logdebuggerwrap.OverflowAction = AsyncTargetWrapperOverflowAction.Grow;
 
-                    var logdebuggerRule = new LoggingRule("*", LogLevel.Debug, LogLevel.Fatal, logdebuggerwrap);
+                    var logdebuggerRule = new LoggingRule("*", NLog.LogLevel.Debug, NLog.LogLevel.Fatal, logdebuggerwrap);
                     logconfig.LoggingRules.Add(logdebuggerRule);
 
                     var consolelogconfig = new LoggingConfiguration();
@@ -1456,14 +1517,294 @@ namespace CPUDoc
             try
             {
                 LogInfo($"AppReboot reason: {reason}");
+                instanceMutex.ReleaseMutex();
+                string arguments = string.Empty;
+                string[] args = Environment.GetCommandLineArgs();
+                for (int i = 1; i < args.Length; i++) // args[0] is always exe path/filename
+                    arguments += args[i] + " ";
+                objProcessInfo.Arguments = arguments;
+                // Restart current application, with same arguments/parameters
                 Process proc = Process.Start(objProcessInfo);
-                Application.Current.Shutdown();
+                QuitApplication();
+                Environment.Exit(0);
+
             }
             catch (Exception ex)
             {
                 LogExError($"AppReboot exception reason[{reason}]: {ex.Message}", ex);
             }
         }
+
+        /*
+        public static void ConfigInit()
+        {
+            try
+            {
+                bool iniread = false;
+                int iniretries = 0;
+
+                AppSettings = new ConfigurationBuilder<IAppSettings>()
+                    .UseIniFile(SettingsManager.fileAppSettingsINI)
+                    .Build();
+
+                iAppConfigs = new ConfigurationBuilder<IAppConfigs>()
+                    .UseIniFile(SettingsManager.fileAppConfigsINI)
+                    .Build();
+
+                cmdargs = new ConfigurationBuilder<ICommandLineArgs>()
+                    .UseCommandLineArgs(
+                        new KeyValuePair<string, int>(nameof(ICommandLineArgs.LogTrace), 1))
+                    .Build();
+
+                iApp3DMark = new ConfigurationBuilder<IApp3DMark>()
+                    .UseIniFile(SettingsManager.file3DMarkINI)
+                    .Build();
+
+                iAppZenProfilesOC = new ConfigurationBuilder<IAppZenProfilesOC>()
+                    .UseIniFile(SettingsManager.fileZenProfilesOCINI)
+                    .Build();
+
+                int cntconfigs = 10;
+
+                AppConfigs = new IAppConfig[cntconfigs];
+
+                AppConfigs[0] = iAppConfigs.profile0.ActLike<IAppConfig>();
+                AppConfigs[1] = iAppConfigs.profile1.ActLike<IAppConfig>();
+                AppConfigs[2] = iAppConfigs.profile2.ActLike<IAppConfig>();
+                AppConfigs[3] = iAppConfigs.profile3.ActLike<IAppConfig>();
+                AppConfigs[4] = iAppConfigs.profile4.ActLike<IAppConfig>();
+                AppConfigs[5] = iAppConfigs.profile5.ActLike<IAppConfig>();
+                AppConfigs[6] = iAppConfigs.profile6.ActLike<IAppConfig>();
+                AppConfigs[7] = iAppConfigs.profile7.ActLike<IAppConfig>();
+                AppConfigs[8] = iAppConfigs.profile8.ActLike<IAppConfig>();
+                AppConfigs[9] = iAppConfigs.profile9.ActLike<IAppConfig>();
+
+                bench3DMark = new()
+                {
+                    {    "EasyFMSI", iApp3DMark.EasyFMSI.ActLike<IAppProcessProfile>()},
+                    {    "SystemInfoHelper", iApp3DMark.SystemInfoHelper.ActLike<IAppProcessProfile>()},
+                    {    "TSEGT1", iApp3DMark.TSEGT1.ActLike<IAppProcessProfile>()},
+                    {    "TSEGT2", iApp3DMark.TSEGT2.ActLike<IAppProcessProfile>()},
+                    {    "TSECPU", iApp3DMark.TSECPU.ActLike<IAppProcessProfile>()},
+                    {    "TSGT1", iApp3DMark.TSGT1.ActLike<IAppProcessProfile>()},
+                    {    "TSGT2", iApp3DMark.TSGT2.ActLike<IAppProcessProfile>()},
+                    {    "TSCPU", iApp3DMark.TSCPU.ActLike<IAppProcessProfile>()},
+                    {    "SWGT1", iApp3DMark.SWGT1.ActLike<IAppProcessProfile>()},
+                    {    "PRGT1", iApp3DMark.PRGT1.ActLike<IAppProcessProfile>()},
+                    {    "FSGT1", iApp3DMark.FSGT1.ActLike<IAppProcessProfile>()},
+                    {    "FSGT2", iApp3DMark.FSGT2.ActLike<IAppProcessProfile>()},
+                    {    "FSPHY", iApp3DMark.FSPHY.ActLike<IAppProcessProfile>()},
+                    {    "FSCOMBI", iApp3DMark.FSCOMBI.ActLike<IAppProcessProfile>()},
+                    {    "FSUGT1", iApp3DMark.FSUGT1.ActLike<IAppProcessProfile>()},
+                    {    "FSUGT2", iApp3DMark.FSUGT2.ActLike<IAppProcessProfile>()},
+                    {    "FSUPHY", iApp3DMark.FSUPHY.ActLike<IAppProcessProfile>()},
+                    {    "FSUCOMBI", iApp3DMark.FSUCOMBI.ActLike<IAppProcessProfile>()},
+                    {    "FSEGT1", iApp3DMark.FSEGT1.ActLike<IAppProcessProfile>()},
+                    {    "FSEGT2", iApp3DMark.FSEGT2.ActLike<IAppProcessProfile>()},
+                    {    "FSEPHY", iApp3DMark.FSEPHY.ActLike<IAppProcessProfile>()},
+                    {    "FSECOMBI", iApp3DMark.FSECOMBI.ActLike<IAppProcessProfile>()},
+                    {    "WLGT1", iApp3DMark.WLGT1.ActLike<IAppProcessProfile>()},
+                    {    "WLEGT1", iApp3DMark.WLEGT1.ActLike<IAppProcessProfile>()},
+                    {    "NRGT1", iApp3DMark.NRGT1.ActLike<IAppProcessProfile>()},
+                    {    "NRGT2", iApp3DMark.NRGT2.ActLike<IAppProcessProfile>()},
+                    {    "NRCPU", iApp3DMark.NRCPU.ActLike<IAppProcessProfile>()},
+                    {    "SDGT1", iApp3DMark.SDGT1.ActLike<IAppProcessProfile>()},
+                    {    "SDGT2", iApp3DMark.SDGT2.ActLike<IAppProcessProfile>()},
+                    {    "SDPHY", iApp3DMark.SDPHY.ActLike<IAppProcessProfile>()},
+                    {    "SDCOMBI", iApp3DMark.SDCOMBI.ActLike<IAppProcessProfile>()},
+                    {    "CGGT1", iApp3DMark.CGGT1.ActLike<IAppProcessProfile>()},
+                    {    "CGGT2", iApp3DMark.CGGT2.ActLike<IAppProcessProfile>()},
+                    {    "CGPHY", iApp3DMark.CGPHY.ActLike<IAppProcessProfile>()},
+                    {    "ISGT1", iApp3DMark.ISGT1.ActLike<IAppProcessProfile>()},
+                    {    "ISGT2", iApp3DMark.ISGT2.ActLike<IAppProcessProfile>()},
+                    {    "ISPHY", iApp3DMark.ISPHY.ActLike<IAppProcessProfile>()},
+                    {    "ISEGT1", iApp3DMark.ISEGT1.ActLike<IAppProcessProfile>()},
+                    {    "ISEGT2", iApp3DMark.ISEGT2.ActLike<IAppProcessProfile>()},
+                    {    "ISEPHY", iApp3DMark.ISEPHY.ActLike<IAppProcessProfile>()},
+                    {    "CPUProfile", iApp3DMark.CPUProfile.ActLike<IAppProcessProfile>()},
+                    {    "CPUProfile16", iApp3DMark.CPUProfile16.ActLike<IAppProcessProfile>()},
+                    {    "CPUProfile8", iApp3DMark.CPUProfile8.ActLike<IAppProcessProfile>()},
+                    {    "CPUProfile4", iApp3DMark.CPUProfile4.ActLike<IAppProcessProfile>()},
+                    {    "CPUProfile2", iApp3DMark.CPUProfile2.ActLike<IAppProcessProfile>()},
+                    {    "CPUProfile1", iApp3DMark.CPUProfile1.ActLike<IAppProcessProfile>()}
+                };
+
+                int cntzenprofiles = 20;
+
+                ZenProfilesOC = new IAppZenProfileOC[cntzenprofiles];
+
+                ZenProfilesOC[0] = iAppZenProfilesOC.profile0.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[1] = iAppZenProfilesOC.profile1.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[2] = iAppZenProfilesOC.profile2.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[3] = iAppZenProfilesOC.profile3.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[4] = iAppZenProfilesOC.profile4.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[5] = iAppZenProfilesOC.profile5.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[6] = iAppZenProfilesOC.profile6.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[7] = iAppZenProfilesOC.profile7.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[8] = iAppZenProfilesOC.profile8.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[9] = iAppZenProfilesOC.profile9.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[10] = iAppZenProfilesOC.profile10.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[11] = iAppZenProfilesOC.profile11.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[12] = iAppZenProfilesOC.profile12.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[13] = iAppZenProfilesOC.profile13.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[14] = iAppZenProfilesOC.profile14.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[15] = iAppZenProfilesOC.profile15.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[16] = iAppZenProfilesOC.profile16.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[17] = iAppZenProfilesOC.profile17.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[18] = iAppZenProfilesOC.profile18.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[19] = iAppZenProfilesOC.profile19.ActLike<IAppZenProfileOC>();
+
+                Action<Exception> retryHandler = (ex) => {
+
+                    Thread.Sleep(1000);
+
+                    LogError($"ConfigInit error locking INI files, retrying ({iniretries})");
+                    LogExError($"ConfigInit exception: {ex.Message}", ex);
+
+                    iniread = false;
+                    iniretries++;
+                };
+
+                while (!iniread)
+                {
+                    try
+                    {
+
+                        //App.LogDebug($"Profile 1 ThreadBooster Active={App.AppConfigs.profile1.ThreadBooster}");
+
+                        if (iniretries > 5) { throw new Exception(); }
+
+                        for (int p = 0; p < cntconfigs; p++)
+                        {
+                            AppConfigs[p].id = p;
+                            AppConfigs[p].Description = AppConfigs[p].Description.ToString() == "" ? "Default" : AppConfigs[p].Description.ToString().Trim();
+                        }
+
+                        SettingsManager.SanitizeProfiles();
+
+                        foreach (IAppConfig profile in AppConfigs)
+                        {
+                            profile.WritePropertiesToItself();
+                        }
+
+                        AppSettings.WritePropertiesToItself();
+
+                        foreach (KeyValuePair<string, IAppProcessProfile> entry in bench3DMark)
+                        {
+                            var profile = entry.Value;
+                            profile.Name = entry.Key;
+                            profile.WritePropertiesToItself();
+                        }
+
+                        foreach (IAppZenProfileOC profile in ZenProfilesOC)
+                        {
+                            profile.WritePropertiesToItself();
+                        }
+
+                        pactive = new ConfigurationBuilder<IAppConfig>()
+                            .UseInMemoryDictionary()
+                            .Build();
+
+                        int _id = AppSettings.BootProfile < 0 || AppSettings.BootProfile > 9 ? 0 : AppSettings.BootProfile;
+
+                        App.AppConfigs[_id].CopyPropertiesTo(pactive);
+
+                        App.LogDebug($"Active Config Profile id={pactive.id} Description={pactive.Description} ThreadBooster={pactive.ThreadBooster}");
+
+                        iniread = true;
+                    }
+                    catch (IOException ex) { retryHandler(ex); }
+                    catch (TargetInvocationException ex) { retryHandler(ex); }
+                }
+            }
+            catch (Exception ex)
+            {
+                string errorMessage = "Can't lock INI files, please close any text editor which could have them open and double check changes if you made some manually";
+                LogExError($"ConfigInit exception: {ex.Message}", ex);
+                //Thread.Sleep(1000);
+                //AppReboot(errorMessage);
+                
+                if (Task.Run(() => MessageBox.Show(errorMessage, "CPUDoc Error", MessageBoxButton.OK, MessageBoxImage.Error)).Result == MessageBoxResult.OK)
+                {
+                    QuitApplication();
+                    Current.Shutdown();
+                    Environment.Exit(1);
+                }
+                
+            }
+        }
+
+        */
+        public static void PopulateSettings()
+        {
+            try 
+            {
+                bool _done = false;
+                int _retries = 0;
+
+                Action<Exception> retryHandler = (ex) => {
+                    _retries++;
+                };
+
+                AppSettings.WritePropertiesToItself();
+
+                for (int p = 0; p < AppConfigs.Length; p++)
+                {
+                    while (!_done)
+                    {
+                        try
+                        {
+                            AppConfigs[p].WritePropertiesToItself();
+                            _done = true;
+                        }
+                        catch (IOException ex) { retryHandler(ex); }
+                        catch (TargetInvocationException ex) { retryHandler(ex); }
+                    }
+                    _done = false;
+                }
+
+                _done = false;
+                _retries = 0;
+
+                foreach (KeyValuePair<string, IAppProcessProfile> entry in bench3DMark)
+                {
+                    while (!_done)
+                    {
+                        try
+                        {
+                            entry.Value.WritePropertiesToItself();
+                            _done = true;
+                        }
+                        catch (IOException ex) { retryHandler(ex); }
+                        catch (TargetInvocationException ex) { retryHandler(ex); }
+                    }
+                    _done = false;
+                }
+
+                _done = false;
+                _retries = 0;
+                
+                foreach (IAppZenProfileOC profile in ZenProfilesOC)
+                {
+                    while (!_done)
+                    {
+                        try
+                        {
+                            profile.WritePropertiesToItself();
+                            _done = true;
+                        }
+                        catch (IOException ex) { retryHandler(ex); }
+                        catch (TargetInvocationException ex) { retryHandler(ex); }
+                    }
+                    _done = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogExError($"PopulateSettings exception: {ex.Message}", ex);
+            }
+        }
+
         public static void ConfigInit()
         {
             try
@@ -1479,6 +1820,14 @@ namespace CPUDoc
                 cmdargs = new ConfigurationBuilder<ICommandLineArgs>()
                     .UseCommandLineArgs(
                         new KeyValuePair<string, int>(nameof(ICommandLineArgs.LogTrace), 1))
+                    .Build();
+
+                iApp3DMark = new ConfigurationBuilder<IApp3DMark>()
+                    .UseIniFile(SettingsManager.file3DMarkINI)
+                    .Build();
+
+                iAppZenProfilesOC = new ConfigurationBuilder<IAppZenProfilesOC>()
+                    .UseIniFile(SettingsManager.fileZenProfilesOCINI)
                     .Build();
 
                 //App.LogDebug($"Profile 1 ThreadBooster Active={App.AppConfigs.profile1.ThreadBooster}");
@@ -1506,12 +1855,86 @@ namespace CPUDoc
 
                 SettingsManager.SanitizeProfiles();
 
-                foreach (IAppConfig profile in AppConfigs)
+                bench3DMark = new()
                 {
-                    profile.WritePropertiesToItself();
+                    {    "EasyFMSI", iApp3DMark.EasyFMSI.ActLike<IAppProcessProfile>()},
+                    {    "SystemInfoHelper", iApp3DMark.SystemInfoHelper.ActLike<IAppProcessProfile>()},
+                    {    "TSEGT1", iApp3DMark.TSEGT1.ActLike<IAppProcessProfile>()},
+                    {    "TSEGT2", iApp3DMark.TSEGT2.ActLike<IAppProcessProfile>()},
+                    {    "TSECPU", iApp3DMark.TSECPU.ActLike<IAppProcessProfile>()},
+                    {    "TSGT1", iApp3DMark.TSGT1.ActLike<IAppProcessProfile>()},
+                    {    "TSGT2", iApp3DMark.TSGT2.ActLike<IAppProcessProfile>()},
+                    {    "TSCPU", iApp3DMark.TSCPU.ActLike<IAppProcessProfile>()},
+                    {    "SWGT1", iApp3DMark.SWGT1.ActLike<IAppProcessProfile>()},
+                    {    "PRGT1", iApp3DMark.PRGT1.ActLike<IAppProcessProfile>()},
+                    {    "FSGT1", iApp3DMark.FSGT1.ActLike<IAppProcessProfile>()},
+                    {    "FSGT2", iApp3DMark.FSGT2.ActLike<IAppProcessProfile>()},
+                    {    "FSPHY", iApp3DMark.FSPHY.ActLike<IAppProcessProfile>()},
+                    {    "FSCOMBI", iApp3DMark.FSCOMBI.ActLike<IAppProcessProfile>()},
+                    {    "FSUGT1", iApp3DMark.FSUGT1.ActLike<IAppProcessProfile>()},
+                    {    "FSUGT2", iApp3DMark.FSUGT2.ActLike<IAppProcessProfile>()},
+                    {    "FSUPHY", iApp3DMark.FSUPHY.ActLike<IAppProcessProfile>()},
+                    {    "FSUCOMBI", iApp3DMark.FSUCOMBI.ActLike<IAppProcessProfile>()},
+                    {    "FSEGT1", iApp3DMark.FSEGT1.ActLike<IAppProcessProfile>()},
+                    {    "FSEGT2", iApp3DMark.FSEGT2.ActLike<IAppProcessProfile>()},
+                    {    "FSEPHY", iApp3DMark.FSEPHY.ActLike<IAppProcessProfile>()},
+                    {    "FSECOMBI", iApp3DMark.FSECOMBI.ActLike<IAppProcessProfile>()},
+                    {    "WLGT1", iApp3DMark.WLGT1.ActLike<IAppProcessProfile>()},
+                    {    "WLEGT1", iApp3DMark.WLEGT1.ActLike<IAppProcessProfile>()},
+                    {    "NRGT1", iApp3DMark.NRGT1.ActLike<IAppProcessProfile>()},
+                    {    "NRGT2", iApp3DMark.NRGT2.ActLike<IAppProcessProfile>()},
+                    {    "NRCPU", iApp3DMark.NRCPU.ActLike<IAppProcessProfile>()},
+                    {    "SDGT1", iApp3DMark.SDGT1.ActLike<IAppProcessProfile>()},
+                    {    "SDGT2", iApp3DMark.SDGT2.ActLike<IAppProcessProfile>()},
+                    {    "SDPHY", iApp3DMark.SDPHY.ActLike<IAppProcessProfile>()},
+                    {    "SDCOMBI", iApp3DMark.SDCOMBI.ActLike<IAppProcessProfile>()},
+                    {    "CGGT1", iApp3DMark.CGGT1.ActLike<IAppProcessProfile>()},
+                    {    "CGGT2", iApp3DMark.CGGT2.ActLike<IAppProcessProfile>()},
+                    {    "CGPHY", iApp3DMark.CGPHY.ActLike<IAppProcessProfile>()},
+                    {    "ISGT1", iApp3DMark.ISGT1.ActLike<IAppProcessProfile>()},
+                    {    "ISGT2", iApp3DMark.ISGT2.ActLike<IAppProcessProfile>()},
+                    {    "ISPHY", iApp3DMark.ISPHY.ActLike<IAppProcessProfile>()},
+                    {    "ISEGT1", iApp3DMark.ISEGT1.ActLike<IAppProcessProfile>()},
+                    {    "ISEGT2", iApp3DMark.ISEGT2.ActLike<IAppProcessProfile>()},
+                    {    "ISEPHY", iApp3DMark.ISEPHY.ActLike<IAppProcessProfile>()},
+                    {    "CPUProfile", iApp3DMark.CPUProfile.ActLike<IAppProcessProfile>()},
+                    {    "CPUProfile16", iApp3DMark.CPUProfile16.ActLike<IAppProcessProfile>()},
+                    {    "CPUProfile8", iApp3DMark.CPUProfile8.ActLike<IAppProcessProfile>()},
+                    {    "CPUProfile4", iApp3DMark.CPUProfile4.ActLike<IAppProcessProfile>()},
+                    {    "CPUProfile2", iApp3DMark.CPUProfile2.ActLike<IAppProcessProfile>()},
+                    {    "CPUProfile1", iApp3DMark.CPUProfile1.ActLike<IAppProcessProfile>()}
+                };
+
+                foreach (KeyValuePair<string, IAppProcessProfile> entry in bench3DMark)
+                {
+                    var profile = entry.Value;
+                    profile.Name = entry.Key;
                 }
 
-                AppSettings.WritePropertiesToItself();
+                cntprofile = 20;
+
+                ZenProfilesOC = new IAppZenProfileOC[cntprofile];
+
+                ZenProfilesOC[0] = iAppZenProfilesOC.profile0.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[1] = iAppZenProfilesOC.profile1.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[2] = iAppZenProfilesOC.profile2.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[3] = iAppZenProfilesOC.profile3.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[4] = iAppZenProfilesOC.profile4.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[5] = iAppZenProfilesOC.profile5.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[6] = iAppZenProfilesOC.profile6.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[7] = iAppZenProfilesOC.profile7.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[8] = iAppZenProfilesOC.profile8.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[9] = iAppZenProfilesOC.profile9.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[10] = iAppZenProfilesOC.profile10.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[11] = iAppZenProfilesOC.profile11.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[12] = iAppZenProfilesOC.profile12.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[13] = iAppZenProfilesOC.profile13.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[14] = iAppZenProfilesOC.profile14.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[15] = iAppZenProfilesOC.profile15.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[16] = iAppZenProfilesOC.profile16.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[17] = iAppZenProfilesOC.profile17.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[18] = iAppZenProfilesOC.profile18.ActLike<IAppZenProfileOC>();
+                ZenProfilesOC[19] = iAppZenProfilesOC.profile19.ActLike<IAppZenProfileOC>();
 
                 pactive = new ConfigurationBuilder<IAppConfig>()
                     .UseInMemoryDictionary()
@@ -1519,18 +1942,26 @@ namespace CPUDoc
 
                 int _id = AppSettings.BootProfile < 0 || AppSettings.BootProfile > 9 ? 0 : AppSettings.BootProfile;
 
+                PopulateSettings();
+
                 App.AppConfigs[_id].CopyPropertiesTo(pactive);
 
-                App.LogDebug($"Active Config Profile id={pactive.id} Description{pactive.Description}");
-
-                App.LogDebug($"Active Profile ThreadBooster Active={pactive.ThreadBooster}");
+                App.LogDebug($"Active Config Profile id={pactive.id} Description={pactive.Description} ThreadBooster={pactive.ThreadBooster}");
 
             }
             catch (Exception ex)
             {
                 LogExError($"ConfigInit exception: {ex.Message}", ex);
+                Thread.Sleep(1000);
                 AppReboot("Cannot lock INI files");
             }
+        }
+
+        private void RunSplashThread()
+        {
+            splash = new SplashWindow();
+            splash.Start();
+            System.Windows.Threading.Dispatcher.Run();
         }
 
         protected override void OnStartup(StartupEventArgs e)
@@ -1538,30 +1969,51 @@ namespace CPUDoc
             try
             {
                 instanceMutex = new Mutex(true, mutexName, out bMutex);
-
+                
                 if (!bMutex)
                 {
                     InteropMethods.PostMessage((IntPtr)InteropMethods.HWND_BROADCAST, InteropMethods.WM_SHOWME,
                         IntPtr.Zero, IntPtr.Zero);
-                    //MessageBox.Show("CPUDoc is already running, cannot start it again.");
                     Current.Shutdown();
                     Environment.Exit(0);
                 }
 
                 GC.KeepAlive(instanceMutex);
-                SplashWindow.Start();
+
+
             }
             catch (Exception ex)
             {
                 string errorMessage = string.Format("CPUDoc: an exception occurred when checking the run mutex: {0}", ex.Message);
-                MessageBox.Show(errorMessage);
+                if (Task.Run(() => MessageBox.Show(errorMessage, "CPUDoc Error", MessageBoxButton.OK, MessageBoxImage.Error)).Result == MessageBoxResult.OK)
+                {
+                    QuitApplication();
+                    Current.Shutdown();
+                    Environment.Exit(1);
+                }
             }
+
+            /*
+            Thread splashThread = new Thread(new ThreadStart(RunSplashThread));
+            splashThread.SetApartmentState(ApartmentState.STA);
+            splashThread.IsBackground = true;
+            splashThread.Start();
+
+            splashInfo = new SplashInfo();
+
+            //splash = new SplashWindow();
+
+            //splash.Start();
+            */
 
             try
             {
-
                 // handle unhandled better
                 Dispatcher.UnhandledException += OnDispatcherUnhandledException;
+
+                base.OnStartup(e);
+
+                InitColors();
 
                 Version _version = Assembly.GetExecutingAssembly().GetName().Version;
                 version = string.Format("v{0}.{1}.{2}", _version.Major, _version.Minor, _version.Build);
@@ -1569,7 +2021,17 @@ namespace CPUDoc
                 
                 Directory.CreateDirectory(@".\Logs");
 
-                SplashWindow.Loading(10);
+                //tbIcon = new Hardcodet.Wpf.TaskbarNotification.TaskbarIcon();
+                //tbIcon = new TaskbarIcon();
+                
+                //tbIcon.Visibility = Visibility.Collapsed;
+                /*
+                tbIcon = (TaskbarIcon)FindResource("tbIcon");
+                tbIcon.Icon = new Icon(Application.GetResourceStream(new Uri("pack://application:,,,/images/cpudoc.ico")).Stream);
+                tbIcon.ToolTip = $"CPUDoc {App.version}";
+                */
+
+                //App.splashInfo.SetProgress(2);
 
                 CleanUpOldFiles();
 
@@ -1579,11 +2041,9 @@ namespace CPUDoc
 
                 LogInfo($"CPUDoc Version {_versionInfo}");
 
+                //App.splashInfo.SetProgress(2, "Timers initialization");
+
                 InitTimers();
-
-                SplashWindow.Loading(15);
-
-                SplashWindow.Loading(20);
 
                 WindowsIdentity identity = WindowsIdentity.GetCurrent();
                 WindowsPrincipal principal = new WindowsPrincipal(identity);
@@ -1593,27 +2053,31 @@ namespace CPUDoc
                     AppReboot("Missing administrator privileges");
                 }
 
+                //App.splashInfo.SetProgress(5, "Configs init");
+
                 ConfigInit();
 
+                //App.splashInfo.SetProgress(6, "Configs init done");
+
                 App.LogInfo($"cmdargs LogTrace={cmdargs.LogTrace}");
+
+                //App.LogInfo($"Scan for Access_PCI mutex holders...");
+
+                //PCIMutexHolders();
 
                 bool vgc = Process.GetProcessesByName("vgc").Length > 0 ? true : false;
 
                 if (cmdargs.inpoutdlldisable == 1 || AppSettings.inpoutdlldisable == true || vgc) inpoutdlldisable = true;
 
-                App.LogInfo($"cmdargs.inpoutdlldisable={cmdargs.inpoutdlldisable} AppSettings.inpoutdlldisable={AppSettings.inpoutdlldisable} inpoutdlldisable={inpoutdlldisable} vgc={vgc}");
+                App.LogInfo($"cmdargs inpoutdlldisable={cmdargs.inpoutdlldisable} AppSettings.inpoutdlldisable={AppSettings.inpoutdlldisable} inpoutdlldisable={inpoutdlldisable} vgc={vgc}");
 
                 if (inpoutdlldisable == false && File.Exists("inpoutx64.dlh")) { File.Delete("inpoutx64.dll"); File.Move("inpoutx64.dlh", "inpoutx64.dll"); }
                 if (inpoutdlldisable == true && File.Exists("inpoutx64.dll")) { File.Delete("inpoutx64.dlh"); File.Move("inpoutx64.dll", "inpoutx64.dlh"); }
 
-                SplashWindow.Loading(25);
-
-                base.OnStartup(e);
+                //App.splashInfo.SetProgress(8, "Perf counters init");
 
                 if (OSVersion.GetOSVersion().Version.Major >= 10) App.Win10 = true;
                 if (OSVersion.GetOSVersion().Version.Major >= 10 && OSVersion.GetOSVersion().Version.Build >= 22000) App.Win11 = true;
-
-                SplashWindow.Loading(30);
 
                 cpuTotalLoad = new MovingAverage(4);
                 cpuTotalLoadLong = new MovingAverage(16);
@@ -1623,34 +2087,64 @@ namespace CPUDoc
                 bool cpuloadperfcount = ProcessorInfo.CpuLoadInit();
                 LogInfo($"CPULoad using Performance Counters: {cpuloadperfcount}");
 
-                SplashWindow.Loading(35);
+                HRESULT enableMCSS = DwmApi.DwmEnableMMCSS(true);
+                if (enableMCSS == HRESULT.S_OK)
+                {
+                    LogInfo($"DWM MMCSS Enabled");
+                }
+                else
+                {
+                    LogInfo($"DWM MMCSS Enable failure: {enableMCSS}");
+                }
+                Avrt.SafeHAVRT hRegMMCS = Avrt.AvSetMmThreadCharacteristics("Pro Audio", ref mmcsTaskIndex);
+                if (mmcsTaskIndex > 0)
+                {
+                    LogInfo($"MMCSS Register Task Index: {mmcsTaskIndex}");
+                    if (Avrt.AvSetMmThreadPriority(hRegMMCS, Avrt.AVRT_PRIORITY.AVRT_PRIORITY_CRITICAL))
+                    {
+                        LogInfo($"MMCSS Set priority succeeded");
+                    }
+                    else
+                    {
+                        LogInfo($"MMCSS Set priority failed");
+                    }
+                }
+                else
+                {
+                    LogInfo($"MMCSS Register Failed");
+                }
+
+                //App.splashInfo.SetProgress(10, "SystemInfo init");
 
                 systemInfo = new();
 
                 systemInfo.AppVersion = version;
 
-                SplashWindow.Loading(70);
+                //App.splashInfo.SetProgress(80, "Active config init");
 
                 SettingsInit();
 
                 PSAInit();
 
-                SplashWindow.Loading(75);
+                //App.splashInfo.SetProgress(85, "Starting threads");
 
-                InitColors();
+                //TBStart();
+                //HWMStart();
+                if (pactive == null)
+                {
+                    AppReboot("Cannot lock INI files");
+                }
+                else
+                {
+                    SetActiveConfig(pactive.id);
+                }
 
-                TBStart();
-                HWMStart();
-
-                SetActiveConfig(pactive.id);
 
                 Processes.Init();
 
-                SplashWindow.Loading(80);
+                //SetLastT0Affinity();
 
-                SetLastT0Affinity();
-
-                SplashWindow.Loading(90);
+                //App.splashInfo.SetProgress(90, "Checking for updates");
 
                 //Binding bindToggleSSH = new Binding(App.systemInfo.ToggleSSH);
                 //bindToggleSSH.Mode = BindingMode.OneWay;
@@ -1663,7 +2157,8 @@ namespace CPUDoc
                 AutoUpdater.RunUpdateAsAdmin = false;
                 AutoUpdater.Synchronous = false;
                 AutoUpdater.ParseUpdateInfoEvent += AutoUpdaterOnParseUpdateInfoEvent;
-               
+                AutoUpdater.SetOwner(MainWindow);
+
                 autimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
                 AUNotifications(AppSettings.AUNotifications);
                 autimer.Tick += (sender, args) =>
@@ -1676,7 +2171,7 @@ namespace CPUDoc
 
                 SubscribeGlobal();
 
-                SplashWindow.Loading(95);
+                //App.splashInfo.SetProgress(95, "Subscribing watchers");
 
                 /*
 
@@ -1737,17 +2232,28 @@ namespace CPUDoc
 
                 //App.LogDebug($"OnStartup App End");
 
-                SplashWindow.Loading(100);
+                /*
+                App.splashInfo.SetProgress(100, "Initialization done!");
 
-                SplashWindow.Stop();
+                wsleep(200000);
+                splash.Stop();
+                
+                splash = null;
+                
+                */
 
+                /*
                 tbIcon = (TaskbarIcon)FindResource("tbIcon");
 
                 tbIcon.ToolTip = $"CPUDoc {App.version}";
                 tbIcon.Icon = new Icon(Application.GetResourceStream(new Uri("pack://application:,,,/images/cpudoc.ico")).Stream);
+                */
 
                 //ShowBalloon($"CPUDoc {App.version}", "Now is running in the system tray");
-                ShowFancyBalloon($"CPUDoc {App.version}", "Now running minimized in the system tray, click here to open the App");
+
+                //ShowFancyBalloon($"CPUDoc {App.version}", "Now running minimized in the system tray, click here to open the App");
+
+                //tbIcon = null;
 
                 try
                 {
@@ -1767,8 +2273,13 @@ namespace CPUDoc
                 }
                 
                 bool enableTrace = cmdargs.LogTrace == 1 || AppSettings.LogTrace ? true : false;
+                App.LogInfo($"Diagnostic Log is enabled? {enableTrace}");
                 
                 TraceLogging(enableTrace);
+
+                sysTrayIconSize = GetSystemMetrics(SM_CXSMICON);
+
+                InitTrayIcon();
 
             }
             catch (Exception ex)
@@ -1781,25 +2292,187 @@ namespace CPUDoc
             //throw new InvalidOperationException();
         }
 
+        public static bool IsWindowOpen<T>(string name = "") where T : Window
+        {
+            return string.IsNullOrEmpty(name)
+               ? Application.Current.Windows.OfType<T>().Any()
+               : Application.Current.Windows.OfType<T>().Any(w => w.Name.Equals(name));
+        }
+        private void contextMenuStrip_Popup(Object sender, EventArgs e)
+        {
+            App.systemInfo.SetSSHStatus(pactive.SysSetHack);
+            App.systemInfo.SetPSAStatus(pactive.PowerSaverActive);
+            App.systemInfo.SetN0Status(pactive.NumaZero);
+        }
+        private void trayIcon_OpenApp(Object sender, EventArgs e)
+        {
+            if (!IsWindowOpen<MainWindow>())
+            {
+                Current.MainWindow = new MainWindow();
+
+                Current.MainWindow.DataContext = new
+                {
+                    settings = CPUDoc.Properties.Settings.Default,
+                    App.systemInfo,
+                };
+            }
+
+            if (Current.MainWindow.WindowState != WindowState.Normal) Current.MainWindow.WindowState = WindowState.Normal;
+            Current.MainWindow.Show();
+            Current.MainWindow.Focus();
+            Current.MainWindow.Activate();
+        }
+        private void InitTrayIcon()
+        {
+            try 
+            {
+                string _backcolor = "#3D3D4C";
+                string _forecolor = "#F0F0F0";
+                string _sepacolor = "#262630";
+                System.Drawing.Color backcolor = System.Drawing.ColorTranslator.FromHtml(_backcolor);
+                System.Drawing.Color forecolor = System.Drawing.ColorTranslator.FromHtml(_forecolor);
+                System.Drawing.Color sepacolor = System.Drawing.ColorTranslator.FromHtml(_sepacolor);
+
+                Container components = new Container();
+                WindowsForms.ContextMenuStrip contextMenuStrip = new WindowsForms.ContextMenuStrip(components);
+                contextMenuStrip.Renderer = new WindowsForms.ToolStripProfessionalRenderer(new LeftMenuColorTable());
+                contextMenuStrip.Items.AddRange(new WindowsForms.ToolStripItem[] {
+                    StripItemCPUDocVer, 
+                    StripItemSeparator, 
+                    StripItemToggleSSH, 
+                    StripItemTogglePSA, 
+                    StripItemToggleNumaZero,
+                    StripItemSeparator2,
+                    StripItemQuit
+                });
+
+                contextMenuStrip.Opening += new CancelEventHandler(contextMenuStrip_Popup);
+                contextMenuStrip.RenderMode = WindowsForms.ToolStripRenderMode.System;
+                contextMenuStrip.Name = "contextMenuStrip";
+                contextMenuStrip.Size = new System.Drawing.Size(181, 148);
+                contextMenuStrip.BackColor = backcolor;
+                contextMenuStrip.ForeColor = sepacolor;
+
+                StripItemCPUDocVer.Name = "StripItemCPUDocVer";
+                StripItemCPUDocVer.Size = new System.Drawing.Size(201, 22);
+                StripItemCPUDocVer.BackColor = backcolor;
+                StripItemCPUDocVer.ForeColor = forecolor;
+                StripItemCPUDocVer.Text = $"CPUDoc {App.version}";
+                StripItemCPUDocVer.Click += new System.EventHandler(trayIcon_OpenApp);
+
+                StripItemSeparator.Name = "StripItemSeparator";
+                StripItemSeparator.BackColor = sepacolor;
+                StripItemSeparator.Size = new System.Drawing.Size(177, 6);
+
+                StripItemToggleSSH.Name = "StripItemToggleSSH";
+                StripItemToggleSSH.Size = new System.Drawing.Size(201, 22);
+                StripItemToggleSSH.BackColor = backcolor;
+                StripItemToggleSSH.ForeColor = forecolor;
+                StripItemToggleSSH.Text = "Toggle SSH";
+                StripItemToggleSSH.Click += new System.EventHandler(trayIcon_ToggleSSH);
+
+                StripItemTogglePSA.Name = "StripItemTogglePSA";
+                StripItemTogglePSA.Size = new System.Drawing.Size(201, 22);
+                StripItemTogglePSA.BackColor = backcolor;
+                StripItemTogglePSA.ForeColor = forecolor;
+                StripItemTogglePSA.Text = "Toggle PSA";
+                StripItemTogglePSA.Click += new System.EventHandler(trayIcon_TogglePSA);
+
+                StripItemToggleNumaZero.Name = "StripItemToggleNumaZero";
+                StripItemToggleNumaZero.Size = new System.Drawing.Size(201, 22);
+                StripItemToggleNumaZero.BackColor = backcolor;
+                StripItemToggleNumaZero.ForeColor = forecolor;
+                StripItemToggleNumaZero.Text = "Toggle NumaZero";
+                StripItemToggleNumaZero.Click += new System.EventHandler(trayIcon_ToggleNumaZero);
+
+                StripItemSeparator2.Name = "StripItemSeparator2";
+                StripItemSeparator2.Size = new System.Drawing.Size(177, 6);
+                StripItemSeparator2.BackColor = sepacolor;
+
+                StripItemQuit.Name = "StripItemQuit";
+                StripItemQuit.Size = new System.Drawing.Size(201, 22);
+                StripItemQuit.BackColor = backcolor;
+                StripItemQuit.ForeColor = forecolor;
+                StripItemQuit.Text = "Exit Application";
+                StripItemQuit.Click += new System.EventHandler(trayIcon_Quit);
+
+                Guid tb_guid = new Guid("B8CBF7A2-482F-4097-B491-B3309FB38915");
+                trayIconMonitor = new System.Windows.Forms.NotifyIconPlus(tb_guid);
+                trayIconMonitor.DoubleClick += new EventHandler(trayIcon_OpenApp);
+                trayIconMonitor.Icon = global::CPUDoc.Resources.CPUDocRes.CPUDoc;
+                trayIconMonitor.Tag = "CPUDoc Monitor";
+                trayIconMonitor.Visible = false;
+
+                trayIcon = new System.Windows.Forms.NotifyIcon();
+                trayIcon.DoubleClick += new EventHandler(trayIcon_OpenApp);
+                trayIcon.Icon = global::CPUDoc.Resources.CPUDocRes.CPUDoc;
+                trayIcon.Text = $"CPUDoc {App.version}";
+                trayIcon.Tag = "CPUDoc";
+                trayIcon.ContextMenuStrip = contextMenuStrip;
+                trayIcon.Visible = true;
+
+                //trayIcon2 = new H.NotifyIcon.TaskbarIcon();
+                //trayIcon2.ToolTipText = "testH";
+                //trayIcon2.Visibility = Visibility.Visible;
+                //trayIcon2 = (H.NotifyIcon.TaskbarIcon)FindResource("tbIcon");
+                //trayIcon2.Icon = new Icon(Application.GetResourceStream(new Uri("pack://application:,,,/images/cpudoc.ico")).Stream);
+                //tbIcon.ToolTip = $"CPUDoc {App.version}";
+
+                //notifyIcon = (H.NotifyIcon.TaskbarIcon)FindResource("NotifyIcon");
+                //notifyIcon.ForceCreate();
+
+            }
+            catch (Exception ex)
+            {
+                LogExError($"InitTrayIcon exception: {ex.Message}", ex);
+            }
+        }
+        private void trayIcon_Quit(Object sender, EventArgs e)
+        {
+            trayIcon.Visible = false;
+            Application.Current.Shutdown();
+        }
+        private void trayIcon_ToggleSSH(Object sender, EventArgs e)
+        {
+            App.pactive.SysSetHack = (App.pactive.SysSetHack) ? false : true;
+            App.SetActiveConfig();
+            App.LogDebug($"SysSetHack Toggle: {App.pactive.SysSetHack}");
+        }
+        private void trayIcon_TogglePSA(Object sender, EventArgs e)
+        {
+            App.pactive.PowerSaverActive = (App.pactive.PowerSaverActive) ? false : true;
+            App.SetActiveConfig();
+            App.LogDebug($"PSA Toggle: {App.pactive.PowerSaverActive}");
+        }
+        private void trayIcon_ToggleNumaZero(Object sender, EventArgs e)
+        {
+            App.pactive.NumaZero = (App.pactive.NumaZero) ? false : true;
+            App.SetActiveConfig();
+            App.LogDebug($"N0 Toggle: {App.pactive.NumaZero}");
+        }
+
         void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
             Application_Cleanup();
             string errorMessage = string.Format("CPUDoc: an unhandled exception occurred: {0}", e.Exception.Message);
             //PSAPlanDisable();
-            MessageBox.Show(errorMessage);
-            if (logger_b)
+            if (Task.Run(() => MessageBox.Show(errorMessage, "CPUDoc Error", MessageBoxButton.OK, MessageBoxImage.Error)).Result == MessageBoxResult.OK)
             {
-                LogInfo(errorMessage);
-                Trace.Flush();
-                Trace.Close();
-                LogManager.Shutdown();
+                if (logger_b)
+                {
+                    LogInfo(errorMessage);
+                    Trace.Flush();
+                    Trace.Close();
+                    LogManager.Shutdown();
+                }
+                e.Handled = MainWindow?.IsLoaded ?? false;
+                ClearTimePeriod();
+                Current.Shutdown();
+                Environment.Exit(-1);
             }
-            e.Handled = MainWindow?.IsLoaded ?? false;
-            ClearTimePeriod();
-            Current.Shutdown();
-            Environment.Exit(-1);
         }
 
+        /*
         public void ShowFancyBalloon(string title, string text)
         {
             FancyBalloon balloon = new FancyBalloon();
@@ -1807,6 +2480,7 @@ namespace CPUDoc
             balloon.BalloonTitle = title;
             tbIcon.ShowCustomBalloon(balloon, PopupAnimation.Slide, 4000);
         }
+
         public void ShowBalloon(string title, string text, BalloonIcon icon = BalloonIcon.Info)
         {         
             tbIcon.ShowBalloonTip(title, text, icon);
@@ -1815,6 +2489,8 @@ namespace CPUDoc
         {
             tbIcon.HideBalloonTip();
         }
+        */
+
         public static void AUNotifications(bool enable)
         {
             if (enable)
@@ -1840,69 +2516,108 @@ namespace CPUDoc
                 SetThreadExecutionState(EXECUTION_STATE.ES_DISPLAY_REQUIRED | EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_AWAYMODE_REQUIRED);
             }
         }
-
+        public static string GetPSABiasLabel()
+        {
+            return (App.PSABiasCurrent == 0) ? " [Economizer]" : (App.PSABiasCurrent == 1) ? " [Standard]" : (App.PSABiasCurrent == 2) ? " [Booster]" : " [Error]";
+        }
         public void PSAInit()
         {
 
             try
             {
-                if (boot_ppguid == null)
+                lock (lockPSAInit)
                 {
-                    boot_ppname = powerManager.GetActivePlanFriendlyName();
-                    boot_ppguid = powerManager.GetActiveGuid();
-                }
-
-                if (Win11)
-                {
-                    ThreadBooster.hepfg = 5;
-                    ThreadBooster.hepbg = 2;
-                }
-                else
-                {
-                    if (!systemInfo.Zen3 && !systemInfo.Zen4)
+                    if (boot_ppguid == null)
                     {
-                        ThreadBooster.hepfg = 2;
-                        ThreadBooster.hepbg = 4;
+                        boot_ppname = powerManager.GetActivePlanFriendlyName();
+                        boot_ppguid = powerManager.GetActiveGuid();
+                    }
+
+                    if (Win11)
+                    {
+                        ThreadBooster.hepfg = 5;
+                        ThreadBooster.hepbg = 2;
                     }
                     else
                     {
-                        ThreadBooster.hepfg = 5;
-                        ThreadBooster.hepbg = 5;
+                        if (!systemInfo.CPUName.Contains("Intel"))
+                        {
+                            ThreadBooster.hepfg = 2;
+                            ThreadBooster.hepbg = 4;
+                        }
+                        else
+                        {
+                            ThreadBooster.hepfg = 5;
+                            ThreadBooster.hepbg = 5;
+                        }
                     }
-                }
-                ThreadBooster.hepfgdeep = 4;
-                ThreadBooster.hepbgdeep = 4;
+                    ThreadBooster.hepfgdeep = 4;
+                    ThreadBooster.hepbgdeep = 4;
 
-                App.LogInfo($"Power Plan at boot: {boot_ppname} Guid: {boot_ppguid}");
+                    App.LogInfo($"Power Plan at boot: {boot_ppname} Guid: {boot_ppguid}");
+                }
             }
             catch (Exception ex)
             {
                 App.LogExError("PSAInit Exception:", ex);
             }
         }
-        public static void ImportPowerPlan(string planName)
+        public static bool ImportPowerPlan(string planName)
         {
             try
             {
-                var cmd = new Process { StartInfo = { FileName = "powercfg" } };
+                string SysWOW64path = Environment.GetFolderPath(Environment.SpecialFolder.Windows) + "\\SysWOW64";
+                string System32path = Environment.GetFolderPath(Environment.SpecialFolder.Windows) + "\\System32";
+                string Pcfgpathname = Environment.CurrentDirectory + "\\Tools\\powercfg\\powercfg.exe";
+                string PPpathname = Environment.CurrentDirectory + "\\CPUDoc\\PowerPlans\\" + planName;
+
+                App.LogInfo($"SysWOW64path: {SysWOW64path}");
+                App.LogInfo($"System32path: {System32path}");
+                App.LogInfo($"Pcfgpathname: {Pcfgpathname}");
+                App.LogInfo($"PPpathname: {PPpathname}");
+
+                string pcfgexe = "";
+
+                if (File.Exists(SysWOW64path + "\\powercfg.exe")) pcfgexe = SysWOW64path + "\\powercfg.exe";
+                if (pcfgexe.Length == 0)
+                    if (File.Exists(System32path + "\\powercfg.exe")) pcfgexe = System32path + "\\powercfg.exe";
+                if (pcfgexe.Length == 0)
+                    pcfgexe = Pcfgpathname;
+
+                var cmd = new Process { StartInfo = { FileName = pcfgexe } };
                 using (cmd)
                 {
-                    var inputPath = System.IO.Path.Combine(Environment.CurrentDirectory, planName);
 
-                    //This hides the resulting popup window
                     cmd.StartInfo.CreateNoWindow = true;
                     cmd.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                    cmd.StartInfo.RedirectStandardOutput = true;
+                    cmd.StartInfo.RedirectStandardError = true;
 
                     //Import the new power plan
-                    cmd.StartInfo.Arguments = $"-import \"{inputPath}\" {PPGuid}";
+                    cmd.StartInfo.Arguments = $"-import \"{PPpathname}\" {PPGuid}";
                     cmd.Start();
 
+                    string output = cmd.StandardOutput.ReadToEnd();
+                    string outerr = cmd.StandardError.ReadToEnd();
+
+
                     cmd.WaitForExit();
+                    
+                    App.LogInfo($"Powercfg output: {output}");
+                    if (cmd.ExitCode != 0)
+                    {
+                        App.LogInfo($"Powercfg command error!");
+                        if (outerr.Length > 0)
+                            App.LogInfo($"Powercfg error output: {outerr}");
+                    }
+
+                    return cmd.ExitCode == 0 ? true : false;
                 }
             }
             catch (Exception ex)
             {
                 LogExError($"ImportPowerPlan exception: {ex.Message}", ex);
+                return false;
             }
 
         }
@@ -1912,20 +2627,23 @@ namespace CPUDoc
             {
                 bool fallback = false;
                 psact_b = false;
-                if (boot_ppguid != null)
+                lock (App.lockPSADisable)
                 {
-                    if (boot_ppguid.ToString().ToUpper().Contains("FBB9C3D1-AF6E-46CF-B02B-C41192"))
+                    if (boot_ppguid != null)
                     {
-                        fallback = PSAPlanFallback();
-                        App.LogInfo($"PSA Disabled Power Plan exit={fallback} Fall back to: {powerManager.GetActivePlanFriendlyName()}");
+                        if (boot_ppguid.ToString().ToUpper().Contains("FBB9C3D1-AF6E-46CF-B02B-C41192"))
+                        {
+                            fallback = PSAPlanFallback();
+                            App.LogInfo($"PSA Disabled Power Plan exit={fallback} Fall back to: {powerManager.GetActivePlanFriendlyName()}");
+                        }
+                        else
+                        {
+                            fallback = powerManager.SetActiveGuid((Guid)boot_ppguid);
+                            App.LogInfo($"PSA Disabled Power Plan exit={fallback} Set back to: {powerManager.GetActivePlanFriendlyName()}");
+                        }
                     }
-                    else
-                    {
-                        fallback = powerManager.SetActiveGuid((Guid)boot_ppguid);
-                        App.LogInfo($"PSA Disabled Power Plan exit={fallback} Set back to: {powerManager.GetActivePlanFriendlyName()}");
-                    }
+                    if (fallback) psact_plan = false;
                 }
-                if (fallback) psact_plan = false;
             }
             catch (Exception ex)
             {
@@ -1969,7 +2687,8 @@ namespace CPUDoc
                     if (plan.name == planname)
                     {
                         powerManager.SetActiveGuid(plan.guid);
-                        Thread.Sleep(2000);
+                        //Thread.Sleep(2000);
+                        App.wsleep((uint)2000 * 1000);
                         _done = true;
                     }
                 }
@@ -1985,25 +2704,32 @@ namespace CPUDoc
         {
             try
             {
+                App.LogDebug($"PSA Enable...");
+
                 bool isactive = false;
 
                 if (PPImportErrStatus)
                 {
+                    App.LogDebug($"PSA Enable Plan Import Error");
                     psact_b = false;
                     psact_plan = false;
                 }
 
                 if (pactive.PowerSaverActive && !PPImportErrStatus)
                 {
+                    App.LogDebug($"PSA Enable Activation...");
+
                     if (systemInfo.CPUName.Contains("Intel"))
                     {
                         PPDutyCycling = 0;
                         PPUSBSSuspend = 0;
+                        ThreadBooster.cpuBoostModeBoost = 2;
                     }
                     else
                     {
                         PPUSBSSuspend = 1;
                         PPDutyCycling = 1;
+                        ThreadBooster.cpuBoostModeBoost = 3;
                     }
 
                     int _personality = 1;
@@ -2095,10 +2821,12 @@ namespace CPUDoc
 
                     if (powerManager.GetActiveGuid() != PPGuid)
                     {
-                        if (!powerManager.PlanExists(PPGuid)) ImportPowerPlan(planName);
+                        bool _import = true;
+                        if (!powerManager.PlanExists(PPGuid)) _import = ImportPowerPlan(planName);
 
                         if (powerManager.PlanExists(PPGuid)) isactive = powerManager.SetActiveGuid(PPGuid);
-                        if (isactive)
+                        
+                        if (_import && isactive)
                         {
                             psact_b = true;
                             psact_plan = true;
@@ -2106,6 +2834,8 @@ namespace CPUDoc
                         }
                         else
                         {
+                            if (!_import) App.LogInfo($"CPUDoc Dynamic Power Plan failed to import");
+                            App.LogInfo($"CPUDoc Dynamic Power Plan failed to activate, current is: {powerManager.GetActivePlanFriendlyName()}");
                             PPImportErrCnt++;
                             if (PPImportErrCnt > 25)
                             {
@@ -2113,11 +2843,20 @@ namespace CPUDoc
                                 PPImportErrStatus = true;
                                 psact_b = false;
                                 psact_plan = false;
+                                App.LogInfo($"CPUDoc Dynamic Power Plan failed to import after 25 retries");
                             }
                         }
                     }
+                    else
+                    {
+                        psact_b = true;
+                        psact_plan = true;
+                        App.LogDebug($"PSA Enable CPUDoc Plan Already Active");
+                    }
+
                     if (psact_b && psact_plan) 
                     {
+                        App.LogInfo($"CPUDoc Dynamic Power Plan starting...");
                         uint _value;
                         //USB selective suspend setting
                         _value = (uint)App.PPUSBSSuspend;
@@ -2144,13 +2883,22 @@ namespace CPUDoc
                         App.powerManager.SetDynamic(SettingSubgroup.SLEEP_SUBGROUP, new Guid("bd3b718a-0680-4d9d-8ab2-e1d2b4ac806d"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)(pactive.WakeTimers == true ? 1 : 0));
 
                         App.powerManager.SetActiveGuid(App.PPGuid);
-
+                        App.LogInfo($"CPUDoc Dynamic Power Plan activated.");
+                    } 
+                    else
+                    {
+                        if (!psact_b) App.LogDebug($"PSA Enable failed activation");
+                        if (!psact_plan) App.LogDebug($"PSA Enable failed Plan import");
                     }
+
                 }
                 else
                 {
+                    App.LogDebug($"PSA Enable Plan Disable");
                     PSAPlanDisable();
                 }
+
+                App.LogDebug($"PSA Enable Done");
             }
             catch (Exception ex)
             {
@@ -2279,54 +3027,209 @@ namespace CPUDoc
 
         }
 
+        /*
         public static void HWMStart()
         {
             thrMonitor = new Thread(RunHWM);
             thridMonitor = thrMonitor.ManagedThreadId;
-            thrMonitor.Priority = ThreadPriority.AboveNormal;
+            thrMonitor.Priority = ThreadPriority.Normal;
 
             hwmtimer.Enabled = false;
 
-            thrMonitor.Start();
-            hwmtimer.Start();
+            //thrMonitor.Start();
+            //hwmtimer.Start();
 
             //App.LogDebug($"HWMonitor Started PID={thridMonitor} ALIVE={thrMonitor.IsAlive}");
 
         }
-        public static void TBStart()
+        */
+        public static void RefreshThreadsStatus()
         {
-            thrThreadBooster = new Thread(RunTB);
-            thridThreadBooster = thrThreadBooster.ManagedThreadId;
-            thrThreadBooster.Priority = ThreadPriority.AboveNormal;
+            try
+            {                
+                string thrstatus = "Stopped";
+                if (!ReferenceEquals(null, thrThreadBooster))
+                {
+                    bool _thrThreadBoosterRunning = false;
+                    if (thrThreadBooster.ThreadState != System.Threading.ThreadState.Unstarted)
+                    {
+                        if ((!thrThreadBooster.Join(TimeSpan.Zero) && thrThreadBooster.ThreadState != System.Threading.ThreadState.Stopped) ||
+                            thrThreadBooster.ThreadState == System.Threading.ThreadState.Running)
+                            _thrThreadBoosterRunning = true;
+                        thrstatus = _thrThreadBoosterRunning ? "Running" : "Stopped";
+                        thrstatus += $" ({thrThreadBooster.ThreadState})";
+                    }
+                    else
+                    {
+                        thrstatus = "Dead";
+                    }
+                    App.LogInfo($"ThreadStatus for {thrThreadBooster.Name}: {thrThreadBoosterRunning} Thread: {thrstatus}");
+                }
+                else
+                {
+                    App.LogInfo($"ThreadStatus for ThreadBooster: {thrThreadBoosterRunning} Thread: {thrstatus}");
+                }
 
-            thrSys = new Thread(RunSysMask);
-            thridSys = thrSys.ManagedThreadId;
-            thrSys.Priority = ThreadPriority.AboveNormal;
+                thrstatus = "Stopped";
+                if (!ReferenceEquals(null, thrMonitor))
+                {
+                    bool _thrMonitorRunning = false;
+                    if (thrMonitor.ThreadState != System.Threading.ThreadState.Unstarted)
+                    {
+                        if ((!thrMonitor.Join(TimeSpan.Zero) && thrMonitor.ThreadState != System.Threading.ThreadState.Stopped) ||
+                            thrMonitor.ThreadState == System.Threading.ThreadState.Running)
+                            _thrMonitorRunning = true;
+                        thrstatus = _thrMonitorRunning ? $"Running" : "Stopped";
+                        thrstatus += $" ({thrMonitor.ThreadState})";
+                    }
+                    else
+                    {
+                        thrstatus = "Dead";
+                    }
+                    App.LogInfo($"ThreadStatus for {thrMonitor.Name}: {thrMonitorRunning} Thread: {thrstatus}");
+                }
+                else
+                {
+                    App.LogInfo($"ThreadStatus for HWMonitor: {thrMonitorRunning} Thread: {thrstatus}");
+                }
 
-            tbtimer.Enabled = false;
-            systimer.Enabled = false;
+                thrstatus = "Stopped";
+                if (!ReferenceEquals(null, thrSys))
+                {
+                    bool _thrSysRunning = false;
+                    if (thrSys.ThreadState != System.Threading.ThreadState.Unstarted)
+                    {
+                        if ((!thrSys.Join(TimeSpan.Zero) && thrSys.ThreadState != System.Threading.ThreadState.Stopped) ||
+                            thrSys.ThreadState == System.Threading.ThreadState.Running)
+                            _thrSysRunning = true;
+                        thrstatus = _thrSysRunning ? $"Running" : "Stopped";
+                        thrstatus += $" ({thrSys.ThreadState})"; 
+                    }
+                    else
+                    {
+                        thrstatus = "Dead";
+                    }
+                    App.LogInfo($"ThreadStatus for {thrSys.Name}: {thrSysRunning} Thread: {thrstatus}");
+                }
+                else
+                {
+                    App.LogInfo($"ThreadStatus for SysCpuSet: {thrSysRunning} Thread: {thrstatus}");
+                }
 
-            thrThreadBooster.Start();
-            thrSys.Start();
-            //tbtimer.Start();
+            }
+            catch (Exception ex)
+            {
+                LogExError($"RefreshThreadsStatus exception: {ex.Message}", ex);
+            }
+        }
+        public static void TBStart(int action = 0)
+        {
 
+            string actionlabel = action == 0 ? "Start" : action == 1 ? "Stop" : "Restart";
+
+            App.LogInfo($"TBStart --<Action={actionlabel}>--");
+            RefreshThreadsStatus();
+
+            try
+            {
+
+                lock (lockApply)
+                {
+                    if (action > 0)
+                    {
+
+                        pactive.ThreadBooster = false;
+
+                        mrestb.Reset();
+                        mreshwm.Reset();
+                        mressys.Reset();
+
+                        thrThreadBoosterRunning = false;
+                        thrMonitorRunning = false;
+                        thrSysRunning = false;
+
+                        App.LogInfo($"TBStart --<After=Stop>--");
+                        RefreshThreadsStatus();
+                    }
+
+                    if (action != 1)
+                    {
+                        pactive.ThreadBooster = true;
+                        ThreadBooster.ForceCustomSysMask(false);
+
+                        if (thrThreadBooster == null)
+                        {
+                            thrThreadBooster = new Thread(ThreadBooster.RunThreadBooster);
+                            thridThreadBooster = thrThreadBooster.ManagedThreadId;
+                            thrThreadBooster.Name = "ThreadBooster";
+                            thrThreadBooster.Priority = ThreadPriority.Normal;
+                            App.LogInfo($"Starting thread: {thrThreadBooster.Name}");
+                            thrThreadBooster.Start();
+                        }
+
+                        if (thrMonitor == null)
+                        {
+                            thrMonitor = new Thread(HWMonitor.RunHWM);
+                            thridMonitor = thrMonitor.ManagedThreadId;
+                            thrMonitor.Name = "HWMonitor";
+                            thrMonitor.Priority = ThreadPriority.Normal;
+                            App.LogInfo($"Starting thread: {thrMonitor.Name}");
+                            thrMonitor.Start();
+                        }
+
+                        if (thrSys == null)
+                        {
+                            thrSys = new Thread(ThreadBooster.RunSysCpuSet);
+                            thridSys = thrSys.ManagedThreadId;
+                            thrSys.Name = "SysCpuSet";
+                            thrSys.Priority = ThreadPriority.AboveNormal;
+                            App.LogInfo($"Starting thread: {thrSys.Name}");
+                            thrSys.Start();
+                        }
+
+                        thrThreadBoosterRunning = true;
+                        thrMonitorRunning = true;
+
+                        if (pactive.SysSetHack || pactive.NumaZero)
+                        {
+                            mressys.Set();
+                            thrSysRunning = true;
+                        }
+
+                        mrestb.Set();
+                        mreshwm.Set();
+
+                        App.LogInfo($"TBStart --<After=Start>--");
+                        RefreshThreadsStatus();
+
+                    }
+
+                }
+
+            }
+            catch (Exception ex)
+            {
+                LogExError($"TBStart exception: {ex.Message}", ex);
+            }
+            
             //App.LogDebug($"ThreadBooster Started PID={thridMonitor} ALIVE={thrMonitor.IsAlive}");
-
         }
 
+        /*
         public static void TbSetStart(bool enable = true)
         {
 
             if (enable)
             {
                 pactive.ThreadBooster = true;
-                tbtimer.Enabled = true;
-                ThreadBooster.ForceCustomBitMask(false);
+                TBStart(false);
+                ThreadBooster.ForceCustomSysMask(false);
+                TBStart();
             }
             else
             {
                 pactive.ThreadBooster = false;
-                tbtimer.Enabled = false;
+                TBStart(false);
                 SysCpuSetMask = ThreadBooster.defFullBitMask;
                 lastSysCpuSetMask = ThreadBooster.defFullBitMask;
                 Thread.Sleep(500);
@@ -2337,7 +3240,7 @@ namespace CPUDoc
             //App.LogDebug($"ThreadBooster Started PID={thridMonitor} ALIVE={thrMonitor.IsAlive}");
 
         }
-
+        */
         public static void SettingsInit()
         {
             try
@@ -2379,6 +3282,67 @@ namespace CPUDoc
             }
         }
 
+        public static void PCIMutexHolders()
+        {
+            try 
+            {
+                string procname = "";
+                List <SystemHandles.SYSTEM_HANDLE> members = GetPCIMutexHolders(Process.GetCurrentProcess().Id);
+
+                if (members.Count == 0)
+                {
+                    LogInfo($"No Access_PCI mutex holders");
+                }
+
+                foreach (var member in members)
+                {
+                    try
+                    {
+                        Process proc = Process.GetProcessById((int)member.dwProcessId);
+                        procname = proc.ProcessName;
+                        var hinfo = SystemHandles.GetHandleInfo(member, true);
+                        if (hinfo.Name == null) continue;
+                        if (!hinfo.Name.Contains("Access_PCI")) continue;
+                        LogInfo($"Access_PCI holder Process: {procname} ({proc.MainModule.FileName})");
+                        if (procname.StartsWith("HYDRA"))
+                        {
+                            ZenBlockRefresh = true;
+                            LogInfo($"HYDRA detected, blocking ZenRefresh");
+                        }
+                    }
+                    catch { continue; }
+                }
+                members.Clear();
+                members.TrimExcess();
+                members = null;
+            }
+            catch (Exception ex)
+            {
+                LogExError($"PCIMutexHolders exception: {ex.Message}", ex);
+            }
+        }
+        private static List<SystemHandles.SYSTEM_HANDLE> GetPCIMutexHolders(int pidexclude = 0)
+        {
+            List<SystemHandles.SYSTEM_HANDLE> rmembers = new();
+            try
+            {
+                var members = SystemHandles.GetSystemHandles();
+                uint memberid = 0;
+
+                foreach (SystemHandles.SYSTEM_HANDLE member in members)
+                {
+                    if (member.dwProcessId > 1024 && member.bObjectType == 17 && member.dwProcessId != pidexclude)
+                        rmembers.Add(member);
+                    memberid = member.dwProcessId;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogExError($"GetPCIMutexHolders exception: {ex.Message}", ex);
+            }
+            return rmembers;
+        }
+
         public static void AddConfig(int _id, bool enabled = false, string description = "") {
             /*
             AppConfigs.Add(new appConfigs()
@@ -2390,6 +3354,7 @@ namespace CPUDoc
             */
         }
 
+        /*
         private static void Monitor_ElapsedEventHandler(object sender, ElapsedEventArgs e)
         {
             //App.LogDebug("HWM ELAPSED");
@@ -2410,6 +3375,10 @@ namespace CPUDoc
                 ThreadBooster.OnThreadBooster(sender, e);
                 InterlockTB = 0;
                 //App.LogDebug("TB ELAPSED ON");
+            }
+            else
+            {
+                App.LogDebug("TB ELAPSED NOT");
             }
         }
         private static void SysMask_ElapsedEventHandler(object sender, ElapsedEventArgs e)
@@ -2437,35 +3406,24 @@ namespace CPUDoc
             }
 
         }
+
         public static void RunTB()
         {
 
-            //App.LogDebug("RUN TB");
             tbtimer.Interval = ThreadBooster.PoolingInterval;
             tbtimer.Elapsed += new ElapsedEventHandler(ThreadBooster_ElapsedEventHandler);
             if (tbtimer.Enabled)
             {
-                //App.LogDebug("START TB");
+                //App.LogDebug("RunTB START TB TIMER");
                 tbtimer.Start();
             }
-
-        }
-
-        /*
-        public static void RunUI()
-        {
-
-            //App.LogDebug("RUN TUIB");
-            uitimer.Interval = 1000;
-            uitimer.Elapsed += new ElapsedEventHandler(UpdateUI_ElapsedEventHandler);
-            if (uitimer.Enabled)
+            else
             {
-                //App.LogDebug("START UI");
-                uitimer.Start();
+                //tbtimer.Stop();
+                //App.LogDebug("RunTB STOP TB TIMER");
             }
-
         }
-        */
+        
         public static void RunSysMask()
         {
 
@@ -2477,8 +3435,9 @@ namespace CPUDoc
                 //App.LogDebug("START SysMask");
                 systimer.Start();
             }
-
         }
+        */
+
         private void SubscribeGlobal()
         {
             Unsubscribe();
@@ -2600,8 +3559,11 @@ namespace CPUDoc
         public static void QuitApplication()
         {
             Thread.Sleep(500);
-            iAppConfigs = null;
             AppSettings = null;
+            iAppConfigs = null;
+            cmdargs = null;
+            iApp3DMark = null;
+            iAppZenProfilesOC = null;
             if (resetSettings)
             {
                 SettingsManager.ResetSettings();
@@ -2613,12 +3575,48 @@ namespace CPUDoc
         {
             Application_Cleanup();
             QuitApplication();
+            
+            try
+            {
+                if (trayIcon != null)
+                {
+                    trayIcon.Visible = false;
+                    trayIcon.Icon = null;
+                    trayIcon.Dispose();
+                    trayIcon = null;
+                }
+            }
+            catch { }
+            /*
+            try
+            {
+                if (tbIcon != null)
+                {
+                    tbIcon.Visibility= Visibility.Collapsed;
+                    tbIcon.Icon = null;
+                    tbIcon.Dispose();
+                    tbIcon = null;
+                }
+            }
+            catch { }
+            */
+            notifyIcon?.Dispose();
             Environment.Exit(0);
         }
         private void Application_Cleanup()
         {
             try
             {
+                /*
+                if (ThreadBooster.zencontrol_b)
+                {
+                    ThreadBooster.zencontrol_b = false;
+                    Thread.Sleep(200);
+                    ThreadBooster.ZenControlDisable();
+                    Thread.Sleep(400);
+                }
+                */
+
                 //keyboardWatcher.Stop();
                 //mouseWatcher.Stop();
                 //clipboardWatcher.Stop();
@@ -2643,14 +3641,14 @@ namespace CPUDoc
                 }
 
                 HWMonitor.Close();
+                ThreadBooster.CloseSysMask();
                 ThreadBooster.Close();
 
-                hwmcts?.Dispose();
-                tbcts?.Dispose();
-                syscts?.Dispose();
-                tbIcon.Dispose();
-
-                if (ThreadBooster.zencontrol_b) ThreadBooster.ZenControlDisable();
+                if (hwmcts != null) hwmcts?.Dispose();
+                if (tbcts != null) tbcts?.Dispose();
+                if (syscts != null) syscts?.Dispose();
+                if (notifyIcon != null) notifyIcon?.Dispose();
+                //if (tbIcon != null) tbIcon.Dispose();
 
                 if (Ring0.IsOpen) Ring0.Close();
             }
@@ -2669,10 +3667,13 @@ namespace CPUDoc
             }
             try
             {
-                if (!object.ReferenceEquals(null, systemInfo.Zen))
+                if (systemInfo != null)
                 {
-                    systemInfo.Zen?.Dispose();
-                    systemInfo.Zen = null;
+                    if (systemInfo.Zen != null)
+                    {
+                        systemInfo.Zen?.Dispose();
+                        systemInfo.Zen = null;
+                    }
                 }
             }
             catch (Exception ex)
@@ -2681,10 +3682,8 @@ namespace CPUDoc
             }
             try
             {
-                if (!object.ReferenceEquals(null, HWMonitor.computer))
-                {
+                if (HWMonitor.computer != null)
                     HWMonitor.computer = null;
-                }
             }
             catch (Exception ex)
             {
@@ -2795,11 +3794,15 @@ namespace CPUDoc
         {
             try
             {
+                long AffinityMask = 0L;
+                AffinityMask &= 1;
                 using (Process thisprocess = Process.GetCurrentProcess())
                 {
-                    if (thisprocess.ProcessorAffinity != (IntPtr)(1L << 1))
-                        thisprocess.ProcessorAffinity = (IntPtr)(1L << 1);
-                    Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.AboveNormal;
+                    if (thisprocess.ProcessorAffinity != (IntPtr)AffinityMask)
+                        thisprocess.ProcessorAffinity = (IntPtr)AffinityMask;
+                    Process.GetCurrentProcess().PriorityClass = System.Diagnostics.ProcessPriorityClass.BelowNormal;
+                    thisprocess.Refresh();
+                    LogInfo($"CPUDoc process affinity set to: {thisprocess.ProcessorAffinity}");
                 }
             }
             catch (Exception ex)
@@ -2812,11 +3815,16 @@ namespace CPUDoc
             try
             {
                 int thread = App.GetLastThreadT0();
+                long AffinityMask = 0L;
+                AffinityMask &= thread;
+                LogInfo($"CPUDoc SetLastT0Affinity to thread: {thread}");
                 using (Process thisprocess = Process.GetCurrentProcess())
                 {
-                    if (thisprocess.ProcessorAffinity != (IntPtr)(1L << thread))
-                        thisprocess.ProcessorAffinity = (IntPtr)(1L << thread);
-                    Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.AboveNormal;
+                    if (thisprocess.ProcessorAffinity != (IntPtr)AffinityMask)
+                        thisprocess.ProcessorAffinity = (IntPtr)AffinityMask;
+                    Process.GetCurrentProcess().PriorityClass = System.Diagnostics.ProcessPriorityClass.BelowNormal;
+                    thisprocess.Refresh();
+                    LogInfo($"CPUDoc process affinity set to: {thisprocess.ProcessorAffinity}");
                 }
             }
             catch (Exception ex)
@@ -2828,14 +3836,17 @@ namespace CPUDoc
         {
             try
             {
+                long AffinityMask = 0L;
+                AffinityMask &= tieredlist.Last();
                 LogDebug($"Setting Process affinity, tiered list: {tieredlist.Any()}");
                 if (tieredlist.Any())
                 {
                     using (Process thisprocess = Process.GetCurrentProcess())
                     {
                         LogDebug($"Setting Process affinity from: {thisprocess.ProcessorAffinity} to #{tieredlist.Last()}: {(IntPtr)(1L << tieredlist.Last())}");
-                        if (thisprocess.ProcessorAffinity != (IntPtr)(1L << tieredlist.Last()))
-                            thisprocess.ProcessorAffinity = (IntPtr)(1L << tieredlist.Last());
+                        if (thisprocess.ProcessorAffinity != (IntPtr)AffinityMask)
+                            thisprocess.ProcessorAffinity = (IntPtr)AffinityMask;
+                        thisprocess.Refresh();
                         LogDebug($"New Process affinity: {thisprocess.ProcessorAffinity}");
                     }
                 }
@@ -2875,25 +3886,26 @@ namespace CPUDoc
             if (id >= 0 && id < 10) 
               AppConfigs[id].CopyPropertiesTo(pactive);
 
+            int _action = thrThreadBoosterRunning ? 2 : 0;
 
-            if (pactive.ThreadBooster)
+            lock (lockApply)
             {
-                hwmtimer.Enabled = true;
-                systimer.Enabled = true;
-                tbtimer.Enabled = true;
-                if (!pactive.ManualPoolingRate) SetPoolingRate();
-                if (pactive.ManualPoolingRate) SetPoolingRate((int)pactive.PoolingRate);
-            }
-            else
-            {
-                tbtimer.Enabled = false;
-                systimer.Enabled = false;
-                hwmtimer.Enabled = false;
+                if (pactive.ThreadBooster)
+                {
+                    if (!pactive.ManualPoolingRate) SetPoolingRate();
+                    if (pactive.ManualPoolingRate) SetPoolingRate((int)pactive.PoolingRate);
+                    TBStart(_action);
+                }
+                else
+                {
+                    TBStart(1);
+                }
+
+                lastSysCpuSetMask = ulong.MaxValue;
+                SetSysCpuSet(0);
             }
 
-            lastSysCpuSetMask = uint.MaxValue;
-            SetSysCpuSet(0);
-
+            /*
             if (!pactive.SysSetHack && pactive.NumaZero)
             {
                 systimer.Enabled = false;
@@ -2903,6 +3915,7 @@ namespace CPUDoc
             {
                 systimer.Start();
             }
+            */
 
             numazero_b = false;
 
@@ -2997,7 +4010,17 @@ namespace CPUDoc
 
                     if (pactive.NumaZeroType > 0 || _found < 1)
                     {
-                        int _forced = pactive.NumaZeroType == 1 ? 8 : pactive.NumaZeroType == 2 ? 6 : pactive.NumaZeroType == 3 ? 4 : pactive.NumaZeroType == 4 ? 2 : 0;
+                        int _forced = pactive.NumaZeroType == 1 ? 20 :
+                                        pactive.NumaZeroType == 2 ? 18 :
+                                        pactive.NumaZeroType == 3 ? 16 :
+                                        pactive.NumaZeroType == 4 ? 14 :
+                                        pactive.NumaZeroType == 5 ? 12 :
+                                        pactive.NumaZeroType == 6 ? 10 :
+                                        pactive.NumaZeroType == 7 ? 8 :
+                                        pactive.NumaZeroType == 8 ? 6 :
+                                        pactive.NumaZeroType == 9 ? 4 :
+                                        pactive.NumaZeroType == 10 ? 2 :
+                                        0;
                         int _auto = ProcessorInfo.PhysicalCoresCount > 12 ? 8 : ProcessorInfo.PhysicalCoresCount == 12 ? 6 : ProcessorInfo.PhysicalCoresCount - 2;
                         _forced = pactive.NumaZeroType == 0 ? _auto : _forced;
                         if (_forced > 0)
@@ -3048,12 +4071,14 @@ namespace CPUDoc
                 {
                     if (numazero_b)
                     {
-                        powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("7f2f5cfa-f10c-4823-b5e1-e93ae85f46b5"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, 3);
+                        ThreadBooster.hetPolicy = 3;
+                        powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("7f2f5cfa-f10c-4823-b5e1-e93ae85f46b5"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)ThreadBooster.hetPolicy);
                         powerManager.SetActiveGuid(powerManager.GetActiveGuid());
                     }
                     else
                     {
-                        powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("7f2f5cfa-f10c-4823-b5e1-e93ae85f46b5"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, 4);
+                        ThreadBooster.hetPolicy = 4;
+                        powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("7f2f5cfa-f10c-4823-b5e1-e93ae85f46b5"), PowerManagerAPI.PowerMode.AC | PowerManagerAPI.PowerMode.DC, (uint)ThreadBooster.hetPolicy);
                         powerManager.SetActiveGuid(powerManager.GetActiveGuid());
                     }
                 }
@@ -3062,11 +4087,17 @@ namespace CPUDoc
             {
                 App.LogExError($"NumaZero Init Exception:", ex);
             }
+
             App.systemInfo.SetSSHStatus(pactive.SysSetHack);
             App.systemInfo.SetPSAStatus(pactive.PowerSaverActive);
             App.systemInfo.SetN0Status(pactive.NumaZero);
-
+            
             App.LogDebug($"N0={pactive.NumaZero} N0Active={numazero_b} HT={systemInfo.HyperThreading}");
+
+            int _ideal = App.numazero_b ? App.n0enabledT0.Last() : App.logicalsT0.Last();
+            LogInfo($"Ideal Background Core Thread: {_ideal}");
+            _ideal = App.numazero_b ? App.n0enabledT0.First() : App.logicalsT0.First();
+            LogInfo($"Ideal Performance Core Thread: {_ideal}");
 
             ThreadBooster.bInit = false;
 
@@ -3115,49 +4146,63 @@ namespace CPUDoc
             switch (rate)
             {
                 case 0: //Very Slow
+                    ThreadBooster.SysMaskPooling = 350;
                     ThreadBooster.PoolingInterval = 750;
+                    ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
                     HWMonitor.MonitoringPooling = 500;
                     HWMonitor.MonitoringPoolingFast = 500;
                     cpuTotalLoad = new MovingAverage(3);
                     cpuTotalLoadLong = new MovingAverage(12);
                     return;
                 case 1:
+                    ThreadBooster.SysMaskPooling = 250;
                     ThreadBooster.PoolingInterval = 500;
+                    ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
                     HWMonitor.MonitoringPooling = 250;
                     HWMonitor.MonitoringPoolingFast = 250;
                     cpuTotalLoad = new MovingAverage(4);
                     cpuTotalLoadLong = new MovingAverage(16);
                     return;
                 case 2:
+                    ThreadBooster.SysMaskPooling = 150;
                     ThreadBooster.PoolingInterval = 350;
+                    ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
                     HWMonitor.MonitoringPooling = 250;
                     HWMonitor.MonitoringPoolingFast = 250;
                     cpuTotalLoad = new MovingAverage(4);
                     cpuTotalLoadLong = new MovingAverage(16);
                     return;
                 case 4:
-                    ThreadBooster.PoolingInterval = 200;
+                    ThreadBooster.SysMaskPooling = 90;
+                    ThreadBooster.PoolingInterval = 120;
+                    ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
                     HWMonitor.MonitoringPooling = 200;
                     HWMonitor.MonitoringPoolingFast = 200;
                     cpuTotalLoad = new MovingAverage(6);
                     cpuTotalLoadLong = new MovingAverage(20);
                     return;
                 case 5:
-                    ThreadBooster.PoolingInterval = 150;
+                    ThreadBooster.SysMaskPooling = 75;
+                    ThreadBooster.PoolingInterval = 100;
+                    ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
                     HWMonitor.MonitoringPooling = 150;
                     HWMonitor.MonitoringPoolingFast = 150;
                     cpuTotalLoad = new MovingAverage(8);
                     cpuTotalLoadLong = new MovingAverage(32);
                     return;
                 case 6:
+                    ThreadBooster.SysMaskPooling = 50;
                     ThreadBooster.PoolingInterval = 100;
+                    ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
                     HWMonitor.MonitoringPooling = 100;
                     HWMonitor.MonitoringPoolingFast = 100;
                     cpuTotalLoad = new MovingAverage(10);
                     cpuTotalLoadLong = new MovingAverage(40);
                     return;
                 case 7: //Crazy Fast
+                    ThreadBooster.SysMaskPooling = 25;
                     ThreadBooster.PoolingInterval = 50;
+                    ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
                     HWMonitor.MonitoringPooling = 50;
                     HWMonitor.MonitoringPoolingFast = 50;
                     cpuTotalLoad = new MovingAverage(16);
@@ -3165,11 +4210,20 @@ namespace CPUDoc
                     return;
                 default: 
                 case 3: //Default
+                    ThreadBooster.SysMaskPooling = 125;
+                    ThreadBooster.PoolingInterval = 150;
+                    ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
+                    HWMonitor.MonitoringPooling = 250;
+                    HWMonitor.MonitoringPoolingFast = 250;
+                    cpuTotalLoad = new MovingAverage(4);
+                    cpuTotalLoadLong = new MovingAverage(16);
+                    /*
                     ThreadBooster.PoolingInterval = 250;
                     HWMonitor.MonitoringPooling = 250;
                     HWMonitor.MonitoringPoolingFast = 250;
                     cpuTotalLoad = new MovingAverage(4);
                     cpuTotalLoadLong = new MovingAverage(16);
+                    */
                     return;
             }
         }
@@ -3233,4 +4287,115 @@ namespace CPUDoc
             logger.Warn(ex, msg);
         }
     }
+
+    public class submenuColorTable : WindowsForms.ProfessionalColorTable
+    {
+        public override System.Drawing.Color MenuItemSelected
+        {
+            get { return System.Drawing.ColorTranslator.FromHtml("#302E2D"); }
+        }
+
+        public override System.Drawing.Color MenuItemBorder
+        {
+            get { return System.Drawing.Color.Silver; }
+        }
+
+        public override System.Drawing.Color ToolStripDropDownBackground
+        {
+            get { return System.Drawing.ColorTranslator.FromHtml("#21201F"); }
+        }
+
+        public override System.Drawing.Color ToolStripContentPanelGradientBegin
+        {
+            get { return System.Drawing.ColorTranslator.FromHtml("#21201F"); }
+        }
+    }
+
+    public class LeftMenuColorTable : WindowsForms.ProfessionalColorTable
+    {
+        public override System.Drawing.Color MenuItemBorder
+        {
+            get { return System.Drawing.ColorTranslator.FromHtml("#BAB9B9"); }
+        }
+
+        public override System.Drawing.Color MenuBorder  //added for changing the menu border
+        {
+            get { return System.Drawing.Color.Silver; }
+        }
+
+        public override System.Drawing.Color MenuItemPressedGradientBegin
+        {
+            get { return System.Drawing.ColorTranslator.FromHtml("#4C4A48"); }
+        }
+        public override System.Drawing.Color MenuItemPressedGradientEnd
+        {
+            get { return System.Drawing.ColorTranslator.FromHtml("#5F5D5B"); }
+        }
+
+        public override System.Drawing.Color ToolStripBorder
+        {
+            get { return System.Drawing.ColorTranslator.FromHtml("#4C4A48"); }
+        }
+
+        public override System.Drawing.Color MenuItemSelectedGradientBegin
+        {
+            get { return System.Drawing.ColorTranslator.FromHtml("#4C4A48"); }
+        }
+
+        public override System.Drawing.Color MenuItemSelectedGradientEnd
+        {
+            get { return System.Drawing.ColorTranslator.FromHtml("#5F5D5B"); }
+        }
+
+        public override System.Drawing.Color ToolStripDropDownBackground
+        {
+            get { return System.Drawing.ColorTranslator.FromHtml("#404040"); }
+        }
+
+        public override System.Drawing.Color ToolStripGradientBegin
+        {
+            get { return System.Drawing.ColorTranslator.FromHtml("#404040"); }
+        }
+
+        public override System.Drawing.Color ToolStripGradientEnd
+        {
+            get { return System.Drawing.ColorTranslator.FromHtml("#404040"); }
+        }
+
+        public override System.Drawing.Color ToolStripGradientMiddle
+        {
+            get { return System.Drawing.ColorTranslator.FromHtml("#404040"); }
+        }
+    }
+    public class SplashInfo : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler PropertyChanged;
+        public string SplashContent { get; set; } = "Initialization...";
+        public double SplashProgress { get; set; } = 0;
+
+        public void SetProgress(int progress, string content = "")
+        {
+            try
+            {
+                SplashProgress = progress;
+                if (content.Length > 0) SplashContent = content;
+                OnChange("SplashProgress");
+                OnChange("SplashContent");
+            }
+            catch { }
+        }
+
+        public void OnChange(string info)
+        {
+            try
+            {
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs(info));
+                }
+            }
+            catch { }
+        }
+    }
+
 }

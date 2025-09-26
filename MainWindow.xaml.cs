@@ -44,10 +44,12 @@ namespace CPUDoc
         static bool WinLoaded = false;
         static DispatcherTimer uitimer;
         static bool AutoStartTask;
-        private uint? _lastmask_current = uint.MaxValue;
+        private ulong? _lastmask_current = ulong.MaxValue;
         private int PoolingTick = 0;
 
-        public static IAppConfig pcurrent;
+        public static IAppConfig pcurrent = new ConfigurationBuilder<IAppConfig>()
+                    .UseInMemoryDictionary()
+                    .Build();
         public string WinTitle
         {
             get { return (string)GetValue(WinTitleProperty); }
@@ -72,15 +74,27 @@ namespace CPUDoc
             }
         }
 
-        private void pcurrentLoad(int id)
+        private static void pcurrentLoad(int id)
         {
-            App.AppConfigs[id].CopyPropertiesTo(pcurrent);
-
+            try
+            {
+                App.AppConfigs[id].CopyPropertiesTo(pcurrent);
+            }
+            catch (Exception ex)
+            {
+                App.LogDebug($"pcurrentLoad exception: {ex}");
+            }
         }
-        private void pcurrentSave(int id)
+        private static void pcurrentSave(int id)
         {
-            pcurrent.CopyPropertiesTo(App.AppConfigs[id]);
-
+            try
+            {
+                pcurrent.CopyPropertiesTo(App.AppConfigs[id]);
+            }
+            catch (Exception ex)
+            {
+                App.LogDebug($"pcurrentSave exception: {ex}");
+            }
         }
         private void Window_SourceInitialized(object sender, EventArgs e)
         {
@@ -88,12 +102,16 @@ namespace CPUDoc
             {
                 App.LogDebug($"SourceInit Window Initialized {WindowSettings.Default.Initialized}");
                 App.systemInfo.WinMaxSize = System.Windows.SystemParameters.WorkArea.Height;
+                
+                //pcurrent = new ConfigurationBuilder<IAppConfig>()
+                //    .UseInMemoryDictionary()
+                //    .Build();
 
-                pcurrent = new ConfigurationBuilder<IAppConfig>()
-                    .UseInMemoryDictionary()
-                    .Build();
+                App.LogDebug($"SourceInit Window Initialized 2");
 
                 pcurrentLoad(0);
+
+                App.LogDebug($"SourceInit Window Initialized 3");
 
                 if (WindowSettings.Default.Initialized)
                 {
@@ -152,15 +170,17 @@ namespace CPUDoc
 
                 AutoStartTask = CheckStartTask();
 
+                /*
                 App.AppSettings.PropertyChanged += (sender, e) =>
                 {
                     App.LogDebug($"Changed {e.PropertyName}");
                 };
+                */
 
             }
             catch (Exception ex)
             {
-                App.LogDebug($"Window_SourceInit exception: {ex}");
+                App.LogDebug($"Window_SourceInitialized exception: {ex}");
             }
             finally
             {
@@ -212,6 +232,11 @@ namespace CPUDoc
             listHyberIdle.SelectedIndex = (pcurrent.HyberIdle);
             App.LogDebug($"MonitorIdle? {listMonitorIdle.SelectedIndex}={(int)pcurrent.MonitorIdle}");
             cbWakeTimers.IsChecked = pcurrent.WakeTimers ? true : false;
+            cbPSALightSleep.IsChecked = pcurrent.PSALightSleep ? true : false;
+            cbPSADeepSleep.IsChecked = pcurrent.PSADeepSleep ? true : false;
+            cbPSAAudioBlocksLightSleep.IsChecked = pcurrent.PSAAudioBlocksLightSleep ? true : false;
+            cbPSAAudioBlocksDeepSleep.IsChecked = pcurrent.PSAAudioBlocksDeepSleep ? true : false;
+            cbZCCPUTemp.IsChecked = pcurrent.ZenControlCPUTempTrayIcon ? true : false;
 
             GMDetect.IsChecked = pcurrent.GameMode ? true : false;
             GMFocusAssist.IsChecked = pcurrent.FocusAssist ? true : false;
@@ -252,7 +277,7 @@ namespace CPUDoc
                 COCountsLabel.Visibility = Visibility.Visible;
             }
 
-            if (App.tbtimer.Enabled) BtnThreadBoostLabel.Text = "Stop";
+            if (App.thrThreadBoosterRunning) BtnThreadBoostLabel.Text = "Stop";
 
             Config_Init();
 
@@ -265,7 +290,6 @@ namespace CPUDoc
                 cbNumaZero.IsEnabled = true;
                 cbSysSetHack.IsEnabled = true;
                 cbPSA.IsEnabled = true;
-                cbZC.IsEnabled = true;
                 listNumaZeroType.IsEnabled = true;
             }
             else
@@ -273,7 +297,6 @@ namespace CPUDoc
                 cbNumaZero.IsEnabled = false;
                 cbSysSetHack.IsEnabled = false;
                 cbPSA.IsEnabled = false;
-                cbZC.IsEnabled = false;
                 listNumaZeroType.IsEnabled = false;
             }
         }
@@ -395,6 +418,7 @@ namespace CPUDoc
                 }
 
                 _row = 0;
+                _col++;
 
                 TextBox cpuLoadLabel = new TextBox { Name = "cpuLoadLabel", Text = "Load: ", VerticalAlignment = VerticalAlignment.Center, Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
                 _gridblock.Children.Add(cpuLoadLabel);
@@ -638,7 +662,7 @@ namespace CPUDoc
             uitimer.Start();
             uitimer.Tick += (sender, args) =>
             {
-                if (App.tbtimer.Enabled)
+                if (App.thrThreadBoosterRunning)
                 {
                     App.systemInfo.SetThreadBoosterStatus("Running");
                 }
@@ -646,12 +670,14 @@ namespace CPUDoc
                 {
                     App.systemInfo.SetThreadBoosterStatus("Stopped");
                 }
-                App.systemInfo.SetSSHStatus((App.pactive.SysSetHack));
-                App.systemInfo.SetPSAStatus((App.pactive.PowerSaverActive));
-                App.systemInfo.SetN0Status((App.pactive.NumaZero));
+                App.systemInfo.SetSSHStatus(App.pactive.SysSetHack);
+                App.systemInfo.SetPSAStatus(App.pactive.PowerSaverActive);
+                App.systemInfo.SetN0Status(App.pactive.NumaZero);
                 App.systemInfo.SetSleepsAllowed();
 
                 if (PoolingTick == 3) App.systemInfo.RefreshLabels();
+
+                //App.RefreshThreadsStatus();
 
                 PoolingTick++;
                 PoolingTick = PoolingTick > 3 ? 0 : PoolingTick;
@@ -671,14 +697,14 @@ namespace CPUDoc
         {
             try 
             {
-                uint? _lastmask = App.lastSysCpuSetMask;
+                ulong? _lastmask = App.lastSysCpuSetMask;
                 //App.LogDebug($"UI Mask _lastmask:{_lastmask:X8} _lastmask_current:{_lastmask_current:X8}");
-                if (_lastmask != _lastmask_current || _lastmask_current == uint.MaxValue)
+                if (_lastmask != _lastmask_current || _lastmask_current == ulong.MaxValue)
                 {
                     for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
                     {
                         //int _mask = i << _lastmask;
-                        uint? _mask = _lastmask;
+                        ulong? _mask = _lastmask;
 #pragma warning disable CS0252 // Possible unintended reference comparison; left hand side needs cast
                         IEnumerable<Button> elements = FindVisualChildren<Button>(this).Where(x => x.Content == "T0" || x.Content== "T1");
 #pragma warning restore CS0252 // Possible unintended reference comparison; left hand side needs cast
@@ -686,12 +712,12 @@ namespace CPUDoc
                         {
                             if (btn.Tag.ToString() == $"{i}")
                             {
-                                if ((((1 << i) & _mask) != 0) || _mask == null || _mask == 0 || !((bool)App.pactive.ThreadBooster))
+                                if ((((ulong)(1 << i) & _mask) != 0) || _mask == null || _mask == 0 || !((bool)App.pactive.ThreadBooster))
                                 {
                                     btn.Foreground = Brushes.White;
                                     btn.Background = Brushes.Green;
                                 }
-                                else if (!(((1 << i) & _mask) != 0) && (App.n0disabledT0.Contains(i) || App.n0disabledT1.Contains(i)))
+                                else if (!(((ulong)(1 << i) & _mask) != 0) && (App.n0disabledT0.Contains(i) || App.n0disabledT1.Contains(i)))
                                 {
                                     btn.Foreground = Brushes.DarkGray;
                                     btn.Background = Brushes.Black;
@@ -952,14 +978,14 @@ namespace CPUDoc
             if (BtnThreadBoostLabel.Text == "Start")
             {
                 BtnThreadBoost.IsEnabled = false;
-                App.TbSetStart();
+                App.TBStart();
                 BtnThreadBoostLabel.Text = "Stop";
                 BtnThreadBoost.IsEnabled = true;
             }
             else
             {
                 BtnThreadBoost.IsEnabled = false;
-                App.TbSetStart(false);
+                App.TBStart(1);
                 BtnThreadBoostLabel.Text = "Start";
                 BtnThreadBoost.IsEnabled = true;
             }
@@ -1239,6 +1265,11 @@ namespace CPUDoc
                     pcurrent.MonitorIdle = listMonitorIdle.SelectedIndex;
                     pcurrent.HyberIdle = listHyberIdle.SelectedIndex;
                     pcurrent.WakeTimers = cbWakeTimers.IsChecked == true ? true : false;
+                    pcurrent.PSALightSleep = cbPSALightSleep.IsChecked == true ? true : false;
+                    pcurrent.PSADeepSleep = cbPSADeepSleep.IsChecked == true ? true : false;
+                    pcurrent.PSAAudioBlocksLightSleep = cbPSAAudioBlocksLightSleep.IsChecked == true ? true : false;
+                    pcurrent.PSAAudioBlocksDeepSleep = cbPSAAudioBlocksDeepSleep.IsChecked == true ? true : false;
+                    pcurrent.ZenControlCPUTempTrayIcon = cbZCCPUTemp.IsChecked == true ? true : false;
                     pcurrent.PLPerfMode = cbPLPerfMode.IsChecked == true ? true : false;
 
                     if (PowerTweak_LowPo.IsChecked == true) pcurrent.PowerTweak = 0;
@@ -1276,17 +1307,21 @@ namespace CPUDoc
 
                     //dump = ObjectDumper.Dump(App.pactive);
                     //App.LogDebug($"Dump pactive.id={App.pactive.id}\n{dump}");
-
+                    
                     if (App.pactive.ThreadBooster)
                     {
                         BtnThreadBoost.IsEnabled = false;
-                        App.TbSetStart(false);
-                        App.TbSetStart();
                         BtnThreadBoostLabel.Text = "Stop";
                         BtnThreadBoost.IsEnabled = true;
                     }
-                    
-                    _lastmask_current = uint.MaxValue;
+                    else
+                    {
+                        BtnThreadBoost.IsEnabled = false;
+                        BtnThreadBoostLabel.Text = "Start";
+                        BtnThreadBoost.IsEnabled = true;
+                    }
+
+                    _lastmask_current = ulong.MaxValue;
                     ThreadBooster.bInit = false;
 
                     InitWindowUI();
@@ -1313,6 +1348,22 @@ namespace CPUDoc
             */
             App.resetSettings = true;
             App.QuitApplication();
+        }
+        private void PopulateSettings_Click(object sender, RoutedEventArgs e)
+        {
+            //App.LogInfo($"NumaZeroType Index={cb.SelectedIndex} {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
+            //App.LogInfo($"NumaZeroType {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
+            //App.AppConfigs[pcurrent.id] = pcurrent;
+            /*
+            SettingsManager.ResetSettings();
+            if (!SettingsManager.ReadSettings()) SettingsManager.ReadSettings();
+            App.SetActiveConfig(0);
+            if (!SettingsManager.WriteSettings()) SettingsManager.WriteSettings();
+            ThreadBooster.bInit = false;
+            InitWindowUI();
+            */
+            Application.Current.Dispatcher.Invoke(new System.Action(() => { App.PopulateSettings(); }));
+            
         }
         private void BtnAutoStartTask_Click(object sender, RoutedEventArgs e)
         {

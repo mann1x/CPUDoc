@@ -9,6 +9,12 @@
 CPUDoc is a CPU "Little Helper".
 It comes with the following features that can be enabled independently.
 
+CPUDoc is a little utility that comes with some exclusive features:
+
+- SysSetHack - Use the CpuSet system bitmask manipulation to get a smoother and faster experience similar to SMT/HyperThreading off, while still keeping the benefit on being available.
+- PowerActive - Dynamic power plan manipulation, comes with 2 ultra low power consumption standby mode, Light and Deep Sleep.
+- NumaZero - Only use a subset of the cores, either set by Auto or manually the first 2/4/6/8. Auto should select same CCD/CCX or P-Cores.
+
 The ThreadBooster is the main engine director and most dynamic functions are depending on it.
 
 ---
@@ -36,9 +42,9 @@ For testing use any game at very highly CPU bound quality settings and check you
 This software is pretty safe to use and it doesn't necessarily require complex configuration.
 Almost everything is set in Auto, without user intervention. This is the goal.
 
-But keep into consideration that the use of some features (eg. SSH, N0, ZenControl, IntelControl, etc) could cause games stuttering and system freezing/crashing in extreme cases.
+But keep into consideration that the use of some features (eg. SSH, N0, ZenControl, CoreControl, etc) could cause games stuttering and system freezing/crashing in extreme cases.
 
-CPU usage is very low, 0.03/0.04% with just over 130MB of memory.
+CPU usage is very low, 0.03/0.04% with just over 180MB of memory.
 Power consumption savings on AMD with PSA are very substantial, from 10W-30W to 50-60W.
 
 ---
@@ -62,8 +68,8 @@ Send me the files in the Logs folder.***
 ****Please use the Issues tab on GitHub if you want to report an issue or have a request****
 
 There are 2 threads on OCN where to discuss about CPUDoc:
-- [For AMD platforms discussion](https://www.overclock.net/threads/cpudoc-little-cpu-helper-tool-with-some-exclusive-features.1802082/)
-- [For Intel platforms discussion](https://www.overclock.net/threads/cpudoc-little-cpu-helper-tool-with-some-exclusive-features.1802081/)
+- [For AMD platforms discussion](https://www.overclock.net/threads/cpudoc-little-cpu-helper-tool-with-some-exclusive-features.1802081/)
+- [For Intel platforms discussion](https://www.overclock.net/threads/cpudoc-little-cpu-helper-tool-with-some-exclusive-features.1802082/)
 
 If for some reason you don't want or can't use PSA, check one of my Custom Power Plans for Windows 10 & 11:
 - [ManniX's Custom Power Plans for AMD](https://www.overclock.net/threads/ryzen-custom-power-plans-for-windows-10-balanced-and-ultimate.1776353/)
@@ -85,10 +91,14 @@ If for some reason you don't want or can't use PSA, check one of my Custom Power
 
 - Some games may stutter with NumaZero active
     - One example is Assassin's Creed Valhalla with an AMD dual CCD processor
-    - Intel with Hybrid architecture (P/E-Cores) should be immune to this issue
+    - Intel with Hybrid architecture (P/E-Cores) should be immune to this issue (Cores are parked instead of being disabled via System CpuSet Mask)
 - Benchmarks with short all core loads could give a worse score with SSH enabled; this is by design
 - Benchmarks with a too friendly affinity could give a worse score with SSH enabled; this is by design
-    - Some of the 3DMark benchmarks could exhibit this behavior, if not white-listed (most if not all tests should be currently optimized) 
+    - Some of the 3DMark benchmarks could exhibit this behavior, if not white-listed (most if not all tests should be currently optimized)
+- Capturing statistics with CapframeX mostly works but could be incompatible with some games (eg. Hunt: Showdown)
+- The inpoux64.dll can be blocked by bad Anti-Virus and Anti-Cheat software, you can disable loading in Settings or via command line switch; some features like ZenControl and CoreControl will be disabled permanently
+  - Some Anti-Virus software blocks the inpoutx64.dll library even if white-listed (eg. Kaspersky)
+  - Some Anti-Cheat are blocking the inpoutx64.dll library, some are auto-detect (eg. Vanguard) others not (eg. faceit/AC)
 
 ---
 
@@ -108,7 +118,7 @@ More a list to remember what to work on in the future :)
 - App detection for automatic switching profiles
 - Keyboard HotKeys; change profiles, toggle features, send HotKeys (eg. to switch AfterBurner profile)
 - MSR for CPU load detection on AMD/Intel
-- IntelCore; change Intel specific settings via MSR
+- CoreControl; change Intel specific settings via MSR
 - ZenControl WHEASuppressor, disable FCLK instability errors via MSR MCA control
 - ZenControl MCADoctor; granular control of all MCA bits, detect and decode errors
 

@@ -9,8 +9,23 @@
 
 ## Changelog:
 
+- v1.2.10 Beta
+    - New: Moved to .NET 9 framework
+    - New: Added more ZumaZero manual selections, up to 20
+    - New: Optional CPU temperature display in the system tray for Zen
+    - New: System tray icon now displays on mouse over CPU Load and features status
+    - New: Preliminary import of Game Profiles, almost 400 games generically optimized
+    - New: MechWarrior 5 Optimization
+    - New: Enable or disable sleep modes, decide to block if audio playback is running (WASAPI/ASIO/ASIO+DSD)
+    - New: Register as MMCSS Pro Audio application
+    - Fix: Zen CoreMap now is correct
+    - Fix: Optimized threading to lower CPU usage
+    - Fix: Switched back to the old non-WPF system tray icon to lower CPU usage, now 0.3/4% instead of 0.6/7%
+    - Fix: Splash-screen now displays all the steps but disabled due to CPU usage issues... use of starting banner for now
+    - Fix: PSA Power Plan initialization
+    - Fix: Zen PowerTable initialization if blocked
 - v1.2.9 Beta
-  - Fix: Small Hotfix for AMD Zen initialization
+    - Fix: Small Hotfix for AMD Zen initialization
 - v1.2.8 Beta
     - Fix: Skipped unnecessary bindings for the UI, lower CPU background load back to 1.1.x values
     - Fix: UI doesn't stop updating after kept idle for a while

@@ -1,6 +1,10 @@
-﻿using System;
+﻿using AdonisUI.Extensions;
+using System;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Media.Animation;
+using Windows.Devices.Display.Core;
 
 namespace CPUDoc.Windows
 {
@@ -11,14 +15,15 @@ namespace CPUDoc.Windows
     {
         //internal static readonly AppSettings appSettings = (Application.Current as App)?.settings;
         //internal static readonly Updater updater = (Application.Current as App)?.updater;
-        public static readonly SplashWindow splash = new SplashWindow();
-
+        //public static SplashWindow splash = new SplashWindow();
+      
         // To refresh the UI immediately
         private delegate void RefreshDelegate();
-        private static void Refresh(DependencyObject obj)
+        private static void doRefresh(DependencyObject obj)
         {
-            obj.Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.Render,
-                (RefreshDelegate) delegate { });
+            if (App.splash.IsVisible)
+                obj.Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.Input,
+                    (RefreshDelegate)delegate { }); return; ;
         }
 
         public SplashWindow()
@@ -26,26 +31,53 @@ namespace CPUDoc.Windows
             InitializeComponent();
         }
 
-        public static void Start()
+        public void Start()
         {
-            splash.Show();
+            Binding bindSplash = new Binding($"SplashContent");
+            bindSplash.Mode = BindingMode.OneWay;
+            bindSplash.Source = App.splashInfo;
+            BindingOperations.SetBinding(status, ProgressBarExtension.ContentProperty, bindSplash);
+
+            Binding bindSplash2 = new Binding($"SplashProgress");
+            bindSplash2.Mode = BindingMode.OneWay;
+            bindSplash2.Source = App.splashInfo;
+            BindingOperations.SetBinding(status, ProgressBar.ValueProperty, bindSplash2);
+
+            Closing += (sender, args) =>
+                    AdonisWindow_Closing(sender, args);
+            Show();
         }
-
-        public static void Stop() => splash.Close();
-
-        public static void Loading(int progress)
+        public void Refresh()
         {
-            splash.status.Value = progress;
-            Refresh(splash.status);
+            doRefresh(status);
+        }
+        public void Stop()
+        {
+            Dispatcher.ShutdownFinished += (sender, args) =>
+                    Shutdown_Finished(sender, args);
+            status.Dispatcher.InvokeShutdown();
+            Dispatcher.InvokeShutdown();
+        }
+        private void Shutdown_Finished(object sender, System.EventArgs e)
+        {
+            Close();
         }
 
         private void AdonisWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            Window window = sender as Window;
+            Window swindow = sender as SplashWindow;
             e.Cancel = true;
-            var anim = new DoubleAnimation(0, (Duration)TimeSpan.FromSeconds(1.5));
-            anim.Completed += (s, _) => { window.Hide(); window.Close(); };
-            window.BeginAnimation(UIElement.OpacityProperty, anim);
+            BindingOperations.ClearAllBindings(status);
+            var anim = new DoubleAnimation(0, (Duration)TimeSpan.FromSeconds(2.5));
+            anim.Completed += (s, _) => {
+                doRefresh(status);
+                while (status.Value < 100)
+                {
+                    App.wsleep(500);
+                }
+                App.wsleep(20000);
+                swindow.Hide(); Stop(); };
+            swindow.BeginAnimation(UIElement.OpacityProperty, anim);
         }
     }
 }

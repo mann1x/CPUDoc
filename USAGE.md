@@ -14,6 +14,8 @@ Here a break-down of the main features
 This feature will dynamically allocate the T1 threads, avoiding any scheduler allocation when not needed.
 This will improve the performances substantially when the workload doesn't need the 2nd CPU threads.
 
+![SSH Scaling](CPUDoc/SSHScaling.png)
+
 You can test with 7-Zip benchmark using half or less the total CPU threads, minus 2. So use 6 threads for a 8C/16T CPU.
 The results is similar to disabling SMT/HyperThreading in BIOS but you can still enjoy almost full performances when needed.
 More cores are available on the CPU and more benefits can be expected running it.

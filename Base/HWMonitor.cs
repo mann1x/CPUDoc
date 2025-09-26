@@ -1,23 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Threading;
 using LibreHardwareMonitor.Hardware;
-using System.Timers;
-using System.Diagnostics;
-using System.IO;
-using ZenStates.Core;
 using System.Text.RegularExpressions;
-using System.ComponentModel;
+using System.Drawing;
 
 namespace CPUDoc
 {
     public class HWMonitor
     {
-        public static Computer computer = new Computer();
+        public static Computer computer;
 
+        public static CancellationToken hwmtoken = new CancellationToken();
         public static DateTime MonitoringStart = DateTime.MinValue;
         public static DateTime MonitoringEnd = DateTime.MinValue;
         public static bool MonitoringStarted = false;
@@ -42,6 +37,19 @@ namespace CPUDoc
         public static HWSensorSource BoardSource;
         public static bool EndCheckLowLoad = false;
         //public static CpuLoad cpuLoad;
+
+        public static int PoolingTick = 0;
+
+        public static bool ZenCpuTempIcon_b;
+        public static IntPtr hIconCpuTemp = IntPtr.Zero;
+        public static IntPtr hIconCpuTempOld = IntPtr.Zero;
+
+        private static System.Drawing.Brush brushWhite = new SolidBrush(System.Drawing.Color.White);
+        private static System.Drawing.Brush brushGreen = new SolidBrush(System.Drawing.Color.LightGreen);
+        private static System.Drawing.Brush brushOrange = new SolidBrush(System.Drawing.Color.Orange);
+        private static System.Drawing.Brush brushRed = new SolidBrush(System.Drawing.Color.Red);
+        private static System.Drawing.Brush IconCpuTempbrush;
+
 
         public static bool _dumphwm = true;
         public static bool _dumphwmidle = true;
@@ -140,6 +148,8 @@ namespace CPUDoc
         {
             try
             {
+                if (App.cmdargs.inpoutdlldisable == 1 || App.AppSettings.inpoutdlldisable == true) return;
+
                 if (object.ReferenceEquals(null, App.systemInfo.Zen)) App.systemInfo.ZenInit();
 
                 bool _refreshpt = App.systemInfo.ZenRefreshPowerTable();
@@ -277,7 +287,7 @@ namespace CPUDoc
         public static void Close()
         {
 
-            App.hwmtimer.Enabled = false;
+            //App.hwmtimer.Enabled = false;
 
             App.hwmcts.Cancel();
 
@@ -289,6 +299,11 @@ namespace CPUDoc
             {
                 App.LogDebug($"HWM canceled");
             }
+
+            App.thrMonitor = null;
+            App.thrMonitorRunning = false;
+            App.hwmcts.Dispose();
+            App.hwmcts = new CancellationTokenSource();
 
             //computer.Close();
 
@@ -997,6 +1012,7 @@ namespace CPUDoc
 
         */
 
+        /*
         public static void OnHWM(object sender, ElapsedEventArgs args)
         {
             try
@@ -1039,24 +1055,28 @@ namespace CPUDoc
                     InitSensor = true;
                 }
 
-                */
 
-                if (App.IsForegroundWindowFullScreen(false)) App.UAStamp = DateTime.Now;
 
                 //App.LogDebug("HWM MONITOR CPULOAD");
 
-                if (!ProcessorInfo.CpuLoadPerfCounter) ProcessorInfo._cpuLoad.Update();
                 //if (App.pactive.SysSetHack || App.pactive.PowerSaverActive) ProcessorInfo.CpuTotalLoadUpdate();
                 //if (App.pactive.SysSetHack) ProcessorInfo.CpuLoadUpdate();
 
-                ProcessorInfo.CpuLoadUpdate();
-                ProcessorInfo.CpuTotalLoadUpdate();
-                App.cpuTotalLoad.Push(ProcessorInfo.cpuTotalLoad);
-                App.cpuTotalLoadLong.Push(ProcessorInfo.cpuTotalLoad);
-                App.systemInfo.UpdateCpuTotalLoad(App.cpuTotalLoad.Current);
+                return;
+                if (App.pactive.SysSetHack || App.pactive.PowerSaverActive || App.pactive.ZenControl || App.MainWindowOpen)
+                {
+                    if (App.IsForegroundWindowFullScreen(false)) App.UAStamp = DateTime.Now;
+
+                    if (!ProcessorInfo.CpuLoadPerfCounter) ProcessorInfo._cpuLoad.Update();
+                    ProcessorInfo.CpuLoadUpdate();
+                    ProcessorInfo.CpuTotalLoadUpdate();
+                    App.cpuTotalLoad.Push(ProcessorInfo.cpuTotalLoad);
+                    App.cpuTotalLoadLong.Push(ProcessorInfo.cpuTotalLoad);
+                    App.systemInfo.UpdateCpuTotalLoad(App.cpuTotalLoad.Current);
+                }
 
                 //App.LogDebug($"TL={ProcessorInfo.cpuTotalLoad:0} AvgTL={App.cpuTotalLoad.Current:0} MaxTL={App.cpuTotalLoad.GetMax:0}");
-                
+
                 /*
                 if (MonitoringPooling == MonitoringPoolingSlow)
                 {
@@ -1240,7 +1260,6 @@ namespace CPUDoc
                 {
                     App.LogExError($"HWM Monitoring DumpHWM Exception: {ex.Message}", ex);
                 }
-                */
 
             }
             catch (OperationCanceledException)
@@ -1258,6 +1277,259 @@ namespace CPUDoc
                 //App.LogDebug($"HWM MONITOR TICK {MonitoringPooling}ms");
             }
         }
+        */
+        public static void RunHWM()
+        {
+            try
+            {
+                //if (App.ZenCpuTempIcon != null) App.ZenCpuTempIcon.Visible = false;
+                //if (App.trayIcon != null) App.trayIcon.Icon = global::CPUDoc.Resources.CPUDocRes.CPUDoc;
+                //ZenCpuTempIcon_b = false;
+
+                hwmtoken = new CancellationToken();
+                hwmtoken = (CancellationToken)App.hwmcts.Token;
+                string icontext = "";
+                App.mreshwm.Set();
+
+                while (true)
+                {
+                    
+                    if (!App.mreshwm.IsSet)
+                    {
+                        if (App.trayIcon != null)
+                        {
+                            App.trayIcon.Text = $"CPUDoc {App.version}";
+                            App.trayIcon.Icon = global::CPUDoc.Resources.CPUDocRes.CPUDoc;
+                        }
+                    }
+                    App.mreshwm.Wait();
+
+                    /*
+                    int cntthr = 0;
+
+                    using (DataTarget target = DataTarget.AttachToProcess(
+                            System.Diagnostics.Process.GetCurrentProcess().Id, false))
+                    {
+                        ClrRuntime runtime = target.ClrVersions.First().CreateRuntime();
+                        foreach (ClrThread thread in runtime.Threads)
+                        {
+                            cntthr++;
+                        }
+                        App.LogDebug($"Threads={cntthr}");
+                    }
+                    */
+
+                    //App.LogDebug("HWM MONITOR TICK");
+
+                    if (hwmtoken.IsCancellationRequested)
+                    {
+                        App.LogDebug("HWM MONITOR CANCELLATION REQUESTED");
+                        hwmtoken.ThrowIfCancellationRequested();
+                    }
+
+                    if (App.pactive.SysSetHack || App.pactive.PowerSaverActive || App.pactive.ZenControl || App.MainWindowOpen)
+                    {
+                        if (!ProcessorInfo.CpuLoadPerfCounter) ProcessorInfo._cpuLoad.Update();
+                        ProcessorInfo.CpuLoadUpdate();
+                        ProcessorInfo.CpuTotalLoadUpdate();
+                        App.cpuTotalLoad.Push(ProcessorInfo.cpuTotalLoad);
+                        App.cpuTotalLoadLong.Push(ProcessorInfo.cpuTotalLoad);
+                        App.systemInfo.UpdateCpuTotalLoad(App.cpuTotalLoad.Current);
+                    }
+
+                    if (PoolingTick == 4)
+                    {
+                        if (App.trayIcon != null)
+                        {
+                            icontext = $"Load: {App.cpuTotalLoad.Current:F0}%";
+                            if (App.systemInfo.ZenStates && App.pactive.ZenControlCPUTempTrayIcon && App.systemInfo.Zen != null)
+                            {
+                                if (App.systemInfo.Zen.cpuTemp != null)
+                                {
+                                    if (!App.MainWindowOpen)
+                                        App.systemInfo.ZenRefreshSensors();
+                                    CreateTempIcon();
+                                    ZenCpuTempIcon_b = true;
+                                    if (App.systemInfo.ZenCpuTemp.Length > 0)
+                                        icontext += $"\nTemp: {App.systemInfo.ZenCpuTemp}";
+                                }
+                            } 
+                            else
+                            {
+                                if (ZenCpuTempIcon_b == true)
+                                {
+                                    App.trayIcon.Icon = global::CPUDoc.Resources.CPUDocRes.CPUDoc;
+                                    ZenCpuTempIcon_b = false;
+                                }
+                            }
+                            if (App.pactive.SysSetHack)
+                            {
+                                if (!App.MainWindowOpen) App.systemInfo.UpdateSSHStatus(App.pactive.SysSetHack);
+                                icontext += $"\nSSH: {App.systemInfo.SSHStatus}";
+                            }
+                            if (App.pactive.PowerSaverActive)
+                            {
+                                if (!App.MainWindowOpen) App.systemInfo.UpdatePSAStatus(App.pactive.PowerSaverActive);
+                                icontext += $"\nPSA: {App.systemInfo.PSAStatus}";
+                            }                            
+                            if (App.pactive.NumaZero)
+                            {
+                                if (!App.MainWindowOpen) App.systemInfo.UpdateN0Status(App.pactive.NumaZero);
+                                icontext += $"\nN0: {App.systemInfo.N0Status}";
+                            }
+                            App.trayIcon.Text = icontext.Trim()?[0..Math.Min(icontext.Length, 128)];
+                        }
+                    }
+
+                    PoolingTick++;
+                    PoolingTick = PoolingTick > 4 ? 0 : PoolingTick;
+
+                    App.wsleep((uint)(MonitoringPooling * 1000));
+                    //Thread.Sleep(MonitoringPooling);
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                App.LogDebug("HWM Monitoring cycle exiting due to ObjectDisposed");
+            }
+            catch (OperationCanceledException)
+            {
+                App.LogDebug("HWM Monitoring cycle exiting due to OperationCanceled");
+            }
+            catch (Exception ex)
+            {
+                App.LogExError($"HWM Monitoring cycle Exception: {ex.Message}", ex);
+            }
+            finally
+            {
+                if (App.trayIcon != null)
+                {
+                    App.trayIcon.Text = $"CPUDoc {App.version}";
+                    App.trayIcon.Icon = global::CPUDoc.Resources.CPUDocRes.CPUDoc;
+                }
+                if (hIconCpuTemp != IntPtr.Zero) App.DestroyIcon(hIconCpuTemp);
+                if (hIconCpuTempOld != IntPtr.Zero) App.DestroyIcon(hIconCpuTempOld);
+                GC.Collect();
+            }
+        }
+        /*
+        public static void CreateTempIcon()
+        {
+            try
+            {
+                IntPtr hIconCpuTemp = IntPtr.Zero;
+                float? value = App.systemInfo.Zen.cpuTemp;
+                if (value == null) return;
+                string str = value > 99 ? $"{value:F0}" : $"{value:F0}°";
+                int _thmlimit = 85;
+                string icontext = $"CPU: {App.systemInfo.ZenCpuTemp}";
+                if (App.systemInfo.ZenStates && App.systemInfo.Zen != null)
+                {
+                    if (App.systemInfo.Zen.ccd1Temp != null) icontext += $"\nCCD1: {App.systemInfo.ZenCcd1Temp}";
+                    if (App.systemInfo.Zen.ccd2Temp != null) icontext += $"\nCCD2: {App.systemInfo.ZenCcd2Temp}";
+                    if (App.systemInfo.Zen.cpuVcore != null) icontext += $"\nvCore: {App.systemInfo.ZenCpuVcore}";
+                    if (App.systemInfo.Zen.cpuVsoc != null) icontext += $"\nvSOC: {App.systemInfo.ZenCpuVcore}";
+                    if (App.systemInfo.ZenTHM > 0 && (_thmlimit - 5) != App.systemInfo.ZenTHM) _thmlimit = App.systemInfo.ZenTHM - 5;
+                }
+                App.ZenCpuTempIcon.Text = icontext;
+                IconCpuTempbrush = value < 45 ? brushGreen : value < 75 ? brushWhite : value < _thmlimit ? brushOrange : brushRed;
+                int IconFontSize = App.sysTrayIconSize == 16 ? 11 : 10 * (App.sysTrayIconSize/16);
+                Bitmap bitmapText = new Bitmap(App.sysTrayIconSize, App.sysTrayIconSize);
+                Graphics g = System.Drawing.Graphics.FromImage(bitmapText);
+                Font IconFont = new Font("Tahoma", IconFontSize, System.Drawing.FontStyle.Regular, GraphicsUnit.Pixel);
+
+                g.Clear(System.Drawing.Color.Transparent);
+                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.SingleBitPerPixelGridFit;
+                g.DrawString(str, IconFont, IconCpuTempbrush, -2, 2);
+                hIconCpuTemp = bitmapText.GetHicon();
+                RefreshIconAsync(App.ZenCpuTempIcon, hIconCpuTemp);
+                App.ZenCpuTempIcon.Icon = System.Drawing.Icon.FromHandle(hIconCpuTemp);
+                if (!ZenCpuTempIcon_b) { App.ZenCpuTempIcon.Visible = true; ZenCpuTempIcon_b = true; }
+                g.Dispose();
+                App.DestroyIcon(hIconCpuTemp);
+            }
+            catch (Exception ex)
+            {
+                App.LogExError($"InitCpuTempTrayIcon exception: {ex.Message}", ex);
+            }
+        }
+
+                 public static void CreateTempIcon()
+        {
+            try
+            {
+                App.Current.Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() =>
+                {
+                    IntPtr hIconCpuTemp = IntPtr.Zero;
+                    float? value = App.systemInfo.Zen.cpuTemp;
+                    if (value == null) return;
+                    string str = value > 99 ? $"{value:F0}" : $"{value:F0}°";
+                    int _thmlimit = 85;
+                    string icontext = $"CPU: {App.systemInfo.ZenCpuTemp}";
+                    IconCpuTempbrush = value < 45 ? brushGreen : value < 75 ? brushWhite : value < _thmlimit ? brushOrange : brushRed;
+                    int IconFontSize = App.sysTrayIconSize == 16 ? 11 : 10 * (App.sysTrayIconSize / 16);
+                    Bitmap bitmapText = new Bitmap(App.sysTrayIconSize, App.sysTrayIconSize);
+                    Graphics g = System.Drawing.Graphics.FromImage(bitmapText);
+                    Font IconFont = new Font("Tahoma", IconFontSize, System.Drawing.FontStyle.Regular, GraphicsUnit.Pixel);
+
+                    g.Clear(System.Drawing.Color.Transparent);
+                    g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.SingleBitPerPixelGridFit;
+                    g.DrawString(str, IconFont, IconCpuTempbrush, -2, 2);
+                    hIconCpuTemp = bitmapText.GetHicon();
+                    cpuTempIcon = System.Drawing.Icon.FromHandle(hIconCpuTemp);
+                    g.Dispose();
+                    App.DestroyIcon(hIconCpuTemp);
+                }));
+            }
+            catch (Exception ex)
+            {
+                App.LogExError($"CreateTempIcon exception: {ex.Message}", ex);
+            }
+        }
+
+         */
+
+        public static void CreateTempIcon()
+        {
+            try 
+            { 
+                float? value = App.systemInfo.Zen.cpuTemp;
+
+                if (value == null) return;
+                string str = value > 99 ? $"{value:F0}" : $"{value:F0}°";
+                int _thmlimit = 85;
+                string icontext = $"CPU: {App.systemInfo.ZenCpuTemp}";
+                IconCpuTempbrush = value < 45 ? brushGreen : value < 75 ? brushWhite : value < _thmlimit ? brushOrange : brushRed;
+                int IconFontSize = App.sysTrayIconSize == 16 ? 11 : 10 * (App.sysTrayIconSize / 16);
+                Bitmap bitmapText = new Bitmap(App.sysTrayIconSize, App.sysTrayIconSize);
+                Graphics g = System.Drawing.Graphics.FromImage(bitmapText);
+                Font IconFont = new Font("Tahoma", IconFontSize, System.Drawing.FontStyle.Regular, GraphicsUnit.Pixel);
+
+                g.Clear(System.Drawing.Color.Transparent);
+                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.SingleBitPerPixelGridFit;
+                g.DrawString(str, IconFont, IconCpuTempbrush, -2, 2);
+                if (hIconCpuTemp == IntPtr.Zero)
+                {
+                    hIconCpuTemp = bitmapText.GetHicon();
+                    App.trayIcon.Icon = System.Drawing.Icon.FromHandle(hIconCpuTemp);
+                    App.DestroyIcon(hIconCpuTempOld);
+                    hIconCpuTempOld = IntPtr.Zero;
+                }
+                else
+                {
+                    hIconCpuTempOld = bitmapText.GetHicon();
+                    App.trayIcon.Icon = System.Drawing.Icon.FromHandle(hIconCpuTempOld);
+                    App.DestroyIcon(hIconCpuTemp);
+                    hIconCpuTemp = IntPtr.Zero;
+                }
+                g.Dispose();
+            }
+            catch (Exception ex)
+            {
+                App.LogExError($"CreateTempIcon exception: {ex.Message}", ex);
+            }
+        }
+
         public static (double, string) GetScaleValueAndPrefix(double value)
         {
             string prefix;
