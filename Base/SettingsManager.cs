@@ -520,6 +520,9 @@ namespace CPUDoc
         [Option(Alias = "CPUDoc.NumaZeroType", DefaultValue = 0)]
         int NumaZeroType { get; set; }
 
+        [Option(Alias = "CPUDoc.NumaZeroAutoType", DefaultValue = 0)]
+        int NumaZeroAutoType { get; set; }
+
         [Option(Alias = "Profile.Enabled", DefaultValue = true)]
         bool Enabled { get; set; }
 

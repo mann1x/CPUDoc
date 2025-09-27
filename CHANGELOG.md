@@ -9,6 +9,10 @@
 
 ## Changelog:
 
+- v1.2.11 Beta
+    - New: Added Auto Type Mode for NumaZero and Intel ArrowLake clustering detection
+    - Fix: AutoUpdate metadata
+    - Fix: Removed BassWasapi and Audio Playback detection temporarily due to incompatibility with net 9.0
 - v1.2.10 Beta
     - New: Moved to .NET 9 framework
     - New: Added more ZumaZero manual selections, up to 20

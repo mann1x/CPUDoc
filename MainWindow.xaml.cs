@@ -208,6 +208,7 @@ namespace CPUDoc
             cbInpoutdll.IsChecked = App.AppSettings.inpoutdlldisable ? true : false;
             cbAUNotifications.IsChecked = App.AppSettings.AUNotifications ? true : false;
             listNumaZeroType.SelectedIndex = (int)pcurrent.NumaZeroType;
+            listNumaZeroAutoType.SelectedIndex = (int)pcurrent.NumaZeroAutoType;
             cbPoolingRate.IsChecked = pcurrent.ManualPoolingRate ? true : false;
             listPoolingRate.SelectedIndex = (int)pcurrent.PoolingRate;
 
@@ -291,6 +292,7 @@ namespace CPUDoc
                 cbSysSetHack.IsEnabled = true;
                 cbPSA.IsEnabled = true;
                 listNumaZeroType.IsEnabled = true;
+                listNumaZeroAutoType.IsEnabled = true;
             }
             else
             {
@@ -298,6 +300,7 @@ namespace CPUDoc
                 cbSysSetHack.IsEnabled = false;
                 cbPSA.IsEnabled = false;
                 listNumaZeroType.IsEnabled = false;
+                listNumaZeroAutoType.IsEnabled = false;
             }
         }
 
@@ -676,8 +679,6 @@ namespace CPUDoc
                 App.systemInfo.SetSleepsAllowed();
 
                 if (PoolingTick == 3) App.systemInfo.RefreshLabels();
-
-                //App.RefreshThreadsStatus();
 
                 PoolingTick++;
                 PoolingTick = PoolingTick > 3 ? 0 : PoolingTick;
@@ -1184,6 +1185,12 @@ namespace CPUDoc
             //App.LogDebug($"NumaZeroType {pcurrent.NumaZeroType} {pcurrent.NumaZeroType.GetType()}");
             if (pcurrent != null) pcurrent.NumaZeroType = cb.SelectedIndex;
         }
+        private void NumaZeroAutoType_Select(object sender, SelectionChangedEventArgs e)
+        {
+            ComboBox cb = sender as ComboBox;
+            //App.LogDebug($"NumaZeroType {pcurrent.NumaZeroType} {pcurrent.NumaZeroType.GetType()}");
+            if (pcurrent != null) pcurrent.NumaZeroAutoType = cb.SelectedIndex;
+        }
         private void PoolingRate_Select(object sender, SelectionChangedEventArgs e)
         {
             ComboBox cb = sender as ComboBox;
@@ -1259,6 +1266,7 @@ namespace CPUDoc
                     pcurrent.ZenControl = cbZC.IsChecked == true ? true : false;
                     pcurrent.SysSetHack = cbSysSetHack.IsChecked == true ? true : false;
                     pcurrent.NumaZeroType = listNumaZeroType.SelectedIndex;
+                    pcurrent.NumaZeroAutoType = listNumaZeroAutoType.SelectedIndex;
                     pcurrent.ManualPoolingRate = cbPoolingRate.IsChecked == true ? true : false;
                     pcurrent.PoolingRate = listPoolingRate.SelectedIndex;
                     pcurrent.SleepIdle = listSleepIdle.SelectedIndex;
@@ -1326,6 +1334,9 @@ namespace CPUDoc
 
                     InitWindowUI();
                     //App.LogDebug($"Rd Config[{App.pactive.id}] TBA={App.AppConfigs[App.pactive.id].ThreadBooster} SSH={App.AppConfigs[App.pactive.id].SysSetHack}:{App.pactive.SysSetHack} PSA={App.AppConfigs[App.pactive.id].PowerSaverActive} N0={App.pactive.NumaZero}:{App.AppConfigs[App.pactive.id].NumaZero}:{App.AppConfigs[App.pactive.id].NumaZeroType}");
+
+                    App.RefreshThreadsStatus();
+
                 }
             }
             catch (Exception ex)

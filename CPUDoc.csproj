@@ -10,9 +10,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>CPUDoc.ico</ApplicationIcon>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <Version>1.2.10</Version>
-    <AssemblyVersion>1.2.10.0</AssemblyVersion>
-    <FileVersion>1.2.10.0</FileVersion>
+    <Version>1.2.11</Version>
+    <AssemblyVersion>1.2.11.0</AssemblyVersion>
+    <FileVersion>1.2.11.0</FileVersion>
     <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <Nullable>disable</Nullable>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
@@ -50,10 +50,10 @@
   <ItemGroup>
     <PackageReference Include="AdonisUI" Version="1.17.1" />
     <PackageReference Include="AdonisUI.ClassicTheme" Version="1.17.1" />
-    <PackageReference Include="Autoupdater.NET.Official" Version="1.8.3" />
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.0" />
+    <PackageReference Include="Autoupdater.NET.Official" Version="1.9.2" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="Conari" Version="1.5.0" />
-    <PackageReference Include="Config.Net" Version="5.1.5" />
+    <PackageReference Include="Config.Net" Version="5.2.1" />
     <PackageReference Include="EventHook" Version="1.4.113" />
     <PackageReference Include="gong-wpf-dragdrop" Version="3.2.1" />
     <PackageReference Include="H.Hooks" Version="1.6.0" />
@@ -63,15 +63,14 @@
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
     <PackageReference Include="ImpromptuInterface" Version="7.0.1" />
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.1" />
-    <PackageReference Include="ManagedBass" Version="3.1.1" />
-    <PackageReference Include="ManagedBass.Wasapi" Version="3.1.1" />
-    <PackageReference Include="Microsoft.Diagnostics.Runtime" Version="2.4.416101" />
+    <PackageReference Include="ManagedBass.Wasapi" Version="4.0.1" />
+    <PackageReference Include="Microsoft.Diagnostics.Runtime" Version="3.1.512801" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="6.0.0" />
     <PackageReference Include="Microsoft.Win32.Registry.AccessControl" Version="7.0.0" />
     <PackageReference Include="MouseKeyHook" Version="5.7.1" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="NLog" Version="5.2.0" />
-    <PackageReference Include="OSVersionExt" Version="2.0.0" />
+    <PackageReference Include="OSVersionExt" Version="3.0.0" />
     <PackageReference Include="PInvoke.Kernel32" Version="0.7.124" />
     <PackageReference Include="PInvoke.Shell32" Version="0.7.124" />
     <PackageReference Include="PInvoke.User32" Version="0.7.124" />
@@ -81,10 +80,10 @@
     <PackageReference Include="System.IO.Pipes.AccessControl" Version="5.0.0" />
     <PackageReference Include="System.Management" Version="6.0.0" />
     <PackageReference Include="System.ObjectModel" Version="4.3.0" />
-    <PackageReference Include="System.Security.AccessControl" Version="6.0.0" />
+    <PackageReference Include="System.Security.AccessControl" Version="6.0.1" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="6.0.0" />
     <PackageReference Include="System.Threading.AccessControl" Version="6.0.0" />
-    <PackageReference Include="TaskScheduler" Version="2.10.1" />
+    <PackageReference Include="TaskScheduler" Version="2.12.2" />
     <PackageReference Include="Vanara.PInvoke.Avrt" Version="3.4.15" />
     <PackageReference Include="Vanara.PInvoke.DwmApi" Version="3.4.15" />
     <PackageReference Include="Vanara.PInvoke.Kernel32" Version="3.4.15" />

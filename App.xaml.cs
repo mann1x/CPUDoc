@@ -3930,85 +3930,156 @@ namespace CPUDoc
                 {
                     int _found = 0;
                     string ttype0, ttype1;
+                    bool _autotype = false;
 
                     if (pactive.NumaZeroType == 0)
                     {
-                        for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
+                        int _clusterstype = pactive.NumaZeroAutoType == 1 ? 1 :
+                                        pactive.NumaZeroAutoType == 2 ? 2 :
+                                        pactive.NumaZeroAutoType == 3 ? 3 :
+                                        pactive.NumaZeroAutoType == 4 ? 4 :
+                                        pactive.NumaZeroAutoType == 5 ? 5 :
+                                        pactive.NumaZeroAutoType == 6 ? 6 :
+                                        pactive.NumaZeroAutoType == 7 ? 7 :
+                                        pactive.NumaZeroAutoType == 8 ? 8 :
+                                        0;
+                        if (_clusterstype == 0) _clusterstype = ProcessorInfo.Clusters > 1 ? ProcessorInfo.Clusters / 2 : 1;
+
+
+                        if (ProcessorInfo.Clusters > 1)
                         {
-                            List<int> _cores = ProcessorInfo.LogicalsNumaZero();
-                            if (_cores.Count() > 0)
+
+                            App.LogDebug($"N0 AUTO CLUSTERS ENABLED NumaZeroAutoType={pactive.NumaZeroAutoType} ClustersType={_clusterstype}");
+
+                            for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
                             {
-                                for (int c = 0; c < _cores.Count; ++c)
+
+                                List<int> _cores = ProcessorInfo.LogicalsClusters(_clusterstype);
+                                if (_cores.Count() > 0)
                                 {
-                                    if (_cores[c] == i)
+                                    for (int c = 0; c < _cores.Count; ++c)
                                     {
-                                        if (logicalsT1.Contains(i)) n0enabledT1.Add(i);
-                                        if (logicalsT0.Contains(i)) n0enabledT0.Add(i);
-                                        ttype0 = logicalsT0.Contains(i) ? "T0" : "";
-                                        ttype1 = logicalsT1.Contains(i) ? "T1" : "";
-                                        App.LogDebug($"N0 ENABLED LogicalN0={i} {ttype0}{ttype1}");
+                                        if (_cores[c] == i)
+                                        {
+                                            _autotype = true;
+                                            if (logicalsT1.Contains(i)) n0enabledT1.Add(i);
+                                            if (logicalsT0.Contains(i)) n0enabledT0.Add(i);
+                                            ttype0 = logicalsT0.Contains(i) ? "T0" : "";
+                                            ttype1 = logicalsT1.Contains(i) ? "T1" : "";
+                                            App.LogDebug($"N0 ENABLED LogicalsClusters={i} {ttype0}{ttype1}");
+                                        }
                                     }
                                 }
-                            }
-                            _cores.Clear();
-                            _cores = ProcessorInfo.LogicalsEfficient();
-                            if (_cores.Count() > 0)
-                            {
-                                for (int c = 0; c < _cores.Count(); ++c)
+
+                                _cores.Clear();
+                                _cores = ProcessorInfo.LogicalsClustersOut(_clusterstype);
+                                if (_cores.Count() > 0)
                                 {
-                                    if (_cores[c] == i)
+                                    for (int c = 0; c < _cores.Count(); ++c)
                                     {
-                                        _found++;
-                                        if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
-                                        if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
-                                        ttype0 = logicalsT0.Contains(i) ? "T0" : "";
-                                        ttype1 = logicalsT1.Contains(i) ? "T1" : "";
-                                        App.LogDebug($"N0 DISABLED LogicalEfficient={i} {ttype0}{ttype1}");
+                                        if (_cores[c] == i)
+                                        {
+                                            _autotype = true;
+                                            _found++;
+                                            if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
+                                            if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
+                                            ttype0 = logicalsT0.Contains(i) ? "T0" : "";
+                                            ttype1 = logicalsT1.Contains(i) ? "T1" : "";
+                                            App.LogDebug($"N0 DISABLED LogicalsClustersOut={i} {ttype0}{ttype1}");
+                                        }
                                     }
                                 }
+
                             }
-                            _cores.Clear();
-                            _cores = ProcessorInfo.LogicalsCache();
-                            if (_cores.Count() > 0)
-                            {
-                                for (int c = 0; c < _cores.Count(); ++c)
-                                {
-                                    if (_cores[c] == i)
-                                    {
-                                        _found++;
-                                        if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
-                                        if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
-                                        ttype0 = logicalsT0.Contains(i) ? "T0" : "";
-                                        ttype1 = logicalsT1.Contains(i) ? "T1" : "";
-                                        App.LogDebug($"N0 DISABLED LogicalCache={i} {ttype0}{ttype1}");
-                                    }
-                                }
-                            }
-                            _cores.Clear();
-                            _cores = ProcessorInfo.LogicalsIndex();
-                            if (_cores.Count() > 0)
-                            {
-                                for (int c = 0; c < _cores.Count(); ++c)
-                                {
-                                    if (_cores[c] == i)
-                                    {
-                                        _found++;
-                                        if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
-                                        if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
-                                        ttype0 = logicalsT0.Contains(i) ? "T0" : "";
-                                        ttype1 = logicalsT1.Contains(i) ? "T1" : "";
-                                        App.LogDebug($"N0 DISABLED LogicalIndex={i}  {ttype0} {ttype1}");
-                                    }
-                                }
-                            }
+
                         }
+
+                        if (_autotype == false)
+                        {
+                            for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
+                            {
+                                List<int> _cores = ProcessorInfo.LogicalsNumaZero();
+                                if (_cores.Count() > 0)
+                                {
+                                    for (int c = 0; c < _cores.Count; ++c)
+                                    {
+                                        if (_cores[c] == i)
+                                        {
+                                            if (logicalsT1.Contains(i)) n0enabledT1.Add(i);
+                                            if (logicalsT0.Contains(i)) n0enabledT0.Add(i);
+                                            ttype0 = logicalsT0.Contains(i) ? "T0" : "";
+                                            ttype1 = logicalsT1.Contains(i) ? "T1" : "";
+                                            App.LogDebug($"N0 ENABLED LogicalN0={i} {ttype0}{ttype1}");
+                                        }
+                                    }
+                                }
+                                _cores.Clear();
+                                _cores = ProcessorInfo.LogicalsEfficient();
+                                if (_cores.Count() > 0)
+                                {
+                                    for (int c = 0; c < _cores.Count(); ++c)
+                                    {
+                                        if (_cores[c] == i)
+                                        {
+                                            _found++;
+                                            if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
+                                            if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
+                                            ttype0 = logicalsT0.Contains(i) ? "T0" : "";
+                                            ttype1 = logicalsT1.Contains(i) ? "T1" : "";
+                                            App.LogDebug($"N0 DISABLED LogicalEfficient={i} {ttype0}{ttype1}");
+                                        }
+                                    }
+                                }
+                                _cores.Clear();
+                                _cores = ProcessorInfo.LogicalsCache();
+                                if (_cores.Count() > 0)
+                                {
+                                    for (int c = 0; c < _cores.Count(); ++c)
+                                    {
+                                        if (_cores[c] == i)
+                                        {
+                                            _found++;
+                                            if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
+                                            if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
+                                            ttype0 = logicalsT0.Contains(i) ? "T0" : "";
+                                            ttype1 = logicalsT1.Contains(i) ? "T1" : "";
+                                            App.LogDebug($"N0 DISABLED LogicalCache={i} {ttype0}{ttype1}");
+                                        }
+                                    }
+                                }
+                                _cores.Clear();
+                                _cores = ProcessorInfo.LogicalsIndex();
+                                if (_cores.Count() > 0)
+                                {
+                                    for (int c = 0; c < _cores.Count(); ++c)
+                                    {
+                                        if (_cores[c] == i)
+                                        {
+                                            _found++;
+                                            if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
+                                            if (logicalsT0.Contains(i)) n0disabledT0.Add(i);
+                                            ttype0 = logicalsT0.Contains(i) ? "T0" : "";
+                                            ttype1 = logicalsT1.Contains(i) ? "T1" : "";
+                                            App.LogDebug($"N0 DISABLED LogicalIndex={i}  {ttype0} {ttype1}");
+                                        }
+                                    }
+                                }
+                            }
+
+                        }
+
                     }
 
-                    if (_found > 0) numazero_b = true;
-                    App.LogDebug($"N0={pactive.NumaZero} N0Type={pactive.NumaZeroType} LOGICALCORES={ProcessorInfo.LogicalCoresCount - _found}/{ProcessorInfo.LogicalCoresCount}[{_found}] HT={systemInfo.HyperThreading}");
+                    if (_found > 0)
+                    {
+                        numazero_b = true;
+                        App.LogDebug($"N0_ACTIVE N0_FOUND={_found} ");
+                    }
+
+                    App.LogDebug($"N0_PROFILE={pactive.NumaZero} N0Type={pactive.NumaZeroType} N0AutoType={pactive.NumaZeroAutoType} LOGICALCORES={ProcessorInfo.LogicalCoresCount - _found}/{ProcessorInfo.LogicalCoresCount}[{_found}] HT={systemInfo.HyperThreading}");
                     App.LogDebug($"N0_ENABLED={n0enabledT0.Count+n0enabledT1.Count} N0_DISABLED={n0disabledT0.Count + n0disabledT1.Count} E-CORES={App.systemInfo.Ecores.Count}");
 
-                    if (pactive.NumaZeroType > 0 || _found < 1)
+                    if ((pactive.NumaZeroType > 0 || _found < 1) && _autotype == false )
                     {
                         int _forced = pactive.NumaZeroType == 1 ? 20 :
                                         pactive.NumaZeroType == 2 ? 18 :
@@ -4031,7 +4102,7 @@ namespace CPUDoc
                             n0disabledT1 = new List<int>();
                             numazero_b = true;
                             if (systemInfo.HyperThreading) _forced = _forced * 2;
-                            App.LogDebug($"N0={pactive.NumaZero} N0Type={pactive.NumaZeroType} Forced Threads={_forced} HT={systemInfo.HyperThreading}");
+                            App.LogDebug($"N0_FORCED N0={pactive.NumaZero} N0Type={pactive.NumaZeroType} Forced Threads={_forced} HT={systemInfo.HyperThreading}");
                             for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
                             {
                                 if (i > _forced - 1)
@@ -4086,13 +4157,15 @@ namespace CPUDoc
             catch (Exception ex)
             {
                 App.LogExError($"NumaZero Init Exception:", ex);
+                App.LogInfo($"NumaZero Init Exception {ex.Message}");
+                App.LogDebug($"NumaZero Init Exception {ex.Message}");
             }
 
             App.systemInfo.SetSSHStatus(pactive.SysSetHack);
             App.systemInfo.SetPSAStatus(pactive.PowerSaverActive);
             App.systemInfo.SetN0Status(pactive.NumaZero);
             
-            App.LogDebug($"N0={pactive.NumaZero} N0Active={numazero_b} HT={systemInfo.HyperThreading}");
+            App.LogDebug($"NumaZero Init Done N0={pactive.NumaZero} N0Active={numazero_b} HT={systemInfo.HyperThreading}");
 
             int _ideal = App.numazero_b ? App.n0enabledT0.Last() : App.logicalsT0.Last();
             LogInfo($"Ideal Background Core Thread: {_ideal}");

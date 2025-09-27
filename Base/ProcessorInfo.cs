@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Security.Permissions;
 using System.Text;
 using System.Threading.Tasks;
@@ -25,6 +26,7 @@ namespace CPUDoc
         public static CpuLoad _cpuLoad = new CpuLoad();
         public static double cpuTotalLoad { get; set; }
         public static double threadsTotalLoad { get; set; }
+        public static int Clusters { get; private set; }
 
         /// <summary>
         /// Hardware core
@@ -133,6 +135,10 @@ namespace CPUDoc
             /// <summary>
             /// Cpu Load
             /// </summary>
+            int Cluster { get; set; }
+            /// <summary>
+            /// Cpu Load
+            /// </summary>
             float Load { get; set; }
             /// <summary>
             /// Cpu Load Zero times
@@ -181,6 +187,7 @@ namespace CPUDoc
         /// <summary>
         /// Init CpuLoad
         /// </summary>
+        [SupportedOSPlatform("windows")]
         public static bool CpuLoadInit()
         {
             try
@@ -223,11 +230,64 @@ namespace CPUDoc
         {
             get
             {
-                return cpuset ?? (cpuset = GetSystemCpuSetInformation()
+                cpuset ??= GetSystemCpuSetInformation()
                     .Where(x => x.Type == CPUSET_TYPE.CpuSetInformation && x.CpuSetUnion.CpuSet.Id != 0)
                     .Select(x => new HardwareCpuSet(x))
                     .OrderBy(x => x.LogicalProcessorIndex)
-                    .ToArray<IHardwareCpuSet>());
+                    .ToArray<IHardwareCpuSet>();
+
+                int _cluster = 1;
+                int _llcindex = 0;
+
+                for (int i = 0; i < cpuset.Length; i++)
+                {
+
+                    if (_llcindex != cpuset[i].LastLevelCacheIndex)
+                    {
+                        _cluster++;
+                        _llcindex = cpuset[i].LastLevelCacheIndex;
+                    }
+                    cpuset[i].Cluster = _cluster;
+                }
+
+                if (_cluster == 1 && cpuset.Length > 6) {
+                    bool _intelcluster = false;
+
+                    for (int i = 0; i < cpuset.Length; i+=6)
+                    {
+                        if (cpuset[i].EfficiencyClass == 1 && cpuset[i + 1].EfficiencyClass == 1 &&
+                            cpuset[i + 2].EfficiencyClass == 0 && cpuset[i + 3].EfficiencyClass == 0 && cpuset[i + 4].EfficiencyClass == 0 &&
+                            cpuset[i + 5].EfficiencyClass == 0)
+                        {
+                            _intelcluster = true;
+                        }
+                        else if (cpuset[i].EfficiencyClass == 0 && cpuset[i + 1].EfficiencyClass == 0 && cpuset[i + 2].EfficiencyClass == 0 &&
+                                 cpuset[i + 3].EfficiencyClass == 0 && cpuset[i + 4].EfficiencyClass == 1 && cpuset[i + 5].EfficiencyClass == 1)
+                        {
+                            _intelcluster = true;
+                        }
+                        else
+                        {
+                            _intelcluster = false;
+                            break;
+                        }
+                    }
+
+                    if (_intelcluster)
+                    {
+                        _cluster = 1;
+                        for (int i = 0; i < cpuset.Length; i += 6)
+                        {
+                            for (int j = 0; j <= 5; j++)
+                            cpuset[j].Cluster = _cluster;
+                            _cluster++;
+                        }
+                    }
+                }
+
+                ProcessorInfo.Clusters = _cluster;
+
+                return cpuset;
             }
         }
 
@@ -504,6 +564,32 @@ namespace CPUDoc
             return coresbycache;
         }
         /// <summary>
+        /// Get Logicals for n clusters
+        /// </summary>
+        public static List<int> LogicalsClusters(int nclusters)
+        {
+            var coresbycluster = new List<int>();
+            var cpusetsbycluster = HardwareCpuSets.Where(x => x.Cluster <= nclusters);
+            foreach (HardwareCpuSet cpuset in cpusetsbycluster)
+            {
+                coresbycluster.Add(cpuset.LogicalProcessorIndex);
+            }
+            return coresbycluster;
+        }
+        /// <summary>
+        /// Get Logicals out of n clusters
+        /// </summary>
+        public static List<int> LogicalsClustersOut(int nclusters)
+        {
+            var coresbycluster = new List<int>();
+            var cpusetsbycluster = HardwareCpuSets.Where(x => x.Cluster > nclusters);
+            foreach (HardwareCpuSet cpuset in cpusetsbycluster)
+            {
+                coresbycluster.Add(cpuset.LogicalProcessorIndex);
+            }
+            return coresbycluster;
+        }
+        /// <summary>
         /// Get Logicals only NumaZero
         /// </summary>
         public static List<int> LogicalsNumaZero()
@@ -706,8 +792,17 @@ namespace CPUDoc
             if (logical < 0 || logical > HardwareCpuSets.Count()) return null;
             return HardwareCpuSets[logical].AllocatedToTargetProcess;
         }
+        /// <summary>
+        /// CpuSet Cluster for Logical
+        /// </summary>
+        public static int? CpuSetCluster(int logical)
+        {
+            if (logical < 0 || logical > HardwareCpuSets.Count()) return null;
+            return HardwareCpuSets[logical].Cluster;
+        }
         private class HardwareCpuSet : IHardwareCpuSet
         {
+            [SupportedOSPlatform("windows")]
             public HardwareCpuSet(SYSTEM_CPU_SET_INFORMATION x)
             {
                 CpuSet = x;
@@ -721,6 +816,7 @@ namespace CPUDoc
                 SchedulingClass = (int)x.CpuSetUnion.CpuSet.CpuSetSchedulingClass.SchedulingClass;
                 AllocationTag = (int)x.CpuSetUnion.CpuSet.AllocationTag;
                 AllFlagsStruct = x.CpuSetUnion.CpuSet.AllFlagsStruct.AllFlagsStruct;
+                Cluster = 1;
                 Load = 0;
                 LoadZero = 0;
                 LoadMedium = 0;
@@ -747,6 +843,7 @@ namespace CPUDoc
             public int SchedulingClass { get; private set; }
             public long AllocationTag { get; private set; }
             public byte AllFlagsStruct { get; private set; }
+            public int Cluster { get; set; }
             public float Load { get; set; }
             public int LoadZero { get; set; }
             public int LoadLow { get; set; }

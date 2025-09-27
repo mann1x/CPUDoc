@@ -718,12 +718,26 @@
                                     <ComboBoxItem Tag="10">First 2 Cores</ComboBoxItem>
                                 </ComboBox>
 
-                                <CheckBox Grid.Column="0" Grid.Row="21" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="PoolingRate_Click" x:Name="cbPoolingRate">
+                                <TextBlock Grid.Column="0" Grid.Row="21" HorizontalAlignment="Right" VerticalAlignment="Center" Grid.ColumnSpan="2">You can define up to how many Intel clusters or AMD CCDs to select in Auto mode:</TextBlock>
+                                <ComboBox Grid.Column="2" Grid.Row="21" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroAutoType_Select" x:Name="listNumaZeroAutoType">
+
+                                    <ComboBoxItem Tag="0">Auto</ComboBoxItem>
+                                    <ComboBoxItem Tag="1">First 1</ComboBoxItem>
+                                    <ComboBoxItem Tag="2">First 2</ComboBoxItem>
+                                    <ComboBoxItem Tag="3">First 3</ComboBoxItem>
+                                    <ComboBoxItem Tag="4">First 4</ComboBoxItem>
+                                    <ComboBoxItem Tag="5">First 5</ComboBoxItem>
+                                    <ComboBoxItem Tag="6">First 6</ComboBoxItem>
+                                    <ComboBoxItem Tag="7">First 7</ComboBoxItem>
+                                    <ComboBoxItem Tag="8">First 8</ComboBoxItem>
+                                </ComboBox>
+
+                                <CheckBox Grid.Column="0" Grid.Row="22" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="PoolingRate_Click" x:Name="cbPoolingRate">
                                     Manual ThreadBooster pooling
                                 </CheckBox>
 
-                                <TextBlock Grid.Column="1" Grid.Row="21" HorizontalAlignment="Right" VerticalAlignment="Center">Rate:</TextBlock>
-                                <ComboBox Grid.Column="2" Grid.Row="21" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="PoolingRate_Select" x:Name="listPoolingRate">
+                                <TextBlock Grid.Column="1" Grid.Row="22" HorizontalAlignment="Right" VerticalAlignment="Center">Rate:</TextBlock>
+                                <ComboBox Grid.Column="2" Grid.Row="22" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="PoolingRate_Select" x:Name="listPoolingRate">
 
                                     <ComboBoxItem Tag="0">Very Slow</ComboBoxItem>
                                     <ComboBoxItem Tag="1">Slow</ComboBoxItem>
@@ -735,7 +749,7 @@
                                     <ComboBoxItem Tag="7">Crazy Fast</ComboBoxItem>
                                 </ComboBox>
 
-                                <Button Grid.Column="0" Grid.Row="24" Name="SaveConfig" Click="SaveConfig_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Left" Margin="10 4 10 4">
+                                <Button Grid.Column="0" Grid.Row="26" Name="SaveConfig" Click="SaveConfig_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Left" Margin="10 4 10 4">
                                     <TextBlock Margin="{adonisUi:Space}" Text="Save config">
                                     </TextBlock>
                                 </Button>

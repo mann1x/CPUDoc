@@ -21,8 +21,8 @@ using System.Diagnostics.Metrics;
 using AutoUpdaterDotNET;
 using System.Windows.Documents;
 using Vanara.PInvoke;
-using ManagedBass;
-using ManagedBass.Wasapi;
+//using ManagedBass;
+//using ManagedBass.Wasapi;
 using System.Management;
 using static Vanara.PInvoke.Ole32;
 using static Vanara.PInvoke.Gdi32;
@@ -811,6 +811,9 @@ namespace CPUDoc
             bool bACheck = false;
 
             string checkdevice = "";
+            
+            App.LogDebug($"AudioPlayBackCheck BassWasapi");
+            /*
 
             try
             {
@@ -866,6 +869,7 @@ namespace CPUDoc
                 App.LogDebug($"foobar2000 is playing ASIO Audio");
                 bACheck = true;
             }
+            */
 
             return bACheck;
         }

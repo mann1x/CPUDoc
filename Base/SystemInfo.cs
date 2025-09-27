@@ -1780,6 +1780,41 @@ namespace CPUDoc
                     }
                 }
                 App.LogInfo($"");
+                App.LogInfo($"ProcessorInfo.Clusters: {ProcessorInfo.Clusters}");
+                App.LogInfo($"");
+
+                if (ProcessorInfo.Clusters > 1)
+                {
+                    string _outstr = "";
+                    for (int ix = 0; ix < ProcessorInfo.LogicalsClusters(1).Count(); ++ix)
+                    {
+                        _outstr = _outstr + $"{ProcessorInfo.LogicalsClusters(1)[ix].ToString()}#";
+                    }
+                    App.LogInfo($"ProcessorInfo.LogicalsCluster(1): {_outstr}");
+                    App.LogInfo($"");
+                    _outstr = "";
+                    for (int ix = 0; ix < ProcessorInfo.LogicalsClusters(ProcessorInfo.Clusters).Count(); ++ix)
+                    {
+                        _outstr = _outstr + $"{ProcessorInfo.LogicalsClusters(ProcessorInfo.Clusters)[ix].ToString()}#";
+                    }
+                    App.LogInfo($"ProcessorInfo.LogicalsCluster({ProcessorInfo.Clusters}): {_outstr}");
+                    App.LogInfo($"");
+                    _outstr = "";
+                    for (int ix = 0; ix < ProcessorInfo.LogicalsClustersOut(1).Count(); ++ix)
+                    {
+                        _outstr = _outstr + $"{ProcessorInfo.LogicalsClustersOut(1)[ix].ToString()}#";
+                    }
+                    App.LogInfo($"ProcessorInfo.LogicalsClusterOut(1):  {_outstr}");
+                    App.LogInfo($"");
+                    _outstr = "";
+                    for (int ix = 0; ix < ProcessorInfo.LogicalsClustersOut(ProcessorInfo.Clusters).Count(); ++ix)
+                    {
+                        _outstr = _outstr + $"{ProcessorInfo.LogicalsClustersOut(ProcessorInfo.Clusters)[ix].ToString()}#";
+                    }
+                    App.LogInfo($"ProcessorInfo.LogicalsClusterOut({ProcessorInfo.Clusters}):  {_outstr}");
+                    App.LogInfo($"");
+
+                }
 
                 int _deltap = 20 / CPULogicalProcessors;
 
@@ -1797,6 +1832,7 @@ namespace CPUDoc
                     App.LogInfo($" ProcessorInfo.AllocationTag: {ProcessorInfo.CpuSetAllocationTag(i)}");
                     App.LogInfo($" ProcessorInfo.Parked: {ProcessorInfo.CpuSetParked(i)}");
                     App.LogInfo($" ProcessorInfo.Allocated: {ProcessorInfo.CpuSetAllocated(i)}");
+                    App.LogInfo($" ProcessorInfo.Cluster: {ProcessorInfo.CpuSetCluster(i)}");
                 }
 
                 CPPCLabels();
