@@ -8,6 +8,9 @@ using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using System.ServiceProcess;
 using PowerManagerAPI;
+using static Vanara.PInvoke.PowrProf;
+using Vanara.PInvoke;
+using System.Security.RightsManagement;
 
 namespace CPUDoc
 {
@@ -16,6 +19,11 @@ namespace CPUDoc
     {
         public readonly string name;
         public Guid guid;
+
+        public static Guid DefaultOverlay = new Guid("00000000-0000-0000-0000-000000000000");
+        public static Guid BetterBatteryLifeOverlay = new Guid("961cc777-2547-4f9d-8174-7d86181b8a7a");
+        public static Guid BetterPerformanceOverlay = new Guid("3af9B8d9-7c97-431d-ad78-34a8bfea439f");
+        public static Guid MaxPerformanceOverlay = new Guid("ded574b5-45a0-4f42-8737-46345c09c238");
 
         public PowerPlan(string name, Guid guid)
         {
@@ -39,10 +47,9 @@ namespace CPUDoc
         bool DeletePlan(Guid guid);
         bool SetActiveGuid(Guid guid);
         void SetDynamic(SettingSubgroup subgroup, Guid setting, PowerMode powerMode, uint value);
-
-        /// <returns>Battery charge value in percent, 
-        /// i.e. values in a 0..100 range</returns>
         void SetActive(PowerPlan plan);
+        bool SetActiveOverlay(Guid guid);
+        Guid GetActiveOverlay();
 
     }
 
@@ -56,6 +63,9 @@ namespace CPUDoc
 
     class PowerPlanManager : IPowerPlanManager
     {
+        uint EFFECTIVE_POWER_MODE_V1 = 0x00000001;
+        uint EFFECTIVE_POWER_MODE_V2 = 0x00000002;
+
         /// <summary>
         /// Indicates that almost no power savings measures will be used.
         /// </summary>
@@ -82,7 +92,25 @@ namespace CPUDoc
             // Add handler for power mode state changing.
             SystemEvents.PowerModeChanged += new PowerModeChangedEventHandler(PowerModeChangedHandler);
             SystemEvents.UserPreferenceChanging += new UserPreferenceChangingEventHandler(SystemEvents_UserPreferenceChanging);
+            
+            /*
+            HRESULT handle;
+            nint epmcontext = 0;
+            SafeEffectivePowerModeNotificationHandle EPMC_handle;
+            EFFECTIVE_POWER_MODE_CALLBACK epmcback = new EFFECTIVE_POWER_MODE_CALLBACK(PrintEPM);
+            handle = PowerRegisterForEffectivePowerModeNotifications(EFFECTIVE_POWER_MODE_V2, epmcback, epmcontext, out EPMC_handle);
 
+            if (handle != NTStatus.STATUS_SUCCESS)
+            {
+                App.LogInfo("Could not register for Effective PowerMode Change");
+            }
+            */
+            
+        }
+
+        private void PrintEPM(EFFECTIVE_POWER_MODE mode, nint context)
+        {
+            App.LogInfo("Detected Effective PowerMode Change");
         }
 
         private PowerPlan NewPlan(string guidString)
@@ -94,6 +122,35 @@ namespace CPUDoc
         public void SetActive(PowerPlan plan)
         {
             PowerSetActiveScheme(IntPtr.Zero, ref plan.guid);
+        }
+
+        public bool SetActiveOverlay(Guid overlay)
+        {
+            HRESULT hr = PowerSetActiveOverlayScheme(overlay);
+
+            if (hr != HRESULT.S_OK) return false;
+
+            ThreadBooster.CurrentOverlay = GetActiveOverlayLabel(overlay);
+
+            return true;
+        }
+        public Guid GetActiveOverlay()
+        {
+            Guid overlay;
+            HRESULT hr = PowerGetActualOverlayScheme(out overlay);
+
+            if (hr != HRESULT.S_OK) return Guid.Empty;
+
+            return overlay;
+        }
+        public string GetActiveOverlayString()
+        {
+            return GetActiveOverlayLabel(GetActiveOverlay());
+        }
+        public string GetActiveOverlayLabel(Guid overlay)
+        {
+            String _label = overlay == PowerPlan.DefaultOverlay ? "Better" : overlay == PowerPlan.BetterBatteryLifeOverlay ? "Saving" : overlay == PowerPlan.MaxPerformanceOverlay ? "Max" : "Better";
+            return _label;
         }
 
         /// <returns>
@@ -243,7 +300,7 @@ namespace CPUDoc
             return name;
             */
         }
-
+    
         #region DLL imports
 
         [System.Runtime.InteropServices.DllImport("kernel32.dll")]
@@ -275,6 +332,65 @@ namespace CPUDoc
             [In, Optional] ref Guid PowerSettingGuid,
             [In] uint DcValueIndex
         );
+
+        [DllImportAttribute("powrprof.dll", EntryPoint = "PowerSetActiveOverlayScheme")]
+        public static extern uint PowerSetActiveOverlayScheme(Guid OverlaySchemeGuid);
+        
+        [DllImportAttribute("powrprof.dll", EntryPoint = "PowerGetActualOverlayScheme")]
+        public static extern uint PowerGetActualOverlayScheme(out Guid ActualOverlayGuid);
+
+        /*
+        
+        [DllImportAttribute("powrprof.dll", EntryPoint = "PowerGetActualOverlaySchemes")]
+        public static extern uint PowerGetActualOverlaySchemes(out Guid ActualOverlayGuid);
+        
+        [DllImport(@"User32", SetLastError = true,
+        EntryPoint = "RegisterPowerSettingNotification",
+        CallingConvention = CallingConvention.StdCall)]
+
+        private static extern IntPtr RegisterPowerSettingNotification(
+        IntPtr hRecipient,
+        ref Guid PowerSettingGuid,
+        Int32 Flags);
+
+        static readonly Guid GUID_LIDCLOSE_ACTION =
+            new Guid(0xBA3E0F4D, 0xB817, 0x4094, 0xA2, 0xD1,
+                     0xD5, 0x63, 0x79, 0xE6, 0xA0, 0xF3);
+
+        private const int WM_POWERBROADCAST = 0x0218;
+        private const int DEVICE_NOTIFY_WINDOW_HANDLE = 0x00000000;
+        const int PBT_POWERSETTINGCHANGE = 0x8013; // DPPE
+
+        [StructLayout(LayoutKind.Sequential, Pack = 4)]
+        internal struct POWERBROADCAST_SETTING
+        {
+            public Guid PowerSetting;
+            public uint DataLength;
+            public byte Data;
+        }
+        */
+
         #endregion
+
+    }
+
+    public enum EffectivePowerModeV1
+    {
+        BatterySaver,
+        BetterBattery,
+        Balanced,
+        HighPerformance,
+        MaxPerformance
+    }
+    public enum EffectivePowerModeV2
+    {
+        BatterySaver,
+        BetterBattery,
+        SaverStandard,
+        Balanced,
+        HighPerformance,
+        MaxPerformance,
+        GameMode,
+        MixedReality
     }
 }

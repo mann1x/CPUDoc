@@ -29,6 +29,7 @@ using static Vanara.PInvoke.Gdi32;
 using static Vanara.PInvoke.Ole32.PROPERTYKEY.System;
 using System.Windows.Threading;
 using static net.r_eg.Conari.Log.Message;
+using static Vanara.PInvoke.PowrProf;
 
 
 namespace CPUDoc
@@ -98,6 +99,7 @@ namespace CPUDoc
         private static int ClearForceLoadThreshold = 10;
         public static int ProcPerfBoostEco = 100;
         public static bool PLEvtPerfMode = false;
+        public static string CurrentOverlay = "Better";
 
         public static int hepfg = 5;
         public static int hepbg = 5;
@@ -532,6 +534,7 @@ namespace CPUDoc
                                         App.LogDebug("Process Lasso Performance Mode disabled");
                                     }
                                 }
+                                SetPSAActive(App.PSABiasCurrent);
                             }
                         }
                         if (debugtb_steps) App.LogDebug("Stop 008f");
@@ -814,7 +817,6 @@ namespace CPUDoc
             
             App.LogDebug($"AudioPlayBackCheck BassWasapi");
             /*
-
             try
             {
                 for (int widx = 0; widx < BassWasapi.DeviceCount; ++widx)
@@ -870,7 +872,6 @@ namespace CPUDoc
                 bACheck = true;
             }
             */
-
             return bACheck;
         }
         public static void SetPSAActive(int? id)
@@ -879,9 +880,38 @@ namespace CPUDoc
             {
                 if (id == null) id = 1;
 
+                // 
                 //2 = Booster / hpx
                 //1 = Standard / bal
                 //0 = Econo / low
+
+                //Bias
+
+                if (pactive.SelectedPersonality == 1)
+                {
+                    Guid _overlay = id == 0 ? PowerPlan.BetterBatteryLifeOverlay : id == 1 ? PowerPlan.DefaultOverlay : id == 2 ? PowerPlan.MaxPerformanceOverlay : PowerPlan.DefaultOverlay;
+                    String _mode = id == 0 ? "Econo" : id == 1 ? "Standard" : id == 2 ? "Booster" : "Standard";
+
+
+                    if (GameMode)
+                    {
+                        _overlay = PowerPlan.MaxPerformanceOverlay;
+                        _mode = "GameMode";
+                    }
+
+                    //Set Overlay
+                    if (!App.powerManager.SetActiveOverlay(_overlay))
+                    {
+                    
+                        App.LogDebug($"Failed to set overlay for Bias: {_mode}");
+                    }
+                    /*
+                    else
+                    {
+                        App.LogDebug($"Successfully to set overlay for: {_mode}");
+                    }
+                    */
+                }
 
                 uint _value;
                 App.systemInfo.SetPSAStatus(true);
@@ -1500,6 +1530,18 @@ namespace CPUDoc
                 if (!enable) Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.AboveNormal;
             }
 
+            //Set Overlay
+            if (!App.powerManager.SetActiveOverlay(PowerPlan.BetterBatteryLifeOverlay) && pactive.SelectedPersonality == 1)
+            { 
+                App.LogDebug("Failed to set overlay BetterBatteryLife for Light Sleep");
+            }
+            /*
+            else 
+            {
+                App.LogDebug("Successfully set overlay BetterBatteryLife for Light Sleep");
+            }
+            */
+
             //AHCI Link Power Management - HIPM/DIPM
             _value = (uint)(enable ? 2 : 0);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.DISK_SUBGROUP, new Guid("0b2d69d7-a2a1-449c-9680-f91c70521c60"), PowerManagerAPI.PowerMode.AC, _value);
@@ -1536,7 +1578,7 @@ namespace CPUDoc
             _value = (uint)(enable ? 30 : 3);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.DISK_SUBGROUP, new Guid("80e3c60e-bb94-4ad8-bbe0-0d3195efc663"), PowerManagerAPI.PowerMode.AC, _value);
 
-            //SEC NVMe Maximum Tolerable Trasition Latency
+            //SEC NVMe Maximum Tolerable Transition Latency
             _value = (uint)(enable ? 100 : 20);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.DISK_SUBGROUP, new Guid("a9d4776d-785b-4ae8-903b-b742ae4b6b62"), PowerManagerAPI.PowerMode.AC, _value);
 
@@ -1644,7 +1686,7 @@ namespace CPUDoc
             _value = (uint)(100);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("619b7505-003b-4e82-b7a6-4dd29c300971"), PowerManagerAPI.PowerMode.AC, _value);
 
-            //Latency sensitivity hint min unparked cores/packages for Processor Power Efficiency Class 1
+            //Latency sensitivity hint min un-parked cores/packages for Processor Power Efficiency Class 1
             _value = (uint)(100);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("619b7505-003b-4e82-b7a6-4dd29c300971"), PowerManagerAPI.PowerMode.AC, _value);
 
@@ -1660,15 +1702,15 @@ namespace CPUDoc
             _value = (uint)(enable ? 20 : 10);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("dfd10d17-d5eb-45dd-877a-9a34ddd15c82"), PowerManagerAPI.PowerMode.AC, _value);
 
-            //Latency sensitivity hint min unparked cores/packages
+            //Latency sensitivity hint min un-parked cores/packages
             _value = (uint)(enable ? 25 : 100);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("616cdaa5-695e-4545-97ad-97dc2d1bdd88"), PowerManagerAPI.PowerMode.AC, _value);
 
-            //Latency sensitivity hint min unparked cores/packages for Processor Power Efficiency Class 1
+            //Latency sensitivity hint min un-parked cores/packages for Processor Power Efficiency Class 1
             _value = (uint)(enable ? 5 : 100);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("616cdaa5-695e-4545-97ad-97dc2d1bdd89"), PowerManagerAPI.PowerMode.AC, _value);
 
-            //USB 3 Link Power Mangement
+            //USB 3 Link Power Management
             _value = (uint)(enable ? 2 : 1);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.USB_SUBGROUP, new Guid("d4e98f31-5ffe-4ce1-be31-1b38b384c009"), PowerManagerAPI.PowerMode.AC, _value);
 
@@ -1679,6 +1721,18 @@ namespace CPUDoc
             uint _value;
 
             //App.SysCpuSetMask = enable ? 0 : defBitMask;
+
+            //Set Overlay
+            if (!App.powerManager.SetActiveOverlay(PowerPlan.BetterBatteryLifeOverlay) && pactive.SelectedPersonality == 1)
+            {
+                App.LogDebug("Failed to set overlay BetterBatteryLife for Deep Sleep");
+            }
+            /*
+            else
+            {
+                App.LogDebug("Successfully set overlay BetterBatteryLife for Deep Sleep");
+            }
+            */
 
             //AHCI Link Power Management - HIPM/DIPM
             _value = (uint)(enable ? 4 : 2);
@@ -1746,7 +1800,7 @@ namespace CPUDoc
             _value = (uint)(enable ? 0 : coreparking_light_ec1);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("0cc5b647-c1df-4637-891a-dec35c318584"), PowerManagerAPI.PowerMode.AC, _value);
 
-            //Initial performance for Processor Power Efficiency Class 1 when unparked
+            //Initial performance for Processor Power Efficiency Class 1 when un-parked
             _value = (uint)(enable ? 50 : 100);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("1facfc65-a930-4bc5-9f38-504ec097bbc0"), PowerManagerAPI.PowerMode.AC, _value);
 
@@ -1754,15 +1808,15 @@ namespace CPUDoc
             _value = (uint)(enable ? 80 : 97);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("2430ab6f-a520-44a2-9601-f7f23b5134b1"), PowerManagerAPI.PowerMode.AC, _value);
 
-            //Processor performance core parking overutilization threshold
+            //Processor performance core parking over-utilization threshold
             _value = (uint)(enable ? 85 : 60);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("943c8cb6-6f93-4227-ad87-e9a3feec08d1"), PowerManagerAPI.PowerMode.AC, _value);
 
-            //Latency sensitivity hint min unparked cores/packages
+            //Latency sensitivity hint min un-parked cores/packages
             _value = (uint)(enable ? 5 : 25);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("616cdaa5-695e-4545-97ad-97dc2d1bdd88"), PowerManagerAPI.PowerMode.AC, _value);
 
-            //Latency sensitivity hint min unparked cores/packages for Processor Power Efficiency Class 1
+            //Latency sensitivity hint min un-parked cores/packages for Processor Power Efficiency Class 1
             _value = (uint)(enable ? 0 : 5);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("616cdaa5-695e-4545-97ad-97dc2d1bdd89"), PowerManagerAPI.PowerMode.AC, _value);
 
@@ -1778,7 +1832,7 @@ namespace CPUDoc
             _value = (uint)(enable ? 50 : 20);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("dfd10d17-d5eb-45dd-877a-9a34ddd15c82"), PowerManagerAPI.PowerMode.AC, _value);
 
-            //USB 3 Link Power Mangement
+            //USB 3 Link Power Management
             _value = (uint)(enable ? 3 : 2);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.USB_SUBGROUP, new Guid("d4e98f31-5ffe-4ce1-be31-1b38b384c009"), PowerManagerAPI.PowerMode.AC, _value);
 
@@ -2181,9 +2235,9 @@ namespace CPUDoc
                 App.thrThreadBooster = null;
                 App.thrThreadBoosterRunning = false;
                 App.tbcts.Dispose();
-                App.tbcts = new CancellationTokenSource();
+                App.tbcts = new CancellationTokenSource();                
                 App.PSAPlanDisable();
-
+                powerManager.SetActiveOverlay(PowerPlan.DefaultOverlay);
             }
 
         }

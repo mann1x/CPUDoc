@@ -9,6 +9,13 @@
 
 ## Changelog:
 
+- v1.2.12 Beta
+    - New: Implemented dynamic overlay slider for Balanced personality: [Saving/Better/Max] status display
+      - Much more responsive in Light and Deep Sleep modes
+      - Better Min/Average/P95 FPS in games (SoTTR)
+    - New: Updated Nuget packages to latest versions
+    - New: Min supported OS is now Windows 10 b19041, mandatory NET 9.0
+    - Fix: Immediate PSA scheduler update entering and exiting Performance mode
 - v1.2.11 Beta
     - New: Added Auto Type Mode for NumaZero and Intel ArrowLake clustering detection
     - Fix: AutoUpdate metadata

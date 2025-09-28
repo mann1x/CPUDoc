@@ -646,6 +646,9 @@ namespace CPUDoc
         [Option(Alias = "PSA.Personality", DefaultValue = 0)]
         int Personality { get; set; }
 
+        [Option(Alias = "PSA.SelectedPersonality", DefaultValue = 1)]
+        int SelectedPersonality { get; set; }
+
         [Option(Alias = "PSA.SleepIdle", DefaultValue = -1)]
         int SleepIdle { get; set; }
 
@@ -731,6 +734,8 @@ namespace CPUDoc
                 config.ActiveModeBias = config.ActiveModeBias > 2 ? 2 : config.ActiveModeBias;
                 config.Personality = config.Personality < 0 ? 0 : config.Personality;
                 config.Personality = config.Personality > 2 ? 2 : config.Personality;
+                config.SelectedPersonality = config.SelectedPersonality > 2 ? 2 : config.SelectedPersonality;
+                config.SelectedPersonality = config.SelectedPersonality < 1 ? 1 : config.SelectedPersonality;
                 config.PSALightSleepSeconds = config.PSALightSleepSeconds < 0 ? 0 : config.PSALightSleepSeconds;
                 config.PSADeepSleepSeconds = config.PSADeepSleepSeconds < 0 ? 0 : config.PSADeepSleepSeconds;
                 config.PSALightSleepThreshold = config.PSALightSleepThreshold < 0 ? 0 : config.PSALightSleepThreshold;

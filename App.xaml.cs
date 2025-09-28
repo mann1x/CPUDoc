@@ -1,72 +1,73 @@
-﻿using AutoUpdaterDotNET;
+﻿using AdonisUI;
+using AdonisUI.Extensions;
+using AutoUpdaterDotNET;
+using Castle.Components.DictionaryAdapter.Xml;
+using Config.Net;
+using CPUDoc.Windows;
+using Gma.System.MouseKeyHook;
+using H.NotifyIcon;
+using H.NotifyIcon.EfficiencyMode;
+using Hardcodet.Wpf.TaskbarNotification;
+using ImpromptuInterface;
+using LibreHardwareMonitor.Hardware;
+using Microsoft.Extensions.Hosting.WindowsServices;
+using Microsoft.Extensions.Logging;
+using net.r_eg.Conari;
+using net.r_eg.Conari.Accessors;
+using net.r_eg.Conari.Core;
+using net.r_eg.Conari.Extension;
+using net.r_eg.Conari.Static;
+using net.r_eg.Conari.Types;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using NLog;
+using NLog.Config;
+using NLog.Targets;
+using NLog.Targets.Wrappers;
+using OSVersionExtension;
+using PInvoke;
+using PowerManagerAPI;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Configuration;
 using System.Data;
 using System.Diagnostics;
+using System.Drawing;
+using System.Drawing.Printing;
 using System.IO;
 using System.Linq;
+using System.Management;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Security.Principal;
-using System.Windows;
-using System.Windows.Data;
-using System.Threading;
-using System.Timers;
-using System.Windows.Media;
-using ZenStates.Core;
-using System.Drawing;
-using System.ComponentModel;
-using NLog;
-using NLog.Targets.Wrappers;
-using NLog.Targets;
+using System.ServiceProcess;
 using System.Text;
-using NLog.Config;
+using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Threading;
-using Gma.System.MouseKeyHook;
-using net.r_eg.Conari;
-using net.r_eg.Conari.Accessors;
-using net.r_eg.Conari.Types;
-using OSVersionExtension;
-using CPUDoc.Windows;
-using System.Management;
+using System.Timers;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using System.Windows.Shapes;
+using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Hardcodet.Wpf.TaskbarNotification;
-using System.Security;
-using net.r_eg.Conari.Core;
-using System.ServiceProcess;
-using Microsoft.Extensions.Hosting.WindowsServices;
-using static LibreHardwareMonitor.Interop.AdvApi32;
-using Newtonsoft.Json.Linq;
-using PowerManagerAPI;
-using Windows.UI.Notifications;
-using Config.Net;
-using LibreHardwareMonitor.Hardware;
-using ImpromptuInterface;
-using net.r_eg.Conari.Extension;
-using AdonisUI;
-using Microsoft.Extensions.Logging;
-using WindowsForms = System.Windows.Forms;
-using AdonisUI.Extensions;
-using PInvoke;
+using System.Windows.Shapes;
+using System.Windows.Threading;
 using Vanara.PInvoke;
-using H.NotifyIcon;
-using H.NotifyIcon.EfficiencyMode;
-using net.r_eg.Conari.Static;
-using Windows.UI.ViewManagement;
 using WalkmanLib;
+using Windows.ApplicationModel;
 using Windows.Devices.Sensors;
-using System.Drawing.Printing;
-using Castle.Components.DictionaryAdapter.Xml;
+using Windows.UI.Notifications;
+using Windows.UI.ViewManagement;
+using ZenStates.Core;
+using static LibreHardwareMonitor.Interop.AdvApi32;
+using WindowsForms = System.Windows.Forms;
 
 namespace CPUDoc
 {
@@ -1400,7 +1401,7 @@ namespace CPUDoc
                     // set internal log level
                     NLog.Common.InternalLogger.LogLevel = NLog.LogLevel.Debug;
                     // enable internal logging to the console
-                    NLog.Common.InternalLogger.LogToTrace = false;
+                    //NLog.Common.InternalLogger.LogToTrace = false;
                     NLog.Common.InternalLogger.LogFile = ".\\Logs\\nlog-internal.txt";
                 }
                 var logconfig = new LoggingConfiguration();
@@ -1413,7 +1414,7 @@ namespace CPUDoc
                 logfile.KeepFileOpen = true;
                 logfile.Layout = loglayout;
                 logfile.Encoding = Encoding.UTF8;
-                logfile.ArchiveNumbering = ArchiveNumberingMode.Date;
+                logfile.ArchiveSuffixFormat = ".{1:yyyyMMdd}";
                 logfile.ArchiveEvery = FileArchivePeriod.Day;
                 logfile.MaxArchiveDays = 7;
                 logfile.ReplaceFileContentsOnEachWrite = false;
@@ -1429,7 +1430,7 @@ namespace CPUDoc
                 logtrace.KeepFileOpen = true;
                 logtrace.Layout = loglayout;
                 logtrace.Encoding = Encoding.UTF8;
-                logtrace.ArchiveNumbering = ArchiveNumberingMode.Date;
+                logtrace.ArchiveSuffixFormat = ".{1:yyyyMMdd}";
                 logtrace.ArchiveEvery = FileArchivePeriod.Day;
                 logtrace.MaxArchiveDays = 7;
                 logtrace.ReplaceFileContentsOnEachWrite = false;
@@ -2277,6 +2278,8 @@ namespace CPUDoc
                 
                 TraceLogging(enableTrace);
 
+                //ThreadBooster.AudioPlaybackCheck();
+
                 sysTrayIconSize = GetSystemMetrics(SM_CXSMICON);
 
                 InitTrayIcon();
@@ -2758,6 +2761,8 @@ namespace CPUDoc
                         PPGuid = Win11 ? new Guid(PPGuidV2B11) : new Guid(PPGuidV2B10);
                         planName = Win11 ? PPNameV2B11 : PPNameV2B10;
                     }
+
+                    pactive.SelectedPersonality = _personality;
 
                     if (_activepowertweak == 0)
                     {

@@ -861,7 +861,8 @@ namespace CPUDoc
             try
             {
                 CPULabel = $"{CPUName} [Socket {CPUSocket}]\n{CPUDescription} x{CPUBits}";
-                BoardLabel = $"{BoardManufacturer}\n{BoardModel} [BIOS Version {BoardBIOS}]";
+                BoardLabel = $"{BoardManufacturer}\n{BoardModel}";
+                    if (BoardBIOS.Length > 0) BoardLabel += $" [BIOS Version {BoardBIOS}]";
 
                 if (WindowsLabel.Length > 0)
                     SystemLabel = $"{WindowsLabel}";
@@ -3618,6 +3619,11 @@ namespace CPUDoc
                     mode = ThreadBooster.GameMode ? " [GameMode]" : ThreadBooster.ActiveMode ? " [ActiveMode]" : "";
                     mode += ThreadBooster.FocusAssist ? " [FocusAssist]" : "";
                     mode += ThreadBooster.UserNotification ? " [UserNotification]" : "";
+                    mode += ThreadBooster.PLEvtPerfMode ? " [PL PerfMode]" : "";
+                    if (App.pactive.SelectedPersonality == 1)
+                    {
+                        mode += App.pactive.SelectedPersonality == 1 ? $" [{ThreadBooster.CurrentOverlay}]" : "";
+                    }
                     mode += ThreadBooster.PLEvtPerfMode ? " [PL PerfMode]" : "";
                 }
 
