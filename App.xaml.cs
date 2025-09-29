@@ -2743,8 +2743,9 @@ namespace CPUDoc
 
                     if (_activepersonality == 0)
                     {
-                        if (_activepowertweak == 0) _personality = 1;
-                        if ((Win11 && _activepowertweak != 0) || _activepowertweak == 2) _personality = 2;
+                        //if (_activepowertweak == 0) _personality = 1;
+                        //if ((Win11 && _activepowertweak != 0) || _activepowertweak == 2) _personality = 2;
+                        _personality = _activepowertweak == 1 ? 1 : _activepowertweak == 2 ? 2 : 1;
                     }
                     else
                     {
@@ -2771,15 +2772,28 @@ namespace CPUDoc
                         pactive.PSALightSleepThreshold = 12;
                         pactive.PSADeepSleepThreshold = 6;
                         ThreadBooster.ProcPerfBoostEco = 95;
+                        
                         if (App.systemInfo.Ecores.Count > 0 && App.systemInfo.Pcores.Count > 0 && App.systemInfo.IntelHybrid)
                         {
-                            ThreadBooster.coreparking = 10;
+                            ThreadBooster.coreparking_min = 10;
                             int _pcoresmin = (100 / (App.systemInfo.Pcores.Count)) + 1;
                             _pcoresmin = _pcoresmin <= 1 ? 1 : _pcoresmin >= 100 ? 100 : _pcoresmin;
-                            ThreadBooster.coreparking_ec1 = _pcoresmin;
-                            ThreadBooster.coreparking_light = 0;
-                            ThreadBooster.coreparking_light_ec1 = 0;
+                            ThreadBooster.coreparking_min_ec1 = _pcoresmin;
+                            ThreadBooster.coreparking_min_light = 0;
+                            ThreadBooster.coreparking_min_light_ec1 = 0;
                         }
+
+                        if (App.systemInfo.ProcessorsLabel.Contains("X3D") && (App.systemInfo.ProcessorsLabel.Contains("9950")
+                            || App.systemInfo.ProcessorsLabel.Contains("7950")
+                            || App.systemInfo.ProcessorsLabel.Contains("9900")))
+                        {
+                            ThreadBooster.coreparking_concurrency = 67;
+                            ThreadBooster.coreparking_min = 50;
+                            ThreadBooster.coreparking_min_ec1 = 50;
+                            ThreadBooster.coreparking_min_light = 100;
+                            ThreadBooster.coreparking_min_light_ec1 = 100;
+                        }
+
                     }
                     else if (_activepowertweak == 2)
                     {
@@ -2792,17 +2806,17 @@ namespace CPUDoc
                         {
                             if (App.systemInfo.Ecores.Count > 0 && App.systemInfo.Pcores.Count > 0 && App.systemInfo.IntelHybrid)
                             {
-                                ThreadBooster.coreparking = 10;
+                                ThreadBooster.coreparking_min = 10;
                                 int _pcoresmin = (100 / (App.systemInfo.Pcores.Count)) + 1;
                                 _pcoresmin = _pcoresmin <= 1 ? 1 : _pcoresmin >= 100 ? 100 : _pcoresmin;
-                                ThreadBooster.coreparking_ec1 = _pcoresmin;
+                                ThreadBooster.coreparking_min_ec1 = _pcoresmin;
                                 int _ecoresmin = ((2 * 100) / (App.systemInfo.Ecores.Count)) + 2;
                                 _ecoresmin = _ecoresmin <= 1 ? 1 : _ecoresmin >= 100 ? 100 : _ecoresmin;
-                                ThreadBooster.coreparking_ec1 = _pcoresmin;
+                                ThreadBooster.coreparking_min_ec1 = _pcoresmin;
                                 _ecoresmin = ((1 * 100) / (App.systemInfo.Ecores.Count)) + 1;
                                 _ecoresmin = _ecoresmin <= 1 ? 1 : _ecoresmin >= 100 ? 100 : _ecoresmin;
-                                ThreadBooster.coreparking_light = _ecoresmin;
-                                ThreadBooster.coreparking_light_ec1 = _pcoresmin;
+                                ThreadBooster.coreparking_min_light = _ecoresmin;
+                                ThreadBooster.coreparking_min_light_ec1 = _pcoresmin;
                             }
                         }
                     }
@@ -2815,12 +2829,12 @@ namespace CPUDoc
                         ThreadBooster.ProcPerfBoostEco = 100;
                         if (App.systemInfo.Ecores.Count > 0 && App.systemInfo.Pcores.Count > 0 && App.systemInfo.IntelHybrid)
                         {
-                            ThreadBooster.coreparking = 10;
+                            ThreadBooster.coreparking_min = 10;
                             int _pcoresmin = (100 / (App.systemInfo.Pcores.Count)) + 1;
                             _pcoresmin = _pcoresmin <= 1 ? 1 : _pcoresmin >= 100 ? 100 : _pcoresmin;
-                            ThreadBooster.coreparking_ec1 = _pcoresmin;
-                            ThreadBooster.coreparking_light = 10;
-                            ThreadBooster.coreparking_light_ec1 = 0;
+                            ThreadBooster.coreparking_min_ec1 = _pcoresmin;
+                            ThreadBooster.coreparking_min_light = 10;
+                            ThreadBooster.coreparking_min_light_ec1 = 0;
                         }
                     }
 

@@ -21,8 +21,8 @@ using System.Diagnostics.Metrics;
 using AutoUpdaterDotNET;
 using System.Windows.Documents;
 using Vanara.PInvoke;
-//using ManagedBass;
-//using ManagedBass.Wasapi;
+using ManagedBass;
+using ManagedBass.Wasapi;
 using System.Management;
 using static Vanara.PInvoke.Ole32;
 using static Vanara.PInvoke.Gdi32;
@@ -117,10 +117,12 @@ namespace CPUDoc
         public static int AModeMinBias;
         public static QUERY_USER_NOTIFICATION_STATE unstate;
 
-        public static int coreparking = 100;
-        public static int coreparking_ec1 = 100;
-        public static int coreparking_light = 100;
-        public static int coreparking_light_ec1 = 100;
+        public static int coreparking_min = 100;
+        public static int coreparking_min_ec1 = 100;
+        public static int coreparking_min_light = 100;
+        public static int coreparking_min_light_ec1 = 100;
+
+        public static int coreparking_concurrency = 100;
 
         public static int cpuBoostModeSleep = 0;
         public static int cpuBoostModeEco = 3;
@@ -816,7 +818,6 @@ namespace CPUDoc
             string checkdevice = "";
             
             App.LogDebug($"AudioPlayBackCheck BassWasapi");
-            /*
             try
             {
                 for (int widx = 0; widx < BassWasapi.DeviceCount; ++widx)
@@ -871,7 +872,6 @@ namespace CPUDoc
                 App.LogDebug($"foobar2000 is playing ASIO Audio");
                 bACheck = true;
             }
-            */
             return bACheck;
         }
         public static void SetPSAActive(int? id)
@@ -1663,11 +1663,11 @@ namespace CPUDoc
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("be337238-0d82-4146-a960-4f3749d470c7"), PowerManagerAPI.PowerMode.AC|PowerManagerAPI.PowerMode.DC, _value);
 
             //Processor performance core parking min cores
-            _value = (uint)(enable ? coreparking_light : coreparking);
+            _value = (uint)(enable ? coreparking_min_light : coreparking_min);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("0cc5b647-c1df-4637-891a-dec35c318583"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Processor performance core parking min cores for Processor Power Efficiency Class 1
-            _value = (uint)(enable ? coreparking_light_ec1 : coreparking_ec1);
+            _value = (uint)(enable ? coreparking_min_light_ec1 : coreparking_min_ec1);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("0cc5b647-c1df-4637-891a-dec35c318584"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Initial performance for Processor Power Efficiency Class 1 when unparked
@@ -1675,7 +1675,7 @@ namespace CPUDoc
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("1facfc65-a930-4bc5-9f38-504ec097bbc0"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Processor performance core parking concurrency threshold
-            _value = (uint)(97);
+            _value = (uint)(coreparking_concurrency);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("2430ab6f-a520-44a2-9601-f7f23b5134b1"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Processor performance core parking overutilization threshold
@@ -1793,11 +1793,11 @@ namespace CPUDoc
             //Core parking
 
             //Processor performance core parking min cores
-            _value = (uint)(enable ? 0 : coreparking_light);
+            _value = (uint)(enable ? 0 : coreparking_min_light);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("0cc5b647-c1df-4637-891a-dec35c318583"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Processor performance core parking min cores for Processor Power Efficiency Class 1
-            _value = (uint)(enable ? 0 : coreparking_light_ec1);
+            _value = (uint)(enable ? 0 : coreparking_min_light_ec1);
             App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.PROCESSOR_SETTINGS_SUBGROUP, new Guid("0cc5b647-c1df-4637-891a-dec35c318584"), PowerManagerAPI.PowerMode.AC, _value);
 
             //Initial performance for Processor Power Efficiency Class 1 when un-parked

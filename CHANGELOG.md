@@ -9,6 +9,11 @@
 
 ## Changelog:
 
+- v1.2.13 Beta
+    - New: Windows 11 Auto personality is now Balanced (no more issues with the latest 25H2)
+    - New: SysSetHack disabled as default cause it's still too experimental
+    - Fix: Added core parking fix for X3D multi CCD CPUs (7950, 9900, 9950)
+    - Fix: Re-introduced ManagedBass and Audio Playback detection
 - v1.2.12 Beta
     - New: Implemented dynamic overlay slider for Balanced personality: [Saving/Better/Max] status display
       - Much more responsive in Light and Deep Sleep modes

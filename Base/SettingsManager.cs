@@ -474,7 +474,7 @@ namespace CPUDoc
         [Option(Alias = "CPUDoc.ThreadBooster", DefaultValue = true)]
         bool ThreadBooster { get; set; }
 
-        [Option(Alias = "CPUDoc.SysSetHack", DefaultValue = true)]
+        [Option(Alias = "CPUDoc.SysSetHack", DefaultValue = false)]
         bool SysSetHack { get; set; }
 
         [Option(Alias = "CPUDoc.PowerSaverActive", DefaultValue = true)]

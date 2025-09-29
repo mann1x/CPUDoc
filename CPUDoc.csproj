@@ -10,7 +10,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>CPUDoc.ico</ApplicationIcon>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <Version>1.2.12</Version>
+    <Version>1.2.13</Version>
     <FileVersion>$(PackageVersion)</FileVersion>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
     <Nullable>disable</Nullable>
@@ -63,7 +63,6 @@
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
     <PackageReference Include="ImpromptuInterface" Version="8.0.6" />
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.1" />
-    <PackageReference Include="ManagedBass.Wasapi" Version="4.0.1" />
     <PackageReference Include="Microsoft.Diagnostics.Runtime" Version="3.1.512801" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="6.0.0" />
     <PackageReference Include="Microsoft.Win32.Registry.AccessControl" Version="7.0.0" />
@@ -105,6 +104,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="ManagedBass">
+      <HintPath>Common\ManagedBass\ManagedBass.dll</HintPath>
+    </Reference>
+    <Reference Include="ManagedBass.Wasapi">
+      <HintPath>Common\ManagedBass\ManagedBass.Wasapi.dll</HintPath>
+    </Reference>
     <Reference Include="ZenStates-Core">
       <HintPath>ZenStates-Core.dll</HintPath>
     </Reference>
@@ -151,6 +156,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="CHANGELOG.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Common\ManagedBass\ManagedBass.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Common\ManagedBass\ManagedBass.Wasapi.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="CPUDocDynamicW10_v1.pow">
