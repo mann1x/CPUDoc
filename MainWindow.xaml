@@ -308,7 +308,9 @@
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
-                                <CheckBox Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TBAutoStartCheckBox_Click" x:Name="cbTBAutoStart">
+                                <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="{adonisUi:Space}">These are the startup settings of the App, toggling via the system tray icon is transient</TextBlock>
+
+                                <CheckBox Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" Height="Auto" VerticalAlignment="Center" Click="TBAutoStartCheckBox_Click" x:Name="cbTBAutoStart">
                                     ThreadBooster
                                 </CheckBox>
 

@@ -53,7 +53,18 @@ namespace CPUDoc
         public int CPUEnabledCores { get; set; }
         public int CPUThreads { get; set; }
         public string CPUSocket { get; set; }
+        public int CPUClusters { get; set; }
         public int CPULogicalProcessors { get; set; }
+        public string CPUExt { get; set; }
+        public int CPUGen { get; set; }
+        public int CPUModel { get; set; }
+        public string CPUSeries { get; set; }
+        public string CPUType { get; set; }
+        public string CPUArch { get; set; }
+        public int CPUModelID { get; set; }
+        public int CPUFamilyID { get; set; }
+        public int CPUStepping { get; set; }
+
         public string CPULabel { get; set; }
         public string BoardLabel { get; set; }
         public string SystemLabel { get; set; }
@@ -259,11 +270,20 @@ namespace CPUDoc
             CPUCores = ProcessorInfo.PhysicalCoresCount;
             CPUEnabledCores = ProcessorInfo.PhysicalCoresCount;
             CPUThreads = ProcessorInfo.LogicalCoresCount;
+            CPUClusters = 1;
             CPUSocket = "N/A";
             CPULogicalProcessors = ProcessorInfo.LogicalCoresCount;
             PPlanGuid = new Guid("175B2BEF-94E4-43FF-B545-BD1F233E48BD");
             PPlanLabel = "";
-
+            CPUExt = "N/A";
+            CPUGen = 0;
+            CPUModel = 0;
+            CPUSeries = "N/A";
+            CPUType = "N/A";
+            CPUArch = "N/A";
+            CPUModelID = 0;
+            CPUFamilyID = 0;
+            CPUStepping = 0;
             ToggleN0 = "Toggle NumaZero";
             TogglePSA = "Toggle PowerSaverActive";
             ToggleSSH = "Toggle SysSetHack";
@@ -390,6 +410,88 @@ namespace CPUDoc
 
                 if (CPULogicalProcessors > CPUCores) HyperThreading = true;
 
+                if (CPUName.Contains("AMD") || CPUName.Contains("Intel"))
+                {
+                    string model_pattern = @"^AMD (?<type>\w+) (?<series>\d+) (?<generation>\d)(?<model>\d*)(?<ex>.?).*";
+                    if (CPUName.Contains("Intel")) model_pattern = @"^Intel (?<type>\w+) (?<series>\w+) (?<generation>\d+) (?<model>\d*)(?<ex>.?).*";
+                    Regex model_rgx = new Regex(model_pattern, RegexOptions.Multiline);
+                    Match model_m = model_rgx.Match(CPUName);
+
+                    if (model_m.Success)
+                    {
+                        string[] results = model_rgx.GetGroupNames();
+
+                        foreach (var name in results)
+                        {
+                            Group grp = model_m.Groups[name];
+                            if (name == "ex" && grp.Value.Length > 0)
+                            {
+                                CPUExt = grp.Value.TrimEnd('\r', '\n').Trim();
+                            }
+                            if (name == "generation" && grp.Value.Length > 0)
+                            {
+                                CPUGen = Int32.TryParse(grp.Value.TrimEnd('\r', '\n').Trim(), out int numValue) ? numValue : 0;
+                            }
+                            if (name == "model" && grp.Value.Length > 0)
+                            {
+                                CPUModel = Int32.TryParse(grp.Value.TrimEnd('\r', '\n').Trim(), out int numValue) ? numValue : 0;
+                            }
+                            if (name == "series" && grp.Value.Length > 0)
+                            {
+                                CPUSeries = grp.Value.TrimEnd('\r', '\n').Trim();
+                            }
+                            if (name == "type" && grp.Value.Length > 0)
+                            {
+                                CPUType = grp.Value.TrimEnd('\r', '\n').Trim();
+                            }
+                        }
+                    }
+
+                    string desc_pattern = @"^(?<arch>\w+) Family (?<familyid>\d+) Model (?<modelid>\d+) Stepping (?<stepping>\d*)";
+                    Regex desc_rgx = new Regex(desc_pattern, RegexOptions.Multiline);
+                    Match desc_m = desc_rgx.Match(CPUDescription.Trim());
+
+                    if (desc_m.Success)
+                    {
+                        string[] results = desc_rgx.GetGroupNames();
+
+                        foreach (var name in results)
+                        {
+                            Group grp = desc_m.Groups[name];
+                            if (name == "arch" && grp.Value.Length > 0)
+                            {
+                                CPUArch = grp.Value.TrimEnd('\r', '\n').Trim();
+                            }
+                            if (name == "modelid" && grp.Value.Length > 0)
+                            {
+                                CPUModelID = Int32.TryParse(grp.Value.TrimEnd('\r', '\n').Trim(), out int numValue) ? numValue : 0;
+                            }
+                            if (name == "familyid" && grp.Value.Length > 0)
+                            {
+                                CPUFamilyID = Int32.TryParse(grp.Value.TrimEnd('\r', '\n').Trim(), out int numValue) ? numValue : 0;
+                            }
+                            if (name == "stepping" && grp.Value.Length > 0)
+                            {
+                                CPUStepping = Int32.TryParse(grp.Value.TrimEnd('\r', '\n').Trim(), out int numValue) ? numValue : 0;
+                            }
+                        }
+                    }
+
+                    App.LogInfo($"WMI CPUName: {CPUName}");
+                    App.LogInfo($"WMI CPUDescription: {CPUDescription}");
+                    App.LogInfo($"WMI CPUSocket: {CPUDescription}");
+                    App.LogInfo($"WMI CPUArch: {CPUArch}");
+                    App.LogInfo($"WMI CPUFamily: {CPUFamily}");
+                    App.LogInfo($"WMI CPUModelID: {CPUModelID}");
+                    App.LogInfo($"WMI CPUFamilyID: {CPUFamilyID}");
+                    App.LogInfo($"WMI CPUStepping: {CPUStepping}");
+                    App.LogInfo($"WMI CPUType: {CPUType}");
+                    App.LogInfo($"WMI CPUModel: {CPUModel}");
+                    App.LogInfo($"WMI CPUSeries: {CPUSeries}");
+                    App.LogInfo($"WMI CPUGen: {CPUGen}");
+                    App.LogInfo($"WMI CPUExt: {CPUExt}");
+                }
+
                 App.LogInfo("SystemInfo: CPPC Tags Init");
 
                 CPPCTagsInit();
@@ -418,7 +520,6 @@ namespace CPUDoc
 
                 if (!App.inpoutdlldisable) ZenMainInit();
 
-
                 if (!MemPartNumbers.Any())
                 {
                     if (HWMonitor.computer.SMBios.MemoryDevices.Length > 0)
@@ -433,8 +534,10 @@ namespace CPUDoc
                         }
                     }
                 }
+
                 HWMonitor.computer.Close();
                 HWMonitor.computer = null;
+
             }
             catch (Exception ex)
             {
@@ -860,7 +963,11 @@ namespace CPUDoc
         {
             try
             {
-                CPULabel = $"{CPUName} [Socket {CPUSocket}]\n{CPUDescription} x{CPUBits}";
+                CPULabel = $"{CPUName} ";
+                if (CPUSocket.Length > 0) {
+                    CPULabel += $"[Socket {CPUSocket}]";
+                }
+                CPULabel += $"\n{CPUDescription} x{CPUBits}";
                 BoardLabel = $"{BoardManufacturer}\n{BoardModel}";
                     if (BoardBIOS.Length > 0) BoardLabel += $" [BIOS Version {BoardBIOS}]";
 
@@ -1709,6 +1816,9 @@ namespace CPUDoc
                 App.LogInfo($"");
 
                 App.LogInfo($"CoresByScheduling:");
+
+                CPUClusters = ProcessorInfo.Clusters;
+
                 var coresbysched = ProcessorInfo.CoresByScheduling();
 
                 if (ProcessorInfo.IsCoresBySchedulingAllZeros())
@@ -3598,8 +3708,8 @@ namespace CPUDoc
             try
             {
                 UpdateSSHStatus(_status);
-                TogglePSA = _status ? $"Disable SSH" : "Enable SSH";
-                App.StripItemToggleSSH.Text = _status ? $"Disable SSH" : "Enable SSH";
+                ToggleSSH = _status ? $"ON: Toggle to disable SSH" : "OFF: Toggle to enable SSH";
+                App.StripItemToggleSSH.Text = _status ? $"ON: Toggle to disable SSH" : "OFF: Toggle to enable SSH";
                 App.StripItemToggleSSH.Checked = _status;
                 OnChange("SSHStatus");
                 OnChange("ToggleSSH");
@@ -3624,12 +3734,11 @@ namespace CPUDoc
                     {
                         mode += App.pactive.SelectedPersonality == 1 ? $" [{ThreadBooster.CurrentOverlay}]" : "";
                     }
-                    mode += ThreadBooster.PLEvtPerfMode ? " [PL PerfMode]" : "";
                 }
 
                 if (App.PPImportErrStatus) sleep = "[Error Initialization]";
                 PSAStatus = _status ? $"Enabled {PSABias}{sleep}{mode}" : "Disabled";
-                TogglePSA = _status ? $"Disable PSA" : "Enable PSA";
+                TogglePSA = _status ? $"ON: Toggle to disable PSA" : "OFF: Toggle to enable PSA";
                 PSAStatus = App.psact_b ? PSAStatus : $"<Inactive> {PSAStatus}";
             }
             catch { }
@@ -3639,7 +3748,7 @@ namespace CPUDoc
             try
             {
                 UpdatePSAStatus(_status);
-                App.StripItemTogglePSA.Text = _status ? $"Disable PSA" : "Enable PSA";
+                App.StripItemTogglePSA.Text = _status ? $"ON: Toggle to disable PSA" : "OFF: Toggle to enable PSA";
                 App.StripItemTogglePSA.Checked = _status;
                 OnChange("PSAStatus");
                 OnChange("PSABias");
@@ -3662,10 +3771,10 @@ namespace CPUDoc
             try
             {
                 UpdateN0Status(_status);
-                ToggleN0 = _status ? $"Disable NumaZero" : "Enable NumaZero";
+                ToggleN0 = _status ? $"ON: Toggle to disable NumaZero" : "OFF: Toggle to enable NumaZero";
                 OnChange("ToggleN0");
                 OnChange("N0Status");
-                App.StripItemToggleNumaZero.Text = _status ? $"Disable NumaZero" : "Enable NumaZero";
+                App.StripItemToggleNumaZero.Text = _status ? $"ON: Toggle to disable NumaZero" : "OFF: Toggle to enable NumaZero";
                 App.StripItemToggleNumaZero.Checked = _status;
                 /*
                 if (App.Current.Dispatcher.CheckAccess())

@@ -144,6 +144,11 @@ namespace CPUDoc
                     SaveWinPos();
                 }
 
+#if DEBUG
+#else
+                cbTBAutoStart.Height = 0;
+                cbTBAutoStart.Visibility = Visibility.Collapsed;
+#endif
                 InitWindowUI();
 
                 //pcurrent = new appConfigs();

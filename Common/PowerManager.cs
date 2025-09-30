@@ -51,6 +51,7 @@ namespace CPUDoc
         bool SetActiveOverlay(Guid guid);
         Guid GetActiveOverlay();
 
+
     }
 
     public class PowerManagerProvider
@@ -130,7 +131,7 @@ namespace CPUDoc
 
             if (hr != HRESULT.S_OK) return false;
 
-            ThreadBooster.CurrentOverlay = GetActiveOverlayLabel(overlay);
+            ThreadBooster.CurrentOverlay = GetOverlayLabel(overlay);
 
             return true;
         }
@@ -145,9 +146,9 @@ namespace CPUDoc
         }
         public string GetActiveOverlayString()
         {
-            return GetActiveOverlayLabel(GetActiveOverlay());
+            return GetOverlayLabel(GetActiveOverlay());
         }
-        public string GetActiveOverlayLabel(Guid overlay)
+        public static string GetOverlayLabel(Guid overlay)
         {
             String _label = overlay == PowerPlan.DefaultOverlay ? "Better" : overlay == PowerPlan.BetterBatteryLifeOverlay ? "Saving" : overlay == PowerPlan.MaxPerformanceOverlay ? "Max" : "Better";
             return _label;

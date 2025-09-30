@@ -9,6 +9,17 @@
 
 ## Changelog:
 
+- v1.2.14 Beta
+    - New: Intel Core Ultra core parking settings from Veii
+    - New: More understandable description of the toggles in the system tray menu
+    - New: ThreadBooster startup toggle hidden in release builds
+    - New: Change in default heterogenous policy to Automatic by default
+    - New: improvements in CPU detection by SystemInfo
+    - New: Automatic selection fo Power Plan settings per Intel/AMD CPUs (Zen3/Zen4/Zen5)
+    - New: Fixes for Zen4/4 Dual CCDs and X3D
+    - Fix: Bug in GameMode which was delaying the PSA changes
+    - Fix: Optimizations of the power plan settings to match Balanced LowPower
+    - Fix: Various small fixes and optimizations
 - v1.2.13 Beta
     - New: Windows 11 Auto personality is now Balanced (no more issues with the latest 25H2)
     - New: SysSetHack disabled as default cause it's still too experimental

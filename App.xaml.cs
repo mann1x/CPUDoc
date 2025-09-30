@@ -46,6 +46,7 @@ using System.Security;
 using System.Security.Principal;
 using System.ServiceProcess;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
@@ -180,6 +181,8 @@ namespace CPUDoc
 
         public static int? PSABiasCurrent = null;
         public static int? lastPSABiasCurrent = null;
+
+        public static bool lastGameMode = false;
 
         public static bool CoreBestT1T0 = false;
         public static bool CoreZeroT1T0 = false;
@@ -2536,27 +2539,6 @@ namespace CPUDoc
                         boot_ppguid = powerManager.GetActiveGuid();
                     }
 
-                    if (Win11)
-                    {
-                        ThreadBooster.hepfg = 5;
-                        ThreadBooster.hepbg = 2;
-                    }
-                    else
-                    {
-                        if (!systemInfo.CPUName.Contains("Intel"))
-                        {
-                            ThreadBooster.hepfg = 2;
-                            ThreadBooster.hepbg = 4;
-                        }
-                        else
-                        {
-                            ThreadBooster.hepfg = 5;
-                            ThreadBooster.hepbg = 5;
-                        }
-                    }
-                    ThreadBooster.hepfgdeep = 4;
-                    ThreadBooster.hepbgdeep = 4;
-
                     App.LogInfo($"Power Plan at boot: {boot_ppname} Guid: {boot_ppguid}");
                 }
             }
@@ -2727,6 +2709,7 @@ namespace CPUDoc
                         PPDutyCycling = 0;
                         PPUSBSSuspend = 0;
                         ThreadBooster.cpuBoostModeBoost = 2;
+
                     }
                     else
                     {
@@ -2743,8 +2726,6 @@ namespace CPUDoc
 
                     if (_activepersonality == 0)
                     {
-                        //if (_activepowertweak == 0) _personality = 1;
-                        //if ((Win11 && _activepowertweak != 0) || _activepowertweak == 2) _personality = 2;
                         _personality = _activepowertweak == 1 ? 1 : _activepowertweak == 2 ? 2 : 1;
                     }
                     else
@@ -2783,17 +2764,6 @@ namespace CPUDoc
                             ThreadBooster.coreparking_min_light_ec1 = 0;
                         }
 
-                        if (App.systemInfo.ProcessorsLabel.Contains("X3D") && (App.systemInfo.ProcessorsLabel.Contains("9950")
-                            || App.systemInfo.ProcessorsLabel.Contains("7950")
-                            || App.systemInfo.ProcessorsLabel.Contains("9900")))
-                        {
-                            ThreadBooster.coreparking_concurrency = 67;
-                            ThreadBooster.coreparking_min = 50;
-                            ThreadBooster.coreparking_min_ec1 = 50;
-                            ThreadBooster.coreparking_min_light = 100;
-                            ThreadBooster.coreparking_min_light_ec1 = 100;
-                        }
-
                     }
                     else if (_activepowertweak == 2)
                     {
@@ -2802,6 +2772,7 @@ namespace CPUDoc
                         pactive.PSALightSleepThreshold = 8;
                         pactive.PSADeepSleepThreshold = 4;
                         ThreadBooster.ProcPerfBoostEco = 100;
+                        
                         if (App.systemInfo.Ecores.Count > 0)
                         {
                             if (App.systemInfo.Ecores.Count > 0 && App.systemInfo.Pcores.Count > 0 && App.systemInfo.IntelHybrid)
@@ -2825,8 +2796,9 @@ namespace CPUDoc
                         pactive.PSALightSleepSeconds = 30;
                         pactive.PSADeepSleepSeconds = 90;
                         pactive.PSALightSleepThreshold = 14;
-                        pactive.PSADeepSleepThreshold = 8;
+                        pactive.PSADeepSleepThreshold = 8;                        
                         ThreadBooster.ProcPerfBoostEco = 100;
+
                         if (App.systemInfo.Ecores.Count > 0 && App.systemInfo.Pcores.Count > 0 && App.systemInfo.IntelHybrid)
                         {
                             ThreadBooster.coreparking_min = 10;
@@ -2838,13 +2810,115 @@ namespace CPUDoc
                         }
                     }
 
+                    // Independent from PowerTweak
+
+                    if (App.systemInfo.Ecores.Count > 0 && App.systemInfo.Pcores.Count > 0 && App.systemInfo.IntelHybrid && App.systemInfo.ProcessorsLabel.Contains("Core Ultra"))
+                    {
+                        //Veii settings
+                        ThreadBooster.coreparking_concurrency = 67; //??
+                        ThreadBooster.coreparking_min = 10;
+                        ThreadBooster.coreparking_min_ec1 = 5;
+                        ThreadBooster.coreparking_min_light = 100;
+                        ThreadBooster.coreparking_min_light_ec1 = 100;
+                    }
+
+                    // Heterogeneous policy
+
+                    if (!systemInfo.CPUName.Contains("Intel"))
+                    {
+                        ThreadBooster.hepfg = 2;
+                        ThreadBooster.hepbg = 4;
+                    }
+                    else
+                    {
+                        ThreadBooster.hepfg = 2;
+                        ThreadBooster.hepbg = Win11 ? 5 : 4;
+                    }
+
+                    ThreadBooster.hepfgdeep = 4;
+                    ThreadBooster.hepbgdeep = 4;
+
+                    if (systemInfo.CPULabel.Contains("Intel"))
+                    {
+                        if (App.systemInfo.Ecores.Count > 0 && App.systemInfo.Pcores.Count > 0 && App.systemInfo.IntelHybrid)
+                        {
+                            ThreadBooster.hepfgdeep = 3;
+                            ThreadBooster.hepbgdeep = 3;
+                        }
+
+                        if (systemInfo.IntelHybrid && systemInfo.Ecores.Count > 0 && systemInfo.Pcores.Count > 0 && numazero_b)
+                        {
+                            ThreadBooster.hetPolicy = 3;
+                        }
+                        else
+                        {
+                            ThreadBooster.hetPolicy = 4;
+                        }
+
+                    }
+
+                    if (systemInfo.CPUArch.Contains("AMD64"))
+                    {
+                        //Ryzen Specific
+                        if (systemInfo.CPUFamilyID == 25 || systemInfo.CPUFamily == 26)
+                        {
+                            ThreadBooster.hetPolicy = 4;
+                            App.LogDebug("AMD Het Policy Ryzen");
+
+                            if (systemInfo.CPUFamilyID == 25 && systemInfo.CPUType.Contains("Ryzen") && systemInfo.CPUGen == 5 && !Win11)
+                            {
+                                App.LogDebug("AMD Het Policy: Ryzen Gen5 Windows 10");
+                                ThreadBooster.hetPolicy = 0;
+                            }
+
+                            if ((systemInfo.CPUFamilyID == 25 || systemInfo.CPUFamilyID == 26)
+                                && (systemInfo.CPUGen == 7 || systemInfo.CPUGen == 9) 
+                                && systemInfo.CPUExt.Contains("X3D") || ProcessorInfo.Clusters > 1)
+                            {
+                                App.LogDebug("AMD Het Policy: Ryzen Family 25/26 Gen7/9 & X3D");
+                                ThreadBooster.coreparking_concurrency = 67;
+                                ThreadBooster.coreparking_min = 50;
+                                ThreadBooster.coreparking_min_ec1 = 50;
+                                ThreadBooster.coreparking_min_light = 100;
+                                ThreadBooster.coreparking_min_light_ec1 = 100;
+                            }
+
+                            if (systemInfo.CPUFamilyID == 26 && systemInfo.CPUType.Contains("Ryzen"))
+                            {
+                                App.LogDebug("AMD Het Policy: Ryzen Family 26");
+                                ThreadBooster.hepfg = 4;
+                                ThreadBooster.hepbg = 5;
+
+                                if (systemInfo.CPUExt.Contains("X3D") || ProcessorInfo.Clusters > 1)
+                                {
+                                    ThreadBooster.proceppp = 10;
+                                    ThreadBooster.hepfg = 2;
+                                    App.LogDebug("AMD Het Policy: AMD Dual CCD & X3D");
+                                }
+                                else if (ProcessorInfo.Clusters < 2)
+                                {
+                                    ThreadBooster.proceppp = 10;
+                                    App.LogDebug("AMD Het Policy: AMD Single CCD");
+                                }
+                            }
+
+                            if (systemInfo.CPUFamilyID == 25  && systemInfo.CPUType.Contains("Ryzen") && !Win11)
+                            {
+                                App.LogDebug("AMD Het Policy: Ryzen Family 25 Windows 10");
+                                ThreadBooster.autonomousmode = 0;
+                            }
+                        }
+                    }
+
+
+
                     if (powerManager.GetActiveGuid() != PPGuid)
                     {
                         bool _import = true;
                         if (!powerManager.PlanExists(PPGuid)) _import = ImportPowerPlan(planName);
 
                         if (powerManager.PlanExists(PPGuid)) isactive = powerManager.SetActiveGuid(PPGuid);
-                        
+
                         if (_import && isactive)
                         {
                             psact_b = true;
@@ -4156,6 +4230,8 @@ namespace CPUDoc
                 }
 
                 if (n0disabledT0.Count() > 0 || n0disabledT1.Count() > 0 && (pactive.NumaZero)) numazero_b = true;
+                
+                // Specific to Intel Hybrid, immediate change of HetPolicy
 
                 if (systemInfo.IntelHybrid)
                 {
