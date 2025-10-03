@@ -128,17 +128,22 @@ Right now it works in conjunction with PSA to adjust in real-time the PBO Limits
 It does provide a, rough for now, basic algorithm to pick PBO Limits based on CPU physical cores.
 You can disable the Auto selection and specify manual limits.
 
+WARNING: This feature is experimental and if another software is conflicting could leave your CPU with very low performance limits, needing a CPUDoc restart to recover.
+
 ---
 
 ## NumaZero  (aka N0 or NZ)
 
-This feature can be enabled in Auto mode or manual with a fixed amount of cores specified.
+This feature can be enabled with an Auto Type mode or manually selecting a fixed amount of cores to select from the first.
 With NumaZero enabled only a subset of the total cores are used and can be used together with SysSetHack.
 
-In Auto mode the cores not in the first CCD or CCX for AMD or the E-Cores for Intel will be disabled.
-If the result of the Auto mode is not satisfying, you can select a static value of 2/4/6/8 cores from the first ones.
+In Auto type mode only the cores in the first CCD for AMD or Cluster for Intel will be enabled.
+If only one CCD/Cluster is available an Auto selection is implemented and only half of the cores selected up to 12.
+You can manually specify how many Clusters to select from the first.
 
-This could help eg. AMD 5000/7000 with dual CCD and Alder/Raptor Lake with E-Cores when some specific software/game is slower than expected.
+You can also define an exclusion for T1 threads and E-Cores or both.
+
+This could help eg. AMD 5000/7000 with dual CCD and Alder/Raptor/Arrow Lake with Clusters/E-Cores when some specific software/game is slower than expected.
 
 You could still see load on the disabled cores/threads. 
 This is as expected as processes that are already running there could disregard the "hint" and decide to keep using the disabled cores.

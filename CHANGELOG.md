@@ -9,12 +9,17 @@
 
 ## Changelog:
 
+- v1.2.15 Beta
+    - New: New NumaZero; selection of n first cores, limit up to n CCD/Cluster, exclusion of T1/E-Cores
+    - New: Display of Intel P/E-Core, Parking, Golden Cores in the real-time load graph
+    - Fix: Intel CPU detection and clustering for Core Ultra
+    - Fix: Many fixes and optimizations
 - v1.2.14 Beta
     - New: Intel Core Ultra core parking settings from Veii
     - New: More understandable description of the toggles in the system tray menu
     - New: ThreadBooster startup toggle hidden in release builds
-    - New: Change in default heterogenous policy to Automatic by default
-    - New: improvements in CPU detection by SystemInfo
+    - New: Change in default heterogeneous policy to Automatic by default
+    - New: Improvements in CPU detection by SystemInfo
     - New: Automatic selection fo Power Plan settings per Intel/AMD CPUs (Zen3/Zen4/Zen5)
     - New: Fixes for Zen4/4 Dual CCDs and X3D
     - Fix: Bug in GameMode which was delaying the PSA changes

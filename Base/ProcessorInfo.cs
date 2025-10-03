@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -9,6 +10,7 @@ using System.Runtime.Versioning;
 using System.Security.Permissions;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Controls;
 
 namespace CPUDoc
 {
@@ -279,7 +281,9 @@ namespace CPUDoc
                         for (int i = 0; i < cpuset.Length; i += 6)
                         {
                             for (int j = 0; j <= 5; j++)
-                            cpuset[j].Cluster = _cluster;
+                            {
+                                cpuset[i+j].Cluster = _cluster;
+                            }
                             _cluster++;
                         }
                     }
@@ -349,6 +353,8 @@ namespace CPUDoc
 
                 App.systemInfo.UpdateLoadThread(i, (int)_Load);
                 threadsTotalLoad += (int)_Load;
+
+                App.systemInfo.UpdateParkedStateCore(ProcessorInfo.PhysicalCore(HardwareCpuSets[i].LogicalProcessorIndex), HardwareCpuSets[i].Parked);
             }
 
             App.systemInfo.UpdateLoadThreads();
@@ -509,6 +515,37 @@ namespace CPUDoc
         }
 
         /// <summary>
+        /// Check if a LogicalCore is a Golden Core (first best by default)
+        /// </summary>
+        public static bool CoresByGoldenCheck(int logicalcore, int goldenlimit = 2)
+        {
+            var coresbysched = new int[HardwareCores.Length][];
+            var cpusetsbysched = HardwareCpuSets.OrderByDescending(x => x.SchedulingClass);
+            int coretocheck = PhysicalCore(logicalcore);
+            int golden = 1;
+            int _prev = -1;
+            
+            foreach (HardwareCpuSet cpuset in cpusetsbysched)
+            {
+                int _pcore = PhysicalCore(cpuset.LogicalProcessorIndex);
+                //App.LogDebug($"CoresByGoldenCheck Logical={cpuset.LogicalProcessorIndex} Physical={_pcore} Check={coretocheck} Golden={golden}");
+                if (_pcore == coretocheck)
+                {
+                    //App.LogDebug($"CoresByGoldenCheck Logical={cpuset.LogicalProcessorIndex} Physical={_pcore} Check={coretocheck} GOLDEN");
+                    return true;
+                }
+                if (_pcore != _prev)
+                {
+                    _prev = _pcore;
+                    golden++;
+                }
+
+                if (golden > goldenlimit) break;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Get Cores Sorted by EfficiencyClass
         /// </summary>
         public static int[][] CoresByEfficiency()
@@ -617,6 +654,69 @@ namespace CPUDoc
                     coresbyindex.Add(cpuset.LogicalProcessorIndex);
             }
             return coresbyindex;
+        }
+        /// <summary>
+        /// Get Logicals by selection NumaZero
+        /// Outputs first List<int> with logicals T0 in selection, second List<int> with logicals T0 not in selection
+        /// third List<int> with logicals T1 in selection, fourth List<int> with logicals T1 not in selection
+        /// 
+        /// ExcludeType:
+        /// 1 : T1
+        /// 2 : E-Cores
+        /// 3 : T1 && E-Cores
+        /// 
+        /// </summary>
+        public static (List<int>, List<int>, List<int>, List<int>) LogicalsBySelection(int cluster = 0, int excludeType = 0, int limitCores = 0, int numa = -1)
+        {
+            var logicalsT0in = new List<int>();
+            var logicalsT0out = new List<int>();
+            var logicalsT1in = new List<int>();
+            var logicalsT1out = new List<int>();
+
+            App.LogDebug($"LogicalsBySelection cluster={cluster} excludeType={excludeType} limitCores={limitCores} numa={numa}");
+            
+            for (int i = 0; i < HardwareCores.Length; i++)
+            {
+                App.LogDebug($"LogicalsBySelection core={i}");
+                
+                for (int j = 0; j < HardwareCores[i].LogicalCores.Length; j++)
+                {
+                    bool selected = true;
+                    var logical = HardwareCpuSets.Where(x => x.LogicalProcessorIndex == HardwareCores[i].LogicalCores[j]).First();
+                    App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} Cluster={logical.Cluster} EfficiencyClass={logical.EfficiencyClass} NumaNodeIndex={logical.NumaNodeIndex}");
+                    if (logical != null)
+                    {
+                        if (cluster < logical.Cluster ) selected = false;
+                        App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} thread={j} Cluster selected={selected}");
+                        if (numa >= 0 && logical.NumaNodeIndex > numa) selected = false;
+                        App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} thread={j} Numa selected={selected}");
+                        if ((excludeType == 2 || excludeType == 3) && (logical.EfficiencyClass == 0 && App.systemInfo.IntelHybrid)) selected = false;
+                        App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} thread={j} Ecore selected={selected}");
+                        if (j == 1 && (excludeType == 1 || excludeType == 3)) selected = false;
+                        App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} thread={j} T1 selected={selected}");
+                    }
+                    if (i > limitCores - 1 && limitCores > 0) selected = false;
+                    if (selected && j == 0)
+                    {
+                        logicalsT0in.Add(logical.LogicalProcessorIndex);
+                    }
+                    else if (!selected && j == 0)
+                    {
+                        logicalsT0out.Add(logical.LogicalProcessorIndex);
+                    }
+                    else if (selected && j > 0)
+                    {
+                        logicalsT1in.Add(logical.LogicalProcessorIndex);
+                    }
+                    else if (!selected && j > 0)
+                    {
+                        logicalsT1out.Add(logical.LogicalProcessorIndex);
+                    }
+                    App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} thread={j} selected={selected}");
+                }
+            }
+
+            return (logicalsT0in, logicalsT0out, logicalsT1in, logicalsT1out);
         }
         public static bool IsCoresByEfficiencyAllZeros()
         {

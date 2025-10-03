@@ -32,6 +32,8 @@ using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using net.r_eg.Conari.Extension;
 using System.Windows.Media.Imaging;
+using System.Drawing;
+using AdonisUI;
 
 namespace CPUDoc
 {
@@ -141,6 +143,15 @@ namespace CPUDoc
         public List<int> Ecores { get; set; }
         public List<int> Plogicals { get; set; }
         public List<int> Elogicals { get; set; }
+
+        private System.Windows.Media.Brush[] cpuCparked;
+        public System.Windows.Media.Brush[] CpuCparked { get { return cpuCparked; } }
+
+        private System.Windows.Media.Brush[] cpuTstateFG;
+        public System.Windows.Media.Brush[] CpuTstateFG { get { return cpuTstateFG; } }
+
+        private System.Windows.Media.Brush[] cpuTstateBG;
+        public System.Windows.Media.Brush[] CpuTstateBG { get { return cpuTstateBG; } }
 
         private int[] cpuTload;
         public int[] CpuTload { get { return cpuTload; } }
@@ -289,6 +300,9 @@ namespace CPUDoc
             ToggleSSH = "Toggle SysSetHack";
 
             cpuTload = new int[ProcessorInfo.LogicalCoresCount];
+            cpuCparked = new System.Windows.Media.Brush[ProcessorInfo.PhysicalCoresCount];
+            cpuTstateFG = new System.Windows.Media.Brush[ProcessorInfo.LogicalCoresCount];
+            cpuTstateBG = new System.Windows.Media.Brush[ProcessorInfo.LogicalCoresCount];
 
             CPUFamily = 0;
             BoardBIOS = "N/A";
@@ -412,10 +426,16 @@ namespace CPUDoc
 
                 if (CPUName.Contains("AMD") || CPUName.Contains("Intel"))
                 {
+                    string _cpunamefiltered = CPUName;
                     string model_pattern = @"^AMD (?<type>\w+) (?<series>\d+) (?<generation>\d)(?<model>\d*)(?<ex>.?).*";
-                    if (CPUName.Contains("Intel")) model_pattern = @"^Intel (?<type>\w+) (?<series>\w+) (?<generation>\d+) (?<model>\d*)(?<ex>.?).*";
+                    if (CPUName.Contains("Intel"))
+                    {
+                        _cpunamefiltered.Replace("(R)", "");
+                        _cpunamefiltered.Replace("(T)", "");
+                        model_pattern = @"^Intel (?<type>\w+) (?<series>\w+) (?<generation>\d+) (?<model>\d*)(?<ex>.?).*";
+                    }
                     Regex model_rgx = new Regex(model_pattern, RegexOptions.Multiline);
-                    Match model_m = model_rgx.Match(CPUName);
+                    Match model_m = model_rgx.Match(_cpunamefiltered);
 
                     if (model_m.Success)
                     {
@@ -565,7 +585,7 @@ namespace CPUDoc
         }
         public bool ZenRefreshStatic(bool refresh)
         {
-            if (!ZenStates || App.ZenBlockRefresh || Zen == null) return false;
+            if (!ZenStates || App.ZenBlockRefresh || Zen == null || CPUArch != "AMD64") return false;
 
             if (refresh)
             {
@@ -750,7 +770,8 @@ namespace CPUDoc
         {
             try
             {
-                App.LogDebug("ZenRefreshPowerTable...");
+                
+                //App.LogDebug("ZenRefreshPowerTable...");
 
                 SMU.Status? status = SMU.Status.UNKNOWN_CMD;
 
@@ -777,7 +798,7 @@ namespace CPUDoc
                     }
                 }
 
-                if (status == SMU.Status.OK) App.LogDebug("ZenRefreshPowerTable OK");
+                //if (status == SMU.Status.OK) App.LogDebug("ZenRefreshPowerTable OK");
                 if (status == SMU.Status.OK) return true;
                 return false;
             }
@@ -922,13 +943,15 @@ namespace CPUDoc
 
         public void ZenRefreshCO()
         {
+            if (Zen == null || Zen.smu == null) return;
+
             try
             {
-                if ((Zen.smu.SMU_TYPE == SMU.SmuType.TYPE_CPU3 || Zen.smu.SMU_TYPE == SMU.SmuType.TYPE_CPU4) 
-                    && CPUCores <= ZenCoreMap.Length 
+                if (((Zen.smu.SMU_TYPE == SMU.SmuType.TYPE_CPU3 || Zen.smu.SMU_TYPE == SMU.SmuType.TYPE_CPU4)) 
+                    && (int)Zen.info.topology.physicalCores <= ZenCoreMap.Length 
                     && (Zen.smu.Rsmu.SMU_MSG_GetDldoPsmMargin != 0x0 || Zen.smu.Mp1Smu.SMU_MSG_GetDldoPsmMargin != 0x0
                     && Zen.info.topology.coreFullMap != null
-                    && Zen.info.topology.coreFullMap.GetLength(0) >= CPUCores ))
+                    && Zen.info.topology.coreFullMap.GetLength(0) >= (int)Zen.info.topology.physicalCores ))
                 {
                     ZenCOLabel = "";
                     for (int ix = 0; ix < CPUCores; ix++)
@@ -1040,12 +1063,12 @@ namespace CPUDoc
 
                 if (MemoryLabel.Length == 0) MemoryLabel = "N/A";
 
-                if (App.inpoutdlldisable == false)  
+                if (App.inpoutdlldisable == false && CPUArch == "AMD64")
                     {                    
 
                     if (object.ReferenceEquals(null, Zen)) ZenInit();
 
-                    if (ZenStates)
+                    if (ZenStates && Zen != null && Zen.smu != null)
                     {
 
                         for (int r = 0; r < 20; ++r)
@@ -3543,6 +3566,30 @@ namespace CPUDoc
         private BiosACPIFunction GetFunctionByIdString(string name)
         {
             return biosFunctions.Find(x => x.IDString == name);
+        }
+        
+        public void UpdateParkedStateCore(int _core, int _value)
+        {
+            if (!App.MainWindowOpen) return;
+            try
+            {
+                cpuCparked[_core] = _value == 0 ? System.Windows.Media.Brushes.Transparent : System.Windows.Media.Brushes.Blue;
+                //App.LogInfo($"{_value}");
+                OnChange("cpuCparked");
+            }
+            catch { }
+        }
+        public void UpdateStateThread(int _thread, int _value)
+        {
+            try
+            {
+                cpuTstateFG[_thread] = _value == 0 ? System.Windows.Media.Brushes.White : _value == 1 ? System.Windows.Media.Brushes.DarkGray : System.Windows.Media.Brushes.LightGray;
+                cpuTstateBG[_thread] = _value == 0 ? System.Windows.Media.Brushes.Green : _value == 1 ? System.Windows.Media.Brushes.Black : System.Windows.Media.Brushes.DarkRed;
+                //App.LogInfo($"{_value}");
+                OnChange("cpuTstateFG");
+                OnChange("cpuTstateBG");
+            }
+            catch { }
         }
         public void UpdateLoadThread(int _thread, int _value)
         {

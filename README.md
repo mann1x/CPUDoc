@@ -13,7 +13,7 @@ CPUDoc is a little utility that comes with some exclusive features:
 
 - SysSetHack - Use the CpuSet system bitmask manipulation to get a smoother and faster experience similar to SMT/HyperThreading off, while still keeping the benefit on being available.
 - PowerActive - Dynamic power plan manipulation, comes with 2 ultra low power consumption standby mode, Light and Deep Sleep.
-- NumaZero - Only use a subset of the cores, either set by Auto or manually the first 2/4/6/8. Auto should select same CCD/CCX or P-Cores.
+- NumaZero - Only use a subset of the cores, either set by Auto or manually. Manual limit to n Clusters or cores, exclusion of T1 threads or E-Cores.
 
 The ThreadBooster is the main engine director and most dynamic functions are depending on it.
 
@@ -23,15 +23,15 @@ The ThreadBooster is the main engine director and most dynamic functions are dep
 
 Just run it and **optionally set it to start at boot via the Settings menu** (Create or remove Auto-start task).
 Double click on the system tray icon to open the App and right click for the menu to exit.
-With right click you can also toggle some features on or off.
+With right click you can also toggle some features on or off; these changes via the system tray menu are transient and will not be saved.
 
 You can start and stop the ThreadBooster in the main menu.
 The ThreadBooster pooling rate (how often the governor and related threads are executed) can be manually adjusted.
-The default is value is the best fit for Ryzen 3000/5000 and Intel 12th Gen.
-Should be the same for Ryzen 7000 and 13th Gen but I didn't test it personally.
+The default values are the best fit for Ryzen 3000/5000 and Intel 12th Gen.
+Support added for more recent CPUs like Zen4/Zen5 and Core Ultra.
 You can test different settings if you want, in case you think the allocation/deallocation of T1 threads is too slow.
 I recommend to keep it as default.
-For testing use any game at very highly CPU bound quality settings and check you get the same performances or better than default value.
+For testing use any game at very highly CPU bound quality settings and check you get the same performances or better than without CPUDoc.
 
 [Read more detailed information about usage and features here](USAGE.md)
 

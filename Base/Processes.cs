@@ -152,7 +152,7 @@ namespace CPUDoc
                             if (p == null)
                             {
                                 listProcesses.Add(new ListProcessesItem(item.Name, true, false, true, false, false, false, false, true));
-                                App.LogDebug($"ImportCXList imported {item.DisplayName} filename={item.Name}.");
+                                //App.LogDebug($"ImportCXList imported {item.DisplayName} filename={item.Name}.");
                                 _added++;
                             }
                         }

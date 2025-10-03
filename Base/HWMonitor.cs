@@ -150,6 +150,8 @@ namespace CPUDoc
             {
                 if (App.cmdargs.inpoutdlldisable == 1 || App.AppSettings.inpoutdlldisable == true) return;
 
+                if (App.systemInfo.CPUArch != "AMD64") return;
+
                 if (object.ReferenceEquals(null, App.systemInfo.Zen)) App.systemInfo.ZenInit();
 
                 bool _refreshpt = App.systemInfo.ZenRefreshPowerTable();
@@ -1377,7 +1379,7 @@ namespace CPUDoc
                                 if (!App.MainWindowOpen) App.systemInfo.UpdateN0Status(App.pactive.NumaZero);
                                 icontext += $"\nN0: {App.systemInfo.N0Status}";
                             }
-                            App.trayIcon.Text = icontext.Trim()?[0..Math.Min(icontext.Length, 128)];
+                            App.trayIcon.Text = icontext.Trim()?[0..Math.Min(icontext.Length, 127)];
                         }
                     }
 

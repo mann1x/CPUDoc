@@ -46,7 +46,7 @@ namespace CPUDoc
         bool PlanExists(Guid guid);
         bool DeletePlan(Guid guid);
         bool SetActiveGuid(Guid guid);
-        void SetDynamic(SettingSubgroup subgroup, Guid setting, PowerMode powerMode, uint value);
+        void SetDynamic(SettingSubgroup subgroup, Guid setting, PowerMode powerMode, uint value, bool alert = true);
         void SetActive(PowerPlan plan);
         bool SetActiveOverlay(Guid guid);
         Guid GetActiveOverlay();
@@ -93,25 +93,7 @@ namespace CPUDoc
             // Add handler for power mode state changing.
             SystemEvents.PowerModeChanged += new PowerModeChangedEventHandler(PowerModeChangedHandler);
             SystemEvents.UserPreferenceChanging += new UserPreferenceChangingEventHandler(SystemEvents_UserPreferenceChanging);
-            
-            /*
-            HRESULT handle;
-            nint epmcontext = 0;
-            SafeEffectivePowerModeNotificationHandle EPMC_handle;
-            EFFECTIVE_POWER_MODE_CALLBACK epmcback = new EFFECTIVE_POWER_MODE_CALLBACK(PrintEPM);
-            handle = PowerRegisterForEffectivePowerModeNotifications(EFFECTIVE_POWER_MODE_V2, epmcback, epmcontext, out EPMC_handle);
-
-            if (handle != NTStatus.STATUS_SUCCESS)
-            {
-                App.LogInfo("Could not register for Effective PowerMode Change");
-            }
-            */
-            
-        }
-
-        private void PrintEPM(EFFECTIVE_POWER_MODE mode, nint context)
-        {
-            App.LogInfo("Detected Effective PowerMode Change");
+            SystemEvents.UserPreferenceChanged += new UserPreferenceChangedEventHandler(SystemEvents_UserPreferenceChanged);
         }
 
         private PowerPlan NewPlan(string guidString)
@@ -215,20 +197,20 @@ namespace CPUDoc
             return isactive;
         }
 
-        public void SetDynamic(SettingSubgroup subgroup, Guid settingId, PowerMode powerMode, uint value)
+        public void SetDynamic(SettingSubgroup subgroup, Guid settingId, PowerMode powerMode, uint value, bool alert)
         {
             Guid subgroupId = SettingIdLookup.SettingSubgroupGuids[subgroup];            
 
             if (powerMode.HasFlag(PowerMode.AC))
             {
                 var res = PowerWriteACValueIndex(IntPtr.Zero, ref App.PPGuid, ref subgroupId, ref settingId, value);
-                if (res != (uint)ErrorCode.SUCCESS)
+                if (res != (uint)ErrorCode.SUCCESS && alert)
                     App.LogDebug($"Error setting PSA AC Guid {settingId} to {value}");
             }
             if (powerMode.HasFlag(PowerMode.DC))
             {
                 var res = PowerWriteDCValueIndex(IntPtr.Zero, ref App.PPGuid, ref subgroupId, ref settingId, value);
-                if (res != (uint)ErrorCode.SUCCESS)
+                if (res != (uint)ErrorCode.SUCCESS && alert)
                     App.LogDebug($"Error setting PSA DC Guid {settingId} to {value}");
             }
         }
@@ -264,8 +246,11 @@ namespace CPUDoc
         }
         private void SystemEvents_UserPreferenceChanging(object sender, UserPreferenceChangingEventArgs e)
         {
-            // 10 = Power 
-            App.LogInfo($"Detected Change UserPref Category: {e.Category} Object: {e}");
+            App.LogInfo($"Detected Changing UserPref Category: {e.Category}");
+        }
+        private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+        {
+            App.LogInfo($"Detected Changed UserPref Category: {e.Category}");
         }
 
         public string GetPowerPlanName(Guid guid)

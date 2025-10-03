@@ -147,7 +147,7 @@ namespace CPUDoc
         
         public static bool debugtb_steps = false;
 
-        public static void BuildDefaultMask()
+        public static void BuildDefaultMask(string whoami = "Unknown")
         {
             try
             {
@@ -155,36 +155,52 @@ namespace CPUDoc
                 basecores = 0;
                 addcores = 0;
 
-                List<int> _t0;
-                List<int> _t1;
-
-                if (App.numazero_b && App.pactive.NumaZero)
+                if (App.activeconfig_b)
                 {
-                    _t0 = App.n0enabledT0;
-                    _t1 = App.n0enabledT1;
+
+                    List<int> _t0;
+                    List<int> _t1;
+
+                    if (numazero_b)
+                    {
+                        _t0 = App.n0enabledT0;
+                        _t1 = App.n0enabledT1;
+                    }
+                    else
+                    {
+                        _t0 = App.logicalsT0;
+                        _t1 = App.logicalsT1;
+                    }
+
+                    for (int i = 0; i <_t0.Count; i++)
+                    {
+                        defBitMask |= (ulong)1 << (_t0[i]);
+                        defFullBitMask |= (uint)1 << (_t0[i]);
+                        basecores++;
+                        App.LogDebug($"Build defBitMask 0x{defBitMask:X16} {_t0[i]}");
+                        App.LogDebug($"Build defFullBitMask 0x{defFullBitMask:X16} {_t0[i]}");
+                    }
+                    for (int i = 0; i < _t1.Count; i++)
+                    {
+                        defFullBitMask |= (uint)1 << (_t1[i]);
+                        addcores++;
+                        App.LogDebug($"Build defFullBitMask 0x{defFullBitMask:X16} {_t1[i]}");
+                    }
+                    setcores = basecores;
+                    HighTotalLoadThreshold = (basecores + addcores) * 100 / ProcessorInfo.LogicalCoresCount * HighTotalLoadFactor;
+                    setcores = basecores + addcores;
+
+                    if ((!App.pactive.SysSetHack && numazero_b || (!App.pactive.SysSetHack && App.pactive.NumaZero && !numazero_b)) && (n0disabledT0.Count == 0 || n0disabledT1.Count == 0))
+                    {
+                        App.LogDebug($"BuildDefaultMask:NumaZero only or Inactive defBitMask [{CountBits(defBitMask)}]0x{defBitMask:X16} > [{CountBits(defFullBitMask)}]0x{defFullBitMask:X16}");
+                        defBitMask = defFullBitMask;
+                    }
+                    App.LogInfo($"BuildDefaultMask: [{whoami}] [Cores:{basecores}+{addcores}={basecores + addcores}] defBitMask [{CountBits(defBitMask)}]0x{defBitMask:X16} defFullBitMask [{CountBits(defFullBitMask)}]0x{defFullBitMask:X16} N0Active={App.pactive.NumaZero} N0={App.numazero_b}");
                 }
                 else
                 {
-                    _t0 = App.logicalsT0;
-                    _t1 = App.logicalsT1;
+                    App.LogDebug($"Skipping BuildDefaultMask, SetActiveConfig not ready");
                 }
-
-                foreach (int logical in _t0)
-                {
-                    defBitMask |= (ulong)1 << (logical);
-                    basecores++;
-                    //App.LogDebug($"Build defBitMask 0x{defBitMask:X16} {logical}");
-                }
-                defFullBitMask = defBitMask;
-                foreach (int logical in _t1)
-                {
-                    defFullBitMask |= (uint)1 << (logical);
-                    addcores++;
-                    //App.LogDebug($"Build defFullBitMask 0x{defBitMask:X16} {logical}");
-                }
-                setcores = basecores;
-                HighTotalLoadThreshold = (basecores + addcores) * 100 / ProcessorInfo.LogicalCoresCount * HighTotalLoadFactor;
-                App.LogInfo($"BuildDefaultMask: [Cores:{basecores}+{addcores}={basecores + addcores}] defBitMask [{CountBits(defBitMask)}]0x{defBitMask:X16} defFullBitMask [{CountBits(defFullBitMask)}]0x{defFullBitMask:X16} N0={App.numazero_b}");
             }
             catch (Exception ex)
             {
@@ -273,7 +289,7 @@ namespace CPUDoc
                         if (!App.mrestb.IsSet)
                         {
                             App.SysCpuSetMask = defFullBitMask;
-                            App.SetSysCpuSet(0);
+                            App.SetSysCpuSet(0, "RTB_mrestb_IsSet");
                             App.lastSysCpuSetMask = defFullBitMask;
                             App.PSAPlanDisable();
                             ZenControlDisable();
@@ -323,9 +339,9 @@ namespace CPUDoc
 
                         if (debugtb_steps) App.LogDebug("Stop 004a");
 
-                        BuildDefaultMask();
+                        BuildDefaultMask("RTB1");
 
-                        if (!App.pactive.SysSetHack)
+                        if ((!App.pactive.SysSetHack && !App.pactive.NumaZero) || (App.pactive.NumaZero && !numazero_b))
                         {
                             App.SysCpuSetMask = defFullBitMask;
                         }
@@ -566,8 +582,9 @@ namespace CPUDoc
                         App.UAStamp = DateTime.Now;
                     }
 
-                    //if (PoolingTick == 40 && App.IsInVisualStudio)
-                    if (PoolingTick == 4)
+                    bool loop = (PoolingTick == 40 && App.IsInVisualStudio && debugtb_steps) || (PoolingTick == 4 && !App.IsInVisualStudio) ? true : false;
+
+                    if (loop)
                     {
                         //uint eax, edx;
                         //App.ReadMsrTx()
@@ -653,6 +670,16 @@ namespace CPUDoc
                     if (zencontrol_b) ZenControl();
 
                     if (debugtb_steps) App.LogDebug("Stop 013");
+
+                    if (App.pactive.NumaZero && numazero_b && !App.pactive.SysSetHack && App.SysCpuSetMask != defBitMask)
+                    {
+                        App.LogDebug($"Set NumaZero ThreadBooster Apply mask 0x{defBitMask:X8}");
+                        BuildDefaultMask("RTB2");
+                        App.lastSysCpuSetMask = 0;
+                        App.SysCpuSetMask = defBitMask;
+                    }
+
+                    if (debugtb_steps) App.LogDebug("Stop 013a");
 
                     if (App.pactive.SysSetHack || App.pactive.PowerSaverActive)
                     {
@@ -780,7 +807,8 @@ namespace CPUDoc
                                 }
                                 //if (needcores > 0 || morecores > 0 || usedcores > basecores)
                                 //    App.LogDebug($"needcores {needcores} morecores {morecores} usedcores {usedcores} setcores {setcores} newsetcores {newsetcores} T0Load {TotalT0LoadNorm}");
-                            }
+                            } 
+                            
                         }
                     }
                     PoolingTick++;
@@ -794,7 +822,7 @@ namespace CPUDoc
             catch (OperationCanceledException)
             {
                 App.SysCpuSetMask = defFullBitMask;
-                App.SetSysCpuSet(0);
+                App.SetSysCpuSet(0, "RTB_Op_Canc_Ex");
                 App.PSAPlanDisable();
                 ZenControlDisable();
                 App.lastPSABiasCurrent = null;
@@ -803,7 +831,7 @@ namespace CPUDoc
             catch (Exception ex)
             {
                 App.SysCpuSetMask = defFullBitMask;
-                App.SetSysCpuSet(0);
+                App.SetSysCpuSet(0, "RTB_Ex");
                 App.PSAPlanDisable();
                 ZenControlDisable();
                 App.lastPSABiasCurrent = null;
@@ -1586,7 +1614,7 @@ namespace CPUDoc
 
             //SEC NVMe Idle Timeout
             _value = (uint)(enable ? 20 : 200);
-            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.DISK_SUBGROUP, new Guid("6b013a00-f775-4d61-9036-a62f7e7a6a5b"), PowerManagerAPI.PowerMode.AC, _value);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.DISK_SUBGROUP, new Guid("6b013a00-f775-4d61-9036-a62f7e7a6a5b"), PowerManagerAPI.PowerMode.AC, _value, false);
 
             //Hard disk burst ignore time
             _value = (uint)(enable ? 30 : 3);
@@ -1594,7 +1622,7 @@ namespace CPUDoc
 
             //SEC NVMe Maximum Tolerable Transition Latency
             _value = (uint)(enable ? 100 : 20);
-            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.DISK_SUBGROUP, new Guid("a9d4776d-785b-4ae8-903b-b742ae4b6b62"), PowerManagerAPI.PowerMode.AC, _value);
+            App.powerManager.SetDynamic(PowerManagerAPI.SettingSubgroup.DISK_SUBGROUP, new Guid("a9d4776d-785b-4ae8-903b-b742ae4b6b62"), PowerManagerAPI.PowerMode.AC, _value, false);
 
             //NVMe NOPPME
             _value = (uint)(enable ? 0 : 1);
@@ -1903,7 +1931,7 @@ namespace CPUDoc
                         {
                             SysCpuSetMask = 0;
                             lastSysCpuSetMask = ThreadBooster.defFullBitMask;
-                            SetSysCpuSet(ThreadBooster.defFullBitMask);
+                            SetSysCpuSet(ThreadBooster.defFullBitMask, "RSCS_Mressys_IsSet");
                         }
                     }
                     App.mressys.Wait();
@@ -1921,8 +1949,8 @@ namespace CPUDoc
                         {
                             if ((App.lastSysCpuSetMask != App.SysCpuSetMask && !App.psact_deep_b) || (App.psact_deep_b && App.SysCpuSetMask == 0))
                             {
-                                App.LogInfo($"SSH Action [Cores:{basecores}+{addcores}={basecores + addcores}] 0x{App.lastSysCpuSetMask:X16} -> 0x{App.SysCpuSetMask:X16} - {CountBits(App.lastSysCpuSetMask)} -> {CountBits(App.SysCpuSetMask)}");
-                                if (App.SetSysCpuSet(App.SysCpuSetMask) == 0)
+                                App.LogInfo($"RunSysCpuSet Action [Cores:{basecores}+{addcores}={basecores + addcores}] 0x{App.lastSysCpuSetMask:X16} -> 0x{App.SysCpuSetMask:X16} - {CountBits(App.lastSysCpuSetMask)} -> {CountBits(App.SysCpuSetMask)}");
+                                if (App.SetSysCpuSet(App.SysCpuSetMask, "RSCS_Action") == 0)
                                 {
                                     App.lastSysCpuSetMask = App.SysCpuSetMask;
 
@@ -1933,9 +1961,9 @@ namespace CPUDoc
                                 }
                             }
                         }
-                        else if (!ThreadBooster.bInit && !pactive.SysSetHack)
+                        else if (!ThreadBooster.bInit && !pactive.SysSetHack && !pactive.NumaZero)
                         {
-                            if (App.SetSysCpuSet(0) == 0)
+                            if (App.SetSysCpuSet(0, "RSCS_TBInit_False") == 0)
                             {
                                 App.lastSysCpuSetMask = App.SysCpuSetMask;
                             }
@@ -1944,7 +1972,7 @@ namespace CPUDoc
                     catch (Exception ex)
                     {
                         App.LogInfo($"Failed SetSystemCpuSet: {ex}");
-                        App.SetSysCpuSet(0);
+                        App.SetSysCpuSet(0, "RSCS_Ex");
                     }
                     //Thread.Sleep(SysMaskPooling);
                     wsleep((uint)(SysMaskPooling*1000));
@@ -1953,17 +1981,17 @@ namespace CPUDoc
             catch (ObjectDisposedException)
             {
                 App.LogDebug("OnSysCpuSet cycle exiting due to ObjectDisposed");
-                App.SetSysCpuSet(0);
+                App.SetSysCpuSet(0, "RSCS_ObjDisp_Ex");
             }
             catch (OperationCanceledException)
             {
                 App.LogDebug("OnSysCpuSet cycle exiting due to OperationCanceled");
-                App.SetSysCpuSet(0);
+                App.SetSysCpuSet(0, "RSCS_Op_Canc_Ex");
             }
             catch (Exception ex)
             {
                 App.LogExError($"OnSysCpuSet cycle Exception: {ex.Message}", ex);
-                App.SetSysCpuSet(0);
+                App.SetSysCpuSet(0, "RSCS_Ex");
             }
             finally
             {
@@ -2040,7 +2068,7 @@ namespace CPUDoc
         {
             ProcessorInfo.ResetLoadThreads();
             setcores = basecores;
-            App.SetSysCpuSet(defBitMask);
+            App.SetSysCpuSet(defBitMask, "ResetSSH");
             App.SysCpuSetMask = defBitMask;
         }
         public static void ForceCustomSysMask(bool enable, ulong bitmask = ulong.MaxValue, int duration = int.MaxValue)
@@ -2060,7 +2088,7 @@ namespace CPUDoc
             {
                 forceCustomSysMask = false;
                 forceCustomSysMaskStamp = DateTime.MinValue;
-                ResetSSH();
+                if (pactive.SysSetHack) ResetSSH();
                 App.LogDebug($"Disable ForceCustomSysMask 0x{bitmask:X8}");
             }
         }
@@ -2110,8 +2138,8 @@ namespace CPUDoc
             }
             catch(Exception ex)
             {
-                App.LogInfo($"Failed ProcSetAffinityMask: {processname} [Full={full}] [Full={procfull}]");
-                App.LogDebug($"Failed ProcSetAffinityMask: {processname} [Full={full}] [Full={procfull}] {ex}");
+                App.LogInfo($"Failed ProcSetAffinityMask: {processname} mask=0x{mask:X8} procmask=0x{procmask:X8} [Full={full}] [Full={procfull}]");
+                App.LogDebug($"Failed ProcSetAffinityMask: {processname} mask=0x{mask:X8} procmask=0x{procmask:X8} [Full={full}] [Full={procfull}] {ex}");
             }
         }
 
@@ -2284,7 +2312,7 @@ namespace CPUDoc
                 Thread.Sleep(100);
                 SysCpuSetMask = 0;
                 lastSysCpuSetMask = ThreadBooster.defFullBitMask;
-                SetSysCpuSet(ThreadBooster.defFullBitMask);
+                SetSysCpuSet(ThreadBooster.defFullBitMask, "Close SCS");
             }
         }
     }

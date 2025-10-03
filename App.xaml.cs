@@ -35,6 +35,7 @@ using System.ComponentModel;
 using System.Configuration;
 using System.Data;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Drawing;
 using System.Drawing.Printing;
 using System.IO;
@@ -60,6 +61,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using System.Xml.Linq;
 using Vanara.PInvoke;
 using WalkmanLib;
 using Windows.ApplicationModel;
@@ -210,6 +212,7 @@ namespace CPUDoc
         public static int PPImportErrCnt = 0;
         public static bool PPImportErrStatus = false;
         public static bool numazero_b = false;
+        public static bool activeconfig_b = false;
 
         public static bool FocusAssistAvailable = false;
         public static bool UserNotificationAvailable = false;
@@ -908,7 +911,7 @@ namespace CPUDoc
             }
         }
 
-        public static int SetSysCpuSet(ulong? BitMask = 0)
+        public static int SetSysCpuSet(ulong? BitMask = 0, string whoami = "Unknown")
         {
             ulong _BitMask = 0x0;
             int _ret = 0;
@@ -920,6 +923,29 @@ namespace CPUDoc
             /*
             _ret = SetSystemCpuSet(_BitMask);
             */
+
+            App.LogDebug($"SetSysCpuSet Apply mask 0x{_BitMask:X8} [{whoami}]");
+
+            for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
+            {
+                //App.LogInfo($"Apply state {i}");
+                if ((((ulong)(1 << i) & _BitMask) != 0) || _BitMask == 0 || !((bool)App.pactive.ThreadBooster))
+                {
+                    systemInfo.UpdateStateThread(i, 0);
+                    //App.LogInfo($"Apply state {i} 0");
+                }
+                else if (!(((ulong)(1 << i) & _BitMask) != 0) && (App.n0disabledT0.Contains(i) || App.n0disabledT1.Contains(i)))
+                {
+                    systemInfo.UpdateStateThread(i, 1);
+                    //App.LogInfo($"Apply state {i} 1");
+                }
+                else
+                {
+                    systemInfo.UpdateStateThread(i, 2);
+                    //App.LogInfo($"Apply state {i} 2");
+                }
+            }
+
             return _ret;
         }
         public static int ProcSetCpuSet(int pid, ulong BitMask = 0)
@@ -2859,6 +2885,12 @@ namespace CPUDoc
 
                     if (systemInfo.CPUArch.Contains("AMD64"))
                     {
+                        ThreadBooster.coreparking_concurrency = 95;
+                        ThreadBooster.coreparking_min = 0;
+                        ThreadBooster.coreparking_min_ec1 = 0;
+                        ThreadBooster.coreparking_min_light = 100;
+                        ThreadBooster.coreparking_min_light_ec1 = 100;
+
                         //Ryzen Specific
                         if (systemInfo.CPUFamilyID == 25 || systemInfo.CPUFamily == 26)
                         {
@@ -2873,9 +2905,9 @@ namespace CPUDoc
 
                             if ((systemInfo.CPUFamilyID == 25 || systemInfo.CPUFamilyID == 26)
                                 && (systemInfo.CPUGen == 7 || systemInfo.CPUGen == 9) 
-                                && systemInfo.CPUExt.Contains("X3D") || ProcessorInfo.Clusters > 1)
+                                && (systemInfo.CPUExt.Contains("X3D") || ProcessorInfo.Clusters > 1))
                             {
-                                App.LogDebug("AMD Het Policy: Ryzen Family 25/26 Gen7/9 & X3D");
+                                App.LogDebug("AMD Het Policy: Ryzen Family 25/26 Gen7/9 & X3D/2CCD");
                                 ThreadBooster.coreparking_concurrency = 67;
                                 ThreadBooster.coreparking_min = 50;
                                 ThreadBooster.coreparking_min_ec1 = 50;
@@ -2909,8 +2941,6 @@ namespace CPUDoc
                             }
                         }
                     }
-
-
 
                     if (powerManager.GetActiveGuid() != PPGuid)
                     {
@@ -3976,6 +4006,8 @@ namespace CPUDoc
 
         public static void SetActiveConfig(int id = -1)
         {
+            activeconfig_b = false;
+
             if (id >= 0 && id < 10) 
               AppConfigs[id].CopyPropertiesTo(pactive);
 
@@ -4025,6 +4057,44 @@ namespace CPUDoc
                     string ttype0, ttype1;
                     bool _autotype = false;
 
+                    int _excludetype = pactive.NumaZeroExcludeType == 1 ? 1 : // T1
+                                    pactive.NumaZeroExcludeType == 2 ? 2 : // E-Cores
+                                    pactive.NumaZeroExcludeType == 3 ? 3 : // T1 && E-Cores
+                                    0; // None
+                    string _excludelabel = pactive.NumaZeroExcludeType == 1 ? "[No T1]" : // T1
+                                    pactive.NumaZeroExcludeType == 2 ? "[No E-Cores]" : // E-Cores
+                                    pactive.NumaZeroExcludeType == 3 ? "[No E-Cores+T1]" : // T1 && E-Cores
+                                    "";
+
+                    int _clusterstype = pactive.NumaZeroAutoType == 1 ? 1 :
+                                    pactive.NumaZeroAutoType == 2 ? 2 :
+                                    pactive.NumaZeroAutoType == 3 ? 3 :
+                                    pactive.NumaZeroAutoType == 4 ? 4 :
+                                    pactive.NumaZeroAutoType == 5 ? 5 :
+                                    pactive.NumaZeroAutoType == 6 ? 6 :
+                                    pactive.NumaZeroAutoType == 7 ? 7 :
+                                    pactive.NumaZeroAutoType == 8 ? 8 :
+                                    0;
+
+                    int _forcedcores = pactive.NumaZeroType == 1 ? 20 :
+                                    pactive.NumaZeroType == 2 ? 18 :
+                                    pactive.NumaZeroType == 3 ? 16 :
+                                    pactive.NumaZeroType == 4 ? 14 :
+                                    pactive.NumaZeroType == 5 ? 12 :
+                                    pactive.NumaZeroType == 6 ? 10 :
+                                    pactive.NumaZeroType == 7 ? 8 :
+                                    pactive.NumaZeroType == 8 ? 6 :
+                                    pactive.NumaZeroType == 9 ? 4 :
+                                    pactive.NumaZeroType == 10 ? 2 :
+                                    0;
+                    
+                    int _autocores = ProcessorInfo.PhysicalCoresCount > 12 ? 8 : ProcessorInfo.PhysicalCoresCount == 12 ? 6 : ProcessorInfo.PhysicalCoresCount >= 2 ? ProcessorInfo.PhysicalCoresCount / 2 : ProcessorInfo.PhysicalCoresCount;
+
+                    if (_clusterstype == 0) _clusterstype = ProcessorInfo.Clusters > 1 ? ProcessorInfo.Clusters / 2 : 1;
+                    
+                    (n0enabledT0, n0disabledT0, n0enabledT1, n0disabledT1) = ProcessorInfo.LogicalsBySelection(_clusterstype, _excludetype, _forcedcores == 0 && _clusterstype == 1 ? _autocores : _forcedcores);
+
+                    /*
                     if (pactive.NumaZeroType == 0)
                     {
                         int _clusterstype = pactive.NumaZeroAutoType == 1 ? 1 :
@@ -4038,21 +4108,20 @@ namespace CPUDoc
                                         0;
                         if (_clusterstype == 0) _clusterstype = ProcessorInfo.Clusters > 1 ? ProcessorInfo.Clusters / 2 : 1;
 
-
                         if (ProcessorInfo.Clusters > 1)
                         {
 
-                            App.LogDebug($"N0 AUTO CLUSTERS ENABLED NumaZeroAutoType={pactive.NumaZeroAutoType} ClustersType={_clusterstype}");
+                            App.LogDebug($"N0 AUTO CLUSTERS ENABLED NumaZeroAutoType={pactive.NumaZeroAutoType} ClustersType={_clusterstype} {_excludelabel}");
 
                             for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
                             {
 
-                                List<int> _cores = ProcessorInfo.LogicalsClusters(_clusterstype);
-                                if (_cores.Count() > 0)
+                                List<int> _logicals = ProcessorInfo.LogicalsClusters(_clusterstype);
+                                if (_logicals.Count() > 0)
                                 {
-                                    for (int c = 0; c < _cores.Count; ++c)
+                                    for (int c = 0; c < _logicals.Count; ++c)
                                     {
-                                        if (_cores[c] == i)
+                                        if (_logicals[c] == i)
                                         {
                                             _autotype = true;
                                             if (logicalsT1.Contains(i)) n0enabledT1.Add(i);
@@ -4064,13 +4133,13 @@ namespace CPUDoc
                                     }
                                 }
 
-                                _cores.Clear();
-                                _cores = ProcessorInfo.LogicalsClustersOut(_clusterstype);
-                                if (_cores.Count() > 0)
+                                _logicals.Clear();
+                                _logicals = ProcessorInfo.LogicalsClustersOut(_clusterstype);
+                                if (_logicals.Count() > 0)
                                 {
-                                    for (int c = 0; c < _cores.Count(); ++c)
+                                    for (int c = 0; c < _logicals.Count(); ++c)
                                     {
-                                        if (_cores[c] == i)
+                                        if (_logicals[c] == i)
                                         {
                                             _autotype = true;
                                             _found++;
@@ -4091,12 +4160,12 @@ namespace CPUDoc
                         {
                             for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
                             {
-                                List<int> _cores = ProcessorInfo.LogicalsNumaZero();
-                                if (_cores.Count() > 0)
+                                List<int> _logicals = ProcessorInfo.LogicalsNumaZero();
+                                if (_logicals.Count() > 0)
                                 {
-                                    for (int c = 0; c < _cores.Count; ++c)
+                                    for (int c = 0; c < _logicals.Count; ++c)
                                     {
-                                        if (_cores[c] == i)
+                                        if (_logicals[c] == i)
                                         {
                                             if (logicalsT1.Contains(i)) n0enabledT1.Add(i);
                                             if (logicalsT0.Contains(i)) n0enabledT0.Add(i);
@@ -4106,13 +4175,13 @@ namespace CPUDoc
                                         }
                                     }
                                 }
-                                _cores.Clear();
-                                _cores = ProcessorInfo.LogicalsEfficient();
-                                if (_cores.Count() > 0)
+                                _logicals.Clear();
+                                _logicals = ProcessorInfo.LogicalsEfficient();
+                                if (_logicals.Count() > 0)
                                 {
-                                    for (int c = 0; c < _cores.Count(); ++c)
+                                    for (int c = 0; c < _logicals.Count(); ++c)
                                     {
-                                        if (_cores[c] == i)
+                                        if (_logicals[c] == i)
                                         {
                                             _found++;
                                             if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
@@ -4123,13 +4192,13 @@ namespace CPUDoc
                                         }
                                     }
                                 }
-                                _cores.Clear();
-                                _cores = ProcessorInfo.LogicalsCache();
-                                if (_cores.Count() > 0)
+                                _logicals.Clear();
+                                _logicals = ProcessorInfo.LogicalsCache();
+                                if (_logicals.Count() > 0)
                                 {
-                                    for (int c = 0; c < _cores.Count(); ++c)
+                                    for (int c = 0; c < _logicals.Count(); ++c)
                                     {
-                                        if (_cores[c] == i)
+                                        if (_logicals[c] == i)
                                         {
                                             _found++;
                                             if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
@@ -4140,13 +4209,13 @@ namespace CPUDoc
                                         }
                                     }
                                 }
-                                _cores.Clear();
-                                _cores = ProcessorInfo.LogicalsIndex();
-                                if (_cores.Count() > 0)
+                                _logicals.Clear();
+                                _logicals = ProcessorInfo.LogicalsIndex();
+                                if (_logicals.Count() > 0)
                                 {
-                                    for (int c = 0; c < _cores.Count(); ++c)
+                                    for (int c = 0; c < _logicals.Count(); ++c)
                                     {
-                                        if (_cores[c] == i)
+                                        if (_logicals[c] == i)
                                         {
                                             _found++;
                                             if (logicalsT1.Contains(i)) n0disabledT1.Add(i);
@@ -4169,8 +4238,8 @@ namespace CPUDoc
                         App.LogDebug($"N0_ACTIVE N0_FOUND={_found} ");
                     }
 
-                    App.LogDebug($"N0_PROFILE={pactive.NumaZero} N0Type={pactive.NumaZeroType} N0AutoType={pactive.NumaZeroAutoType} LOGICALCORES={ProcessorInfo.LogicalCoresCount - _found}/{ProcessorInfo.LogicalCoresCount}[{_found}] HT={systemInfo.HyperThreading}");
-                    App.LogDebug($"N0_ENABLED={n0enabledT0.Count+n0enabledT1.Count} N0_DISABLED={n0disabledT0.Count + n0disabledT1.Count} E-CORES={App.systemInfo.Ecores.Count}");
+                    App.LogDebug($"N0_PROFILE={pactive.NumaZero} N0Type={pactive.NumaZeroType} N0AutoType={pactive.NumaZeroAutoType} LOGICALCORES={ProcessorInfo.LogicalCoresCount - _found}/{ProcessorInfo.LogicalCoresCount}[{_found}]  HT={systemInfo.HyperThreading}");
+                    App.LogDebug($"N0_ENABLED_T0_T1={n0enabledT0.Count}+{n0enabledT1.Count}/{n0enabledT0.Count+n0enabledT1.Count} N0_DISABLED={n0disabledT0.Count}+{n0disabledT1.Count}/{n0disabledT0.Count + n0disabledT1.Count} E-CORES={App.systemInfo.Ecores.Count}");
 
                     if ((pactive.NumaZeroType > 0 || _found < 1) && _autotype == false )
                     {
@@ -4193,7 +4262,7 @@ namespace CPUDoc
                             n0enabledT1 = new List<int>();
                             n0disabledT0 = new List<int>();
                             n0disabledT1 = new List<int>();
-                            numazero_b = true;
+
                             if (systemInfo.HyperThreading) _forced = _forced * 2;
                             App.LogDebug($"N0_FORCED N0={pactive.NumaZero} N0Type={pactive.NumaZeroType} Forced Threads={_forced} HT={systemInfo.HyperThreading}");
                             for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
@@ -4227,10 +4296,20 @@ namespace CPUDoc
                             }
                         }
                     }
+                    */
+
+                    App.LogDebug($"N0_PROFILE={pactive.NumaZero} N0Type={pactive.NumaZeroType} N0AutoType={pactive.NumaZeroAutoType} LOGICALCORES={ProcessorInfo.LogicalCoresCount - _found}/{ProcessorInfo.LogicalCoresCount}[{_found}]  HT={systemInfo.HyperThreading}");
+                    App.LogDebug($"N0_ENABLED_T0_T1={n0enabledT0.Count}+{n0enabledT1.Count}/{n0enabledT0.Count+n0enabledT1.Count} N0_DISABLED={n0disabledT0.Count}+{n0disabledT1.Count}/{n0disabledT0.Count + n0disabledT1.Count} E-CORES={App.systemInfo.Ecores.Count}");
+
+                    //if ((n0disabledT0.Count() > 0 || n0disabledT1.Count() > 0) && (n0enabledT0.Count() > 0) && (pactive.NumaZero)) numazero_b = true;
+                    if (n0enabledT0.Count() > 0 && (pactive.NumaZero)) numazero_b = true;
+
+                    int _ideal = App.numazero_b ? App.n0enabledT0.Last() : App.logicalsT0.Last();
+                    LogInfo($"Ideal Background Core Thread: {_ideal}");
+                    _ideal = App.numazero_b ? App.n0enabledT0.First() : App.logicalsT0.First();
+                    LogInfo($"Ideal Performance Core Thread: {_ideal}");
                 }
 
-                if (n0disabledT0.Count() > 0 || n0disabledT1.Count() > 0 && (pactive.NumaZero)) numazero_b = true;
-                
                 // Specific to Intel Hybrid, immediate change of HetPolicy
 
                 if (systemInfo.IntelHybrid)
@@ -4260,13 +4339,10 @@ namespace CPUDoc
             App.systemInfo.SetPSAStatus(pactive.PowerSaverActive);
             App.systemInfo.SetN0Status(pactive.NumaZero);
             
-            App.LogDebug($"NumaZero Init Done N0={pactive.NumaZero} N0Active={numazero_b} HT={systemInfo.HyperThreading}");
+            App.LogDebug($"NumaZero Init Done N0_PROFILE={pactive.NumaZero} N0Active={numazero_b} HT={systemInfo.HyperThreading}");
 
-            int _ideal = App.numazero_b ? App.n0enabledT0.Last() : App.logicalsT0.Last();
-            LogInfo($"Ideal Background Core Thread: {_ideal}");
-            _ideal = App.numazero_b ? App.n0enabledT0.First() : App.logicalsT0.First();
-            LogInfo($"Ideal Performance Core Thread: {_ideal}");
-
+            activeconfig_b = true;
+            ThreadBooster.BuildDefaultMask("SetupActiveConfig");
             ThreadBooster.bInit = false;
 
         }

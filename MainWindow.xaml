@@ -704,8 +704,8 @@
                                     NumaZero
                                 </CheckBox>
 
-                                <TextBlock Grid.Column="1" Grid.Row="20" HorizontalAlignment="Right" VerticalAlignment="Center">Type:</TextBlock>
-                                <ComboBox Grid.Column="2" Grid.Row="20" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroType_Select" x:Name="listNumaZeroType">
+                                <TextBlock Grid.Column="1" Grid.Row="21" HorizontalAlignment="Right" VerticalAlignment="Center">Type:</TextBlock>
+                                <ComboBox Grid.Column="2" Grid.Row="21" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroType_Select" x:Name="listNumaZeroType">
 
                                     <ComboBoxItem Tag="0">Auto</ComboBoxItem>
                                     <ComboBoxItem Tag="1">First 20 Cores</ComboBoxItem>
@@ -720,26 +720,35 @@
                                     <ComboBoxItem Tag="10">First 2 Cores</ComboBoxItem>
                                 </ComboBox>
 
-                                <TextBlock Grid.Column="0" Grid.Row="21" HorizontalAlignment="Right" VerticalAlignment="Center" Grid.ColumnSpan="2">You can define up to how many Intel clusters or AMD CCDs to select in Auto mode:</TextBlock>
-                                <ComboBox Grid.Column="2" Grid.Row="21" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroAutoType_Select" x:Name="listNumaZeroAutoType">
+                                <TextBlock Grid.Column="0" Grid.Row="22" HorizontalAlignment="Right" VerticalAlignment="Center" Grid.ColumnSpan="2">Define up to how many Intel clusters or AMD CCDs to select in Auto mode:</TextBlock>
+                                <ComboBox Grid.Column="2" Grid.Row="22" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroAutoType_Select" x:Name="listNumaZeroAutoType">
 
                                     <ComboBoxItem Tag="0">Auto</ComboBoxItem>
-                                    <ComboBoxItem Tag="1">First 1</ComboBoxItem>
-                                    <ComboBoxItem Tag="2">First 2</ComboBoxItem>
-                                    <ComboBoxItem Tag="3">First 3</ComboBoxItem>
-                                    <ComboBoxItem Tag="4">First 4</ComboBoxItem>
-                                    <ComboBoxItem Tag="5">First 5</ComboBoxItem>
-                                    <ComboBoxItem Tag="6">First 6</ComboBoxItem>
-                                    <ComboBoxItem Tag="7">First 7</ComboBoxItem>
-                                    <ComboBoxItem Tag="8">First 8</ComboBoxItem>
+                                    <ComboBoxItem Tag="1">First Cluster</ComboBoxItem>
+                                    <ComboBoxItem Tag="2">First 2 Clusters</ComboBoxItem>
+                                    <ComboBoxItem Tag="3">First 3 Clusters</ComboBoxItem>
+                                    <ComboBoxItem Tag="4">First 4 Clusters</ComboBoxItem>
+                                    <ComboBoxItem Tag="5">First 5 Clusters</ComboBoxItem>
+                                    <ComboBoxItem Tag="6">First 6 Clusters</ComboBoxItem>
+                                    <ComboBoxItem Tag="7">First 7 Clusters</ComboBoxItem>
+                                    <ComboBoxItem Tag="8">First 8 Clusters</ComboBoxItem>
                                 </ComboBox>
 
-                                <CheckBox Grid.Column="0" Grid.Row="22" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="PoolingRate_Click" x:Name="cbPoolingRate">
+                                <TextBlock Grid.Column="0" Grid.Row="23" HorizontalAlignment="Right" VerticalAlignment="Center" Grid.ColumnSpan="2">Define which type of cores to exclude from NumaZero selection:</TextBlock>
+                                <ComboBox Grid.Column="2" Grid.Row="23" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroExcludeType_Select" x:Name="listNumaZeroExcludeType">
+
+                                    <ComboBoxItem Tag="0">None</ComboBoxItem>
+                                    <ComboBoxItem Tag="1">T1 threads</ComboBoxItem>
+                                    <ComboBoxItem Tag="2">E-Cores</ComboBoxItem>
+                                    <ComboBoxItem Tag="3">E-Cores and T1</ComboBoxItem>
+                                </ComboBox>
+
+                                <CheckBox Grid.Column="0" Grid.Row="24" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="PoolingRate_Click" x:Name="cbPoolingRate">
                                     Manual ThreadBooster pooling
                                 </CheckBox>
 
-                                <TextBlock Grid.Column="1" Grid.Row="22" HorizontalAlignment="Right" VerticalAlignment="Center">Rate:</TextBlock>
-                                <ComboBox Grid.Column="2" Grid.Row="22" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="PoolingRate_Select" x:Name="listPoolingRate">
+                                <TextBlock Grid.Column="1" Grid.Row="24" HorizontalAlignment="Right" VerticalAlignment="Center">Rate:</TextBlock>
+                                <ComboBox Grid.Column="2" Grid.Row="24" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="PoolingRate_Select" x:Name="listPoolingRate">
 
                                     <ComboBoxItem Tag="0">Very Slow</ComboBoxItem>
                                     <ComboBoxItem Tag="1">Slow</ComboBoxItem>
@@ -752,7 +761,7 @@
                                 </ComboBox>
 
                                 <Button Grid.Column="0" Grid.Row="26" Name="SaveConfig" Click="SaveConfig_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Left" Margin="10 4 10 4">
-                                    <TextBlock Margin="{adonisUi:Space}" Text="Save config">
+                                    <TextBlock Margin="{adonisUi:Space}" Text="Apply and Save config">
                                     </TextBlock>
                                 </Button>
 
