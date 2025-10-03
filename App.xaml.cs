@@ -4054,8 +4054,6 @@ namespace CPUDoc
                 if (pactive.NumaZero)
                 {
                     int _found = 0;
-                    string ttype0, ttype1;
-                    bool _autotype = false;
 
                     int _excludetype = pactive.NumaZeroExcludeType == 1 ? 1 : // T1
                                     pactive.NumaZeroExcludeType == 2 ? 2 : // E-Cores

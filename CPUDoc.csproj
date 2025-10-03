@@ -10,7 +10,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>CPUDoc.ico</ApplicationIcon>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <Version>1.2.15</Version>
+    <Version>1.2.16</Version>
     <FileVersion>$(PackageVersion)</FileVersion>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
     <Nullable>disable</Nullable>
@@ -34,11 +34,18 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="CHANGELOG.md" />
     <None Remove="Images\SplashWindow.png" />
   </ItemGroup>
 
   <ItemGroup>
     <Page Remove="Windows\tbIcon\FancyBalloon.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="CHANGELOG.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -154,9 +161,6 @@
     </None>
     <None Update="basswasapi.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="CHANGELOG.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Common\ManagedBass\ManagedBass.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

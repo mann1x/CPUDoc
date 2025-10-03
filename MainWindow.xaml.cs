@@ -121,6 +121,7 @@ namespace CPUDoc
                     //App.LogDebug($"Restoring Window WorkArea {SystemParameters.WorkArea.Top} {SystemParameters.WorkArea.Left} {SystemParameters.WorkArea.Height} {SystemParameters.WorkArea.Width}");
 
                     WindowState = WindowState.Normal;
+                    if (App.AppSettings.TopmostUI) Topmost = true;
                     Top = WindowSettings.Default.Top < SystemParameters.WorkArea.Top ? SystemParameters.WorkArea.Top : WindowSettings.Default.Top;
                     Left = WindowSettings.Default.Left < SystemParameters.WorkArea.Left ? SystemParameters.WorkArea.Left : WindowSettings.Default.Left;
                     Height = WindowSettings.Default.Height > SystemParameters.WorkArea.Height ? SystemParameters.WorkArea.Height : WindowSettings.Default.Height;
@@ -212,6 +213,7 @@ namespace CPUDoc
             cbZC.IsChecked = pcurrent.ZenControl ? true : false;
             cbSysSetHack.IsChecked = pcurrent.SysSetHack ? true : false;
             cbTraceLog.IsChecked = App.AppSettings.LogTrace ? true : false;
+            cbTopmostUI.IsChecked = App.AppSettings.TopmostUI ? true : false;
             cbInpoutdll.IsChecked = App.AppSettings.inpoutdlldisable ? true : false;
             cbAUNotifications.IsChecked = App.AppSettings.AUNotifications ? true : false;
             listNumaZeroType.SelectedIndex = (int)pcurrent.NumaZeroType;
@@ -740,24 +742,24 @@ namespace CPUDoc
         {
             try 
             {
-                App.LogInfo($"Apply CPUdisplay state WinLoad 0x{App.SysCpuSetMask:X8}");
+                //App.LogInfo($"Apply CPUdisplay state WinLoad 0x{App.SysCpuSetMask:X8}");
                 for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
                 {
-                    App.LogInfo($"Apply state {i}");
+                    //App.LogInfo($"Apply state {i}");
                     if ((((ulong)(1 << i) & App.SysCpuSetMask) != 0) || App.SysCpuSetMask == 0 || !((bool)App.pactive.ThreadBooster))
                     {
                         App.systemInfo.UpdateStateThread(i, 0);
-                        App.LogInfo($"Apply state GREEN0 {i}");
+                        //App.LogInfo($"Apply state GREEN0 {i}");
                     }
                     else if (!(((ulong)(1 << i) & App.SysCpuSetMask) != 0) && (App.n0disabledT0.Contains(i) || App.n0disabledT1.Contains(i)))
                     {
                         App.systemInfo.UpdateStateThread(i, 1);
-                        App.LogInfo($"Apply state BLACK1 {i}");
+                        //App.LogInfo($"Apply state BLACK1 {i}");
                     }
                     else
                     {
                         App.systemInfo.UpdateStateThread(i, 2);
-                        App.LogInfo($"Apply state RED2 {i}");
+                        //App.LogInfo($"Apply state RED2 {i}");
                     }
                 }
 
@@ -1140,6 +1142,24 @@ namespace CPUDoc
 
             App.LogInfo($"Set diagnostic logging: {App.AppSettings.LogTrace}");
             App.TraceLogging(App.AppSettings.LogTrace);
+        }
+        private void TopmostUI_Click(object sender, RoutedEventArgs e)
+        {
+            CheckBox cb = sender as CheckBox;
+
+            if (cb.IsChecked == true)
+            {
+                App.AppSettings.TopmostUI = true;
+                Topmost = true;
+            }
+            else
+            {
+                App.AppSettings.TopmostUI = false;
+                Topmost = false;
+            }
+
+            App.LogInfo($"Set Topmost UI: {App.AppSettings.TopmostUI}");
+            App.TraceLogging(App.AppSettings.TopmostUI);
         }
         private void InpoutCheckBox_Click(object sender, RoutedEventArgs e)
         {

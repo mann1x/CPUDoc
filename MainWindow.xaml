@@ -801,6 +801,27 @@
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
                                 <Button Grid.Column="1" Grid.Row="5" x:Name="BtnAutoStartTask" Click="BtnAutoStartTask_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Left" Margin="5,5,5,5">
@@ -837,7 +858,12 @@
                                     Disable inpoutx64.dll loading (fixes issues with AV and AntiCheat but disables AMD and ZenControl features)
                                 </CheckBox>
 
-                                <Grid Grid.Column="0" Grid.Row="11" Grid.ColumnSpan="2" Margin="4,4,4,4">
+                                <CheckBox Grid.Column="0" Grid.Row="11" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="TopmostUI_Click" x:Name="cbTopmostUI" Grid.ColumnSpan="2">
+                                    Keep the user interface always on top
+                                </CheckBox>
+
+
+                                <Grid Grid.Column="0" Grid.Row="21" Grid.ColumnSpan="2" Margin="4,4,4,4">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="*"/>
                                         <RowDefinition Height="*"/>
@@ -847,6 +873,7 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
+                                    
                                     <Button Grid.Column="1" Grid.Row="0" Name="BtnLogsFolder" Click="ButtonLogsFolder" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4">
                                         <TextBlock Margin="{adonisUi:Space}" Text="Open Logs folder">
                                         </TextBlock>
@@ -855,15 +882,13 @@
                                         <TextBlock Margin="{adonisUi:Space}" Text="Populate settings">
                                         </TextBlock>
                                     </Button>
-                                    <Button Grid.Column="1" Grid.Row="1" Name="BtnResetSettings" Click="ResetSettings_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4">
+                                    <Button Grid.Column="1" Grid.Row="2" Name="BtnResetSettings" Click="ResetSettings_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4">
                                         <TextBlock Margin="{adonisUi:Space}" Text="Reset settings">
                                         </TextBlock>
                                     </Button>
-
-
                                 </Grid>
 
-                                <Grid Grid.Column="0" Grid.Row="11" Grid.ColumnSpan="2" Margin="4,4,4,4">
+                                <Grid Grid.Column="0" Grid.Row="21" Grid.ColumnSpan="2" Margin="4,4,4,4">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>

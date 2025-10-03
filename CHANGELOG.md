@@ -9,6 +9,10 @@
 
 ## Changelog:
 
+- v1.2.16 Beta
+    - New: Added in settings the option to keep the UI window always on top
+    - New: Reduced ThreadBooster CPU load, activity checks limited to 1 second interval (0,00/0,01% CPU usage with only NumaZero enabled)
+    - Fix: Some fixes and performance improvements
 - v1.2.15 Beta
     - New: New NumaZero; selection of n first cores, limit up to n CCD/Cluster, exclusion of T1/E-Cores
     - New: Display of Intel P/E-Core, Parking, Golden Cores in the real-time load graph

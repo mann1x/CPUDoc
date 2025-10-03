@@ -29,6 +29,9 @@ namespace CPUDoc
         [Option(Alias="Logging.Logtrace", DefaultValue = false)]
         bool LogTrace { get; set; }
 
+        [Option(Alias = "CPUDoc.TopmostUI", DefaultValue = false)]
+        bool TopmostUI { get; set; }
+
         [Option(Alias = "Updates.AUNotifications", DefaultValue = true)]
         bool AUNotifications { get; set; }
 

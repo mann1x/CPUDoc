@@ -410,6 +410,17 @@ namespace CPUDoc
             HardwareCpuSets[cpu].ForcedWhen = DateTime.MinValue;
         }
         /// <summary>
+        /// Clear ForceEnabled in logicals list
+        /// </summary>
+        public static void ClearForceEnabled(List<int> logicals)
+        {
+            for (int logical = 0; logical < logicals.Count; logical++)
+            {
+                HardwareCpuSets[logicals[logical]].ForcedEnable = false;
+                HardwareCpuSets[logicals[logical]].ForcedWhen = DateTime.MinValue;
+            }
+        }
+        /// <summary>
         /// All logical core IDs
         /// </summary>
         public static int[] LogicalCores

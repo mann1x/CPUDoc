@@ -63,7 +63,9 @@ namespace CPUDoc
         public static DateTime forceCustomSysMaskStamp = DateTime.MinValue;
         public static DateTime prevIncreaseStamp = DateTime.MinValue;
         public static DateTime prevFullcoresStamp = DateTime.MinValue;
+        public static DateTime prevActivityStamp = DateTime.MinValue;
         public static TimeSpan _deltaStamp;
+        public static TimeSpan _deltaActivityStamp;
         public static DateTime tbpoolingStamp = DateTime.MinValue;
         public static TimeSpan _deltaForceCustomBitMask;
         public static TimeSpan _deltaPooling;
@@ -146,6 +148,9 @@ namespace CPUDoc
         public static int Zen_lastEDC = 0;
         
         public static bool debugtb_steps = false;
+
+        public static IntPtr evtPL;
+        
 
         public static void BuildDefaultMask(string whoami = "Unknown")
         {
@@ -298,7 +303,7 @@ namespace CPUDoc
                     }
                     App.mrestb.Wait();
 
-                    if (debugtb_steps) App.LogDebug("Stop 001");
+                    // if (debugtb_steps) App.LogDebug("Stop 001");
 
                     if (tbtoken.IsCancellationRequested)
                     {
@@ -306,13 +311,13 @@ namespace CPUDoc
                         tbtoken.ThrowIfCancellationRequested();
                     }
 
-                    if (debugtb_steps) App.LogDebug("Stop 002");
+                    // if (debugtb_steps) App.LogDebug("Stop 002");
 
                     _cpuTotalLoad = ProcessorInfo.cpuTotalLoad;
 
                     //App.LogDebug($"ID={Thread.CurrentThread.ManagedThreadId} TB ON");
 
-                    if (debugtb_steps) App.LogDebug("Stop 003");
+                    // if (debugtb_steps) App.LogDebug("Stop 003");
 
                     if (tbpoolingStamp != DateTime.MinValue)
                     {
@@ -329,7 +334,7 @@ namespace CPUDoc
 
                     //Process.GetCurrentProcess().PriorityBoostEnabled = true;
 
-                    if (debugtb_steps) App.LogDebug("Stop 004");
+                    // if (debugtb_steps) App.LogDebug("Stop 004");
 
                     if (!bInit)
                     {
@@ -337,7 +342,7 @@ namespace CPUDoc
                         //uint edx = 0;
                         //App.WriteMsrTx(0xC0010202, eax, edx, 0);
 
-                        if (debugtb_steps) App.LogDebug("Stop 004a");
+                        // if (debugtb_steps) App.LogDebug("Stop 004a");
 
                         BuildDefaultMask("RTB1");
 
@@ -352,11 +357,11 @@ namespace CPUDoc
                         App.lastSysCpuSetMask = 0;
                         App.systemInfo.PSABias = "";
 
-                        if (debugtb_steps) App.LogDebug("Stop 004b");
+                        // if (debugtb_steps) App.LogDebug("Stop 004b");
 
                         ZenControlInit();
 
-                        if (debugtb_steps) App.LogDebug("Stop 004c");
+                        // if (debugtb_steps) App.LogDebug("Stop 004c");
 
                         if ((int)App.pactive.GameModeBias >= 0)
                         {
@@ -425,7 +430,7 @@ namespace CPUDoc
                             LoadHighThresholdCount = 2;
                         }
 
-                        if (debugtb_steps) App.LogDebug("Stop 004d");
+                        // if (debugtb_steps) App.LogDebug("Stop 004d");
 
                         App.PSAEnable();
                         if (App.psact_plan)
@@ -437,7 +442,7 @@ namespace CPUDoc
                         bInit = true;
                     }
 
-                    if (debugtb_steps) App.LogDebug("Stop 005");
+                    // if (debugtb_steps) App.LogDebug("Stop 005");
 
                     if (App.reapplyProfile)
                     {
@@ -461,121 +466,129 @@ namespace CPUDoc
                         }
                     }
 
-                    if (debugtb_steps) App.LogDebug("Stop 006");
+                    // if (debugtb_steps) App.LogDebug("Stop 006");
 
                     _deltaStamp = DateTime.Now - prevFullcoresStamp;
                     _deltaUA = DateTime.Now - App.UAStamp;
 
-                    bool _GameMode = false;
-                    bool _ActiveMode = false;
-                    bool _FocusAssist = false;
-                    bool _UserNotification = false;
-                    bool _PLEvtPerfMode = false;
+                    _deltaActivityStamp = DateTime.Now - prevActivityStamp;
 
-                    if (debugtb_steps) App.LogDebug("Stop 007");
-
-                    if (App.GetIdleTime() < App.pactive.PSALightSleepSeconds * 1000) _ActiveMode = true;
-
-                    if (debugtb_steps) App.LogDebug("Stop 008");
-
-                    if (App.pactive.GameMode)
+                    if (_deltaActivityStamp.TotalSeconds > 1)
                     {
+                        prevActivityStamp = DateTime.Now;
 
-                        if (debugtb_steps) App.LogDebug("Stop 008a");
+                        bool _GameMode = false;
+                        bool _ActiveMode = false;
+                        bool _FocusAssist = false;
+                        bool _UserNotification = false;
+                        bool _PLEvtPerfMode = false;
 
-                        FGFullScreenPrimary = App.IsForegroundWindowFullScreen(true);
-                        FGFullScreen = false;
+                        // if (debugtb_steps) App.LogDebug("Stop 007");
 
-                        if (App.pactive.SecondaryMonitor)
-                            FGFullScreen = App.IsForegroundWindowFullScreen(false);
+                        if (App.GetIdleTime() < App.pactive.PSALightSleepSeconds * 1000) _ActiveMode = true;
 
-                        if (debugtb_steps) App.LogDebug("Stop 008b");
+                        // if (debugtb_steps) App.LogDebug("Stop 008");
 
-                        if (FGFullScreenPrimary || (App.pactive.SecondaryMonitor && FGFullScreen))
+                        if (App.pactive.GameMode)
                         {
-                            App.UAStamp = DateTime.Now;
-                            _GameMode = true;
-                        }
 
-                        if (App.pactive.UserNotification && App.UserNotificationAvailable)
-                        {
-                            if (debugtb_steps) App.LogDebug("Stop 008c");
+                            // if (debugtb_steps) App.LogDebug("Stop 008a");
 
-                            unstate = App.GetUserNotificationState();
-                            if (unstate == App.QUERY_USER_NOTIFICATION_STATE.QUNS_BUSY ||
-                            unstate == App.QUERY_USER_NOTIFICATION_STATE.QUNS_PRESENTATION_MODE ||
-                            unstate == App.QUERY_USER_NOTIFICATION_STATE.QUNS_RUNNING_D3D_FULL_SCREEN //||
-                                                                                                    //_quns == App.QUERY_USER_NOTIFICATION_STATE.QUNS_FAILED
-                            )
+                            FGFullScreenPrimary = App.IsForegroundWindowFullScreen(true);
+                            FGFullScreen = false;
+
+                            if (App.pactive.SecondaryMonitor)
+                                FGFullScreen = App.IsForegroundWindowFullScreen(false);
+
+                            // if (debugtb_steps) App.LogDebug("Stop 008b");
+
+                            if (FGFullScreenPrimary || (App.pactive.SecondaryMonitor && FGFullScreen))
                             {
-                                _UserNotification = true;
+                                App.UAStamp = DateTime.Now;
                                 _GameMode = true;
                             }
-                        }
 
-                        if (App.pactive.FocusAssist && App.FocusAssistAvailable)
-                        {
-                            if (debugtb_steps) App.LogDebug("Stop 008d");
-
-                            try
+                            if (App.pactive.UserNotification && App.UserNotificationAvailable)
                             {
-                                var qhsettings = (IQuietHoursSettings)new QuietHoursSettings();
+                                // if (debugtb_steps) App.LogDebug("Stop 008c");
 
-                                FocusAssistResult _far = App.GetFocusAssistState();
-                                if ((_far == FocusAssistResult.PRIORITY_ONLY || _far == FocusAssistResult.ALARMS_ONLY) && qhsettings.UserSelectedProfile.ToString() == "Microsoft.QuietHoursProfile.Unrestricted")
+                                unstate = App.GetUserNotificationState();
+                                if (unstate == App.QUERY_USER_NOTIFICATION_STATE.QUNS_BUSY ||
+                                unstate == App.QUERY_USER_NOTIFICATION_STATE.QUNS_PRESENTATION_MODE ||
+                                unstate == App.QUERY_USER_NOTIFICATION_STATE.QUNS_RUNNING_D3D_FULL_SCREEN //||
+                                                                                                          //_quns == App.QUERY_USER_NOTIFICATION_STATE.QUNS_FAILED
+                                )
                                 {
-                                    _FocusAssist = true;
+                                    _UserNotification = true;
                                     _GameMode = true;
                                 }
                             }
-                            catch { }
 
-                        }
-
-                        if (App.pactive.PLPerfMode)
-                        {
-                            if (debugtb_steps) App.LogDebug("Stop 008e");
-
-                            IntPtr evtPL;
-                            if (OpenEventPerfMode(out evtPL))
+                            if (App.pactive.FocusAssist && App.FocusAssistAvailable)
                             {
-                                if (OpenSingleEvent(evtPL))
-                                {
-                                    _GameMode = true;
-                                    _PLEvtPerfMode = true;
+                                // if (debugtb_steps) App.LogDebug("Stop 008d");
 
-                                    if (PLEvtPerfMode == false)
-                                        App.LogDebug("Process Lasso Performance Mode enabled");
-                                }
-                                else
+                                try
                                 {
-                                    if (PLEvtPerfMode == true)
+                                    var qhsettings = (IQuietHoursSettings)new QuietHoursSettings();
+
+                                    FocusAssistResult _far = App.GetFocusAssistState();
+                                    if ((_far == FocusAssistResult.PRIORITY_ONLY || _far == FocusAssistResult.ALARMS_ONLY) && qhsettings.UserSelectedProfile.ToString() == "Microsoft.QuietHoursProfile.Unrestricted")
                                     {
-                                        _PLEvtPerfMode = false;
-                                        App.LogDebug("Process Lasso Performance Mode disabled");
+                                        _FocusAssist = true;
+                                        _GameMode = true;
+                                    }
+                                }
+                                catch { }
+
+                            }
+
+                            if (App.pactive.PLPerfMode)
+                            {
+                                // if (debugtb_steps) App.LogDebug("Stop 008e");
+
+                                if (OpenEventPerfMode(out evtPL))
+                                {
+                                    if (OpenSingleEvent(evtPL))
+                                    {
+                                        _GameMode = true;
+                                        _PLEvtPerfMode = true;
+
+                                        if (PLEvtPerfMode == false)
+                                            App.LogDebug("Process Lasso Performance Mode enabled");
+                                    }
+                                    else
+                                    {
+                                        if (PLEvtPerfMode == true)
+                                        {
+                                            _PLEvtPerfMode = false;
+                                            App.LogDebug("Process Lasso Performance Mode disabled");
+                                        }
                                     }
                                 }
                             }
+
+                            // if (debugtb_steps) App.LogDebug("Stop 008f");
+
                         }
-                        if (debugtb_steps) App.LogDebug("Stop 008f");
+
+                        if (_GameMode)
+                        {
+                            _ActiveMode = true;
+                        }
+
+                        lock (App.lockModeApply)
+                        {
+                            GameMode = _GameMode;
+                            ActiveMode = _ActiveMode;
+                            UserNotification = _UserNotification;
+                            FocusAssist = _FocusAssist;
+                            PLEvtPerfMode = _PLEvtPerfMode;
+                        }
 
                     }
 
-                    if (_GameMode)
-                    {
-                        _ActiveMode = true;
-                    }
-
-                    lock (App.lockModeApply)
-                    {
-                        GameMode = _GameMode;
-                        ActiveMode = _ActiveMode;
-                        UserNotification = _UserNotification;
-                        FocusAssist = _FocusAssist;
-                        PLEvtPerfMode = _PLEvtPerfMode;
-                    }
-
-                    if (debugtb_steps) App.LogDebug("Stop 009");
+                    // if (debugtb_steps) App.LogDebug("Stop 009");
 
                     if (ActiveMode == true)
                     {
@@ -650,26 +663,29 @@ namespace CPUDoc
                         //AudioPlaybackCheck();
                     }
 
-                    if (debugtb_steps) App.LogDebug("Stop 010");
+                    // if (debugtb_steps) App.LogDebug("Stop 010");
 
                     //if (_deltaUA.TotalSeconds > ClearForceThreshold && App.cpuTotalLoad.Current <= ClearForceLoadThreshold)
                     if (App.cpuTotalLoad.Current <= ClearForceLoadThreshold)
                     {
-                        foreach (int logical in App.logicalsT1)
+                        /*
+                        for (int logical = 0; logical < App.logicalsT1.Count; logical++)
                         {
                             ProcessorInfo.ClearForceEnabled(logical);
                         }
+                        */
+                        ProcessorInfo.ClearForceEnabled(logicalsT1);
                     }
 
-                    if (debugtb_steps) App.LogDebug("Stop 011");
+                    // if (debugtb_steps) App.LogDebug("Stop 011");
 
                     if (App.pactive.PowerSaverActive && App.psact_b && App.psact_plan) PowerSaverActive();
 
-                    if (debugtb_steps) App.LogDebug("Stop 012");
+                    // if (debugtb_steps) App.LogDebug("Stop 012");
 
                     if (zencontrol_b) ZenControl();
 
-                    if (debugtb_steps) App.LogDebug("Stop 013");
+                    // if (debugtb_steps) App.LogDebug("Stop 013");
 
                     if (App.pactive.NumaZero && numazero_b && !App.pactive.SysSetHack && App.SysCpuSetMask != defBitMask)
                     {
@@ -679,13 +695,13 @@ namespace CPUDoc
                         App.SysCpuSetMask = defBitMask;
                     }
 
-                    if (debugtb_steps) App.LogDebug("Stop 013a");
+                    // if (debugtb_steps) App.LogDebug("Stop 013a");
 
                     if (App.pactive.SysSetHack || App.pactive.PowerSaverActive)
                     {
                         int _computedhlt = (int)(CountBits(defFullBitMask) * 100 / ProcessorInfo.LogicalCoresCount * HighTotalLoadFactor);
 
-                        if (debugtb_steps) App.LogDebug("Stop 014a");
+                        // if (debugtb_steps) App.LogDebug("Stop 014a");
 
                         if (forceCustomSysMask && forceCustomSysMaskStamp != DateTime.MinValue)
                         {
@@ -728,12 +744,12 @@ namespace CPUDoc
 
                             if (App.pactive.SysSetHack)
                             {
-                                if (debugtb_steps) App.LogDebug("Stop 014b");
+                                // if (debugtb_steps) App.LogDebug("Stop 014b");
 
                                 needcores = usedcores = newsetcores = morecores = 0;
                                 TotalT0Load = 0;
 
-                                foreach (int logical in App.logicalsT0)
+                                for (int logical = 0; logical < App.logicalsT0.Count; logical++)
                                 {
                                     if (ProcessorInfo.HardwareCpuSets[logical].LoadHigh > LoadHighThresholdCount)
                                         needcores++;
@@ -744,7 +760,7 @@ namespace CPUDoc
                                     //App.LogDebug($"L:{logical} Load:{ProcessorInfo.HardwareCpuSets[logical].Load:0} High:{ProcessorInfo.HardwareCpuSets[logical].LoadHigh} Zero:{ProcessorInfo.HardwareCpuSets[logical].LoadZero}");
                                 }
 
-                                foreach (int logical in App.logicalsT1)
+                                for (int logical = 0; logical < App.logicalsT1.Count; logical++)
                                 {
                                     if (ProcessorInfo.HardwareCpuSets[logical].LoadHigh > LoadHighThresholdCount)
                                         needcores++;
@@ -796,7 +812,7 @@ namespace CPUDoc
 
                                 if (newBitMask != App.SysCpuSetMask && !SetHysteresis)
                                 {
-                                    if (debugtb_steps) App.LogDebug("Stop 014c");
+                                    // if (debugtb_steps) App.LogDebug("Stop 014c");
                                     //App.LogDebug($"set newbitMask 0x{newBitMask:X8} prevBitMask 0x{App.SysCpuSetMask:X8} {morecores}");
                                     //App.LogDebug($"setcores {setcores} newsetcores {newsetcores} basecores {basecores} morecores {morecores}");
                                     prevNeedcores = needcores;
@@ -2240,6 +2256,7 @@ namespace CPUDoc
         {
             uint unEventPermissions = 2031619;
             // Same as EVENT_ALL_ACCESS value in the Win32 realm
+            //evt = (IntPtr)Kernel32.OpenEvent(unEventPermissions, false, "Global\\4f90aefd-30ca-4121-afec-106c3903fc0f");
             evt = App.OpenEvent(unEventPermissions, false, "Global\\4f90aefd-30ca-4121-afec-106c3903fc0f");
             if (evt == IntPtr.Zero) return false;
             return true;
@@ -2250,8 +2267,7 @@ namespace CPUDoc
             {
                 AutoResetEvent arEvt = new AutoResetEvent(false);
                 arEvt.SafeWaitHandle = new Microsoft.Win32.SafeHandles.SafeWaitHandle(evt, true);
-                WaitHandle[] waitHandles = new WaitHandle[] { arEvt };
-                //int waitResult = WaitHandle.WaitAny(waitHandles, 2, false);
+                WaitHandle[] waitHandles = [arEvt];
                 int waitResult = WaitHandle.WaitAny(waitHandles, 0, false);
                 if (waitResult == 0) return true;
             }
