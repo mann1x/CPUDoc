@@ -9,6 +9,9 @@
 
 ## Changelog:
 
+- v1.2.17 Beta
+    - New: Partial re-factoring of the engine to lower CPU usage, now an average of 0,02% CPU load with SSH and PSA enabled
+    - Fix: NumaZero now should work properly
 - v1.2.16 Beta
     - New: Added in settings the option to keep the UI window always on top
     - New: Reduced ThreadBooster CPU load, activity checks limited to 1 second interval (0,00/0,01% CPU usage with only NumaZero enabled)

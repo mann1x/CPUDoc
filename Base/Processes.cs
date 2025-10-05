@@ -624,7 +624,7 @@ namespace CPUDoc
                         {
                             _bitMask = _sysThreads <= _t0threads ? ThreadBooster.defBitMask : _sysThreads >= (_t0threads + _t1threads) ? ThreadBooster.defFullBitMask : ThreadBooster.CreateCustomBitMask(_sysThreads - _t0threads);
 
-                            App.LogInfo($"3DMark {bench3DMarkActive} CpuSet System BitMask=0x{_bitMask:X8} Threads={ThreadBooster.CountBits(_bitMask)} Forced={_forceSysMask}");
+                            App.LogInfo($"3DMark {bench3DMarkActive} CpuSet System BitMask=0x{_bitMask:X16} Threads={ThreadBooster.CountBits(_bitMask)} Forced={_forceSysMask}");
                             ThreadBooster.ForceCustomSysMask(_forceSysMask, _bitMask);
                         }
                         _ideal = bench3DMarkProfile.IdealThread;
@@ -635,7 +635,7 @@ namespace CPUDoc
                             ulong  _sysmCustom = _psysThreads > 0 ? ThreadBooster.CreateCustomBitMask(_psysThreads - _t0threads) : 0;
                             ulong _bitmCustom = _paffThreads > 0 ? ThreadBooster.CreateCustomBitMask(_paffThreads - _t0threads) : 0;
                             ulong _bitCustomProc = _paffThreadsProc > 0 ? ThreadBooster.CreateCustomBitMask(_paffThreadsProc - _t0threads) : 0;
-                            App.LogInfo($"3DMark {bench3DMarkActive} Custom Process Masks ProcessCpuSetMask=0x{_sysmCustom:X8}:{ThreadBooster.CountBits(_sysmCustom)} ThreadsAffMask=0x{_bitmCustom:X8}:{ThreadBooster.CountBits(_bitmCustom)} ProcessAffMask=0x{_bitCustomProc:X8}:{ThreadBooster.CountBits(_bitCustomProc)}");
+                            App.LogInfo($"3DMark {bench3DMarkActive} Custom Process Masks ProcessCpuSetMask=0x{_sysmCustom:X16}:{ThreadBooster.CountBits(_sysmCustom)} ThreadsAffMask=0x{_bitmCustom:X16}:{ThreadBooster.CountBits(_bitmCustom)} ProcessAffMask=0x{_bitCustomProc:X16}:{ThreadBooster.CountBits(_bitCustomProc)}");
                             App.LogInfo($"3DMark {bench3DMarkActive} Custom Process Threads ProcessCpuSetMaskTRequest={_psysThreads} ThreadsAffMaskTRequest={_paffThreads} ProcessAffMaskTRequest={_paffThreadsProc}");
                             if (_ideal != -2) App.LogDebug($"3DMark Set Ideal Thread to {((_ideal >= 0) ? _ideal : "Auto")}");
                             ThreadBooster.ProcMask(processname, _sysm, false, _bitm, false, false, _ideal, _sysmCustom, _bitmCustom, _bitCustomProc);

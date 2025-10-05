@@ -62,6 +62,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using System.Xml.Linq;
+using Vanara.Extensions;
 using Vanara.PInvoke;
 using WalkmanLib;
 using Windows.ApplicationModel;
@@ -924,7 +925,7 @@ namespace CPUDoc
             _ret = SetSystemCpuSet(_BitMask);
             */
 
-            App.LogDebug($"SetSysCpuSet Apply mask 0x{_BitMask:X8} [{whoami}]");
+            App.LogDebug($"SetSysCpuSet Apply mask 0x{_BitMask:X16} [{whoami}]");
 
             for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
             {
@@ -4008,6 +4009,9 @@ namespace CPUDoc
         {
             activeconfig_b = false;
 
+            ProcessorInfo.ClearDisabled();
+            ProcessorInfo.ClearExcluded();
+
             if (id >= 0 && id < 10) 
               AppConfigs[id].CopyPropertiesTo(pactive);
 
@@ -4027,7 +4031,7 @@ namespace CPUDoc
                 }
 
                 lastSysCpuSetMask = ulong.MaxValue;
-                SetSysCpuSet(0);
+                SetSysCpuSet(0, "SetActiveConfig Start");
             }
 
             /*
@@ -4090,7 +4094,14 @@ namespace CPUDoc
 
                     if (_clusterstype == 0) _clusterstype = ProcessorInfo.Clusters > 1 ? ProcessorInfo.Clusters / 2 : 1;
                     
-                    (n0enabledT0, n0disabledT0, n0enabledT1, n0disabledT1) = ProcessorInfo.LogicalsBySelection(_clusterstype, _excludetype, _forcedcores == 0 && _clusterstype == 1 ? _autocores : _forcedcores);
+                    ProcessorInfo.SelectionType _excselection = ProcessorInfo.SelectionType.None;
+                    if (_excludetype == 1 || _excludetype == 3) _excselection |= ProcessorInfo.SelectionType.T1;
+                    if (_excludetype == 2 || _excludetype == 3) _excselection |= ProcessorInfo.SelectionType.ECores;
+                    if (_clusterstype != 0) _excselection |= ProcessorInfo.SelectionType.ClusterNumber;
+
+                    ProcessorInfo.SetExcluded(_excselection, 1, _clusterstype, _forcedcores == 0 && ProcessorInfo.Clusters == 1 ? _autocores : _forcedcores);
+
+                    (n0enabledT0, n0disabledT0, n0enabledT1, n0disabledT1) = ProcessorInfo.LogicalsBySelection(_clusterstype, _excludetype, _forcedcores == 0 && ProcessorInfo.Clusters == 1 ? _autocores : _forcedcores);
 
                     /*
                     if (pactive.NumaZeroType == 0)
@@ -4333,16 +4344,19 @@ namespace CPUDoc
                 App.LogDebug($"NumaZero Init Exception {ex.Message}");
             }
 
+            activeconfig_b = true;
+
+            //(logicalsT0, n0disabledT0, logicalsT1, n0disabledT1) = ProcessorInfo.LogicalsBySelection();
+
             App.systemInfo.SetSSHStatus(pactive.SysSetHack);
             App.systemInfo.SetPSAStatus(pactive.PowerSaverActive);
             App.systemInfo.SetN0Status(pactive.NumaZero);
             
             App.LogDebug($"NumaZero Init Done N0_PROFILE={pactive.NumaZero} N0Active={numazero_b} HT={systemInfo.HyperThreading}");
 
-            activeconfig_b = true;
             ThreadBooster.BuildDefaultMask("SetupActiveConfig");
+            App.SysCpuSetMask = ThreadBooster.defBitMask;
             ThreadBooster.bInit = false;
-
         }
 
         public static bool ReadMsr(uint msr, ref uint eax, ref uint edx)

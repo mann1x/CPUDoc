@@ -1736,35 +1736,39 @@ namespace CPUDoc
                         }
                         App.LogInfo($" Family: {_cpuid.Family:X}h SHA: [{shastr}] VAES: [{vaesstr}]");
                     }
-                    App.LogInfo("");
-                    App.LogInfo(" Function  EAX       EBX       ECX       EDX");
-                    string _line = "";
-                    for (int i = 0; i < _cpuid.Data.GetLength(0); i++)
+                    if (App.cmdargs.LogTrace > 0)
                     {
-                        _line = " ";
-                        _line += (i + offset).ToString("X8", CultureInfo.InvariantCulture);
-                        for (int ij = 0; ij < 4; ij++)
+                        App.LogInfo("");
+                        App.LogInfo(" Function  EAX       EBX       ECX       EDX");
+                        string _line = "";
+                        for (int i = 0; i < _cpuid.Data.GetLength(0); i++)
                         {
-                            _line += "  ";
-                            _line += _cpuid.Data[i, ij].ToString("X8", CultureInfo.InvariantCulture);
+                            _line = " ";
+                            _line += (i + offset).ToString("X8", CultureInfo.InvariantCulture);
+                            for (int ij = 0; ij < 4; ij++)
+                            {
+                                _line += "  ";
+                                _line += _cpuid.Data[i, ij].ToString("X8", CultureInfo.InvariantCulture);
+                            }
+                            App.LogInfo(_line);
+
+
                         }
-                        App.LogInfo(_line);
-
-
-                    }
-                    App.LogInfo(" Function  EAX       EBX       ECX       EDX");
-                    for (int i = 0; i < _cpuid.ExtData.GetLength(0); i++)
-                    {
-                        _line = " ";
-                        _line += (i + offsetext).ToString("X8", CultureInfo.InvariantCulture);
-                        for (int ij = 0; ij < 4; ij++)
+                        App.LogInfo(" Function  EAX       EBX       ECX       EDX");
+                        for (int i = 0; i < _cpuid.ExtData.GetLength(0); i++)
                         {
-                            _line += "  ";
-                            _line += _cpuid.ExtData[i, ij].ToString("X8", CultureInfo.InvariantCulture);
-                        }
-                        App.LogInfo(_line);
+                            _line = " ";
+                            _line += (i + offsetext).ToString("X8", CultureInfo.InvariantCulture);
+                            for (int ij = 0; ij < 4; ij++)
+                            {
+                                _line += "  ";
+                                _line += _cpuid.ExtData[i, ij].ToString("X8", CultureInfo.InvariantCulture);
+                            }
+                            App.LogInfo(_line);
 
+                        }
                     }
+
                     App.LogInfo("");
 
                 }
@@ -1838,10 +1842,10 @@ namespace CPUDoc
                 App.LogInfo($"CpuSetInfo");
                 App.LogInfo($"");
 
-                App.LogInfo($"CoresByScheduling:");
-
+                ProcessorInfo.InitExtra();
                 CPUClusters = ProcessorInfo.Clusters;
 
+                App.LogInfo($"CoresByScheduling:");
                 var coresbysched = ProcessorInfo.CoresByScheduling();
 
                 if (ProcessorInfo.IsCoresBySchedulingAllZeros())
@@ -1917,6 +1921,9 @@ namespace CPUDoc
                 App.LogInfo($"ProcessorInfo.Clusters: {ProcessorInfo.Clusters}");
                 App.LogInfo($"");
 
+                ProcessorInfo.SetTieredPriority();
+                ProcessorInfo.SetExcluded();
+
                 if (ProcessorInfo.Clusters > 1)
                 {
                     string _outstr = "";
@@ -1950,24 +1957,8 @@ namespace CPUDoc
 
                 }
 
-                int _deltap = 20 / CPULogicalProcessors;
-
-                for (int i = 0; i < CPULogicalProcessors; ++i)
-                {
-                    SetProgress(42 + _deltap * i);
-                    App.LogInfo($"CPU Logical Processor: {i + 1}");
-                    App.LogInfo($" ProcessorInfo.LogicalProcessorIndex: {ProcessorInfo.CpuSetLogicalProcessorIndex(i) + 1}");
-                    App.LogInfo($" ProcessorInfo.EfficiencyClass: {ProcessorInfo.CpuSetEfficiencyClass(i)}");
-                    App.LogInfo($" ProcessorInfo.CoreIndex: {ProcessorInfo.CpuSetCoreIndex(i)}");
-                    App.LogInfo($" ProcessorInfo.NumaNodeIndex: {ProcessorInfo.CpuSetNumaNodeIndex(i)}");
-                    App.LogInfo($" ProcessorInfo.LastLevelCacheIndex: {ProcessorInfo.CpuSetLastLevelCacheIndex(i)}");
-                    App.LogInfo($" ProcessorInfo.Group: {ProcessorInfo.CpuSetGroup(i)}");
-                    App.LogInfo($" ProcessorInfo.SchedulingClass: {ProcessorInfo.CpuSetSchedulingClass(i)}");
-                    App.LogInfo($" ProcessorInfo.AllocationTag: {ProcessorInfo.CpuSetAllocationTag(i)}");
-                    App.LogInfo($" ProcessorInfo.Parked: {ProcessorInfo.CpuSetParked(i)}");
-                    App.LogInfo($" ProcessorInfo.Allocated: {ProcessorInfo.CpuSetAllocated(i)}");
-                    App.LogInfo($" ProcessorInfo.Cluster: {ProcessorInfo.CpuSetCluster(i)}");
-                }
+                //if (App.cmdargs.LogTrace > 0) 
+                CpuSetInfo();
 
                 CPPCLabels();
             }
@@ -1975,6 +1966,32 @@ namespace CPUDoc
             {
                 App.LogExError($"CpuSetsInit Exception: {ex.Message}", ex);
             }
+        }
+        public void CpuSetInfo()
+        {
+            for (int i = 0; i < CPULogicalProcessors; ++i)
+            {
+                int _deltap = 20 / CPULogicalProcessors;
+                SetProgress(42 + _deltap * i);
+
+                App.LogInfo($"CPU Logical Processor: {i + 1}");
+                App.LogInfo($" ProcessorInfo.LogicalProcessorIndex: {ProcessorInfo.CpuSetLogicalProcessorIndex(i) + 1}");
+                App.LogInfo($" ProcessorInfo.Cluster: {ProcessorInfo.CpuSetCluster(i)}");
+                App.LogInfo($" ProcessorInfo.EfficiencyClass: {ProcessorInfo.CpuSetEfficiencyClass(i)}");
+                App.LogInfo($" ProcessorInfo.CoreIndex: {ProcessorInfo.CpuSetCoreIndex(i)}");
+                App.LogInfo($" ProcessorInfo.NumaNodeIndex: {ProcessorInfo.CpuSetNumaNodeIndex(i)}");
+                App.LogInfo($" ProcessorInfo.LastLevelCacheIndex: {ProcessorInfo.CpuSetLastLevelCacheIndex(i)}");
+                App.LogInfo($" ProcessorInfo.Group: {ProcessorInfo.CpuSetGroup(i)}");
+                App.LogInfo($" ProcessorInfo.SchedulingClass: {ProcessorInfo.CpuSetSchedulingClass(i)}");
+                App.LogInfo($" ProcessorInfo.TieredPriority: {ProcessorInfo.TieredPriority(i)}");
+                App.LogInfo($" ProcessorInfo.ThreadNumber: {ProcessorInfo.ThreadNumber(i)}");
+                App.LogInfo($" ProcessorInfo.AllocationTag: {ProcessorInfo.CpuSetAllocationTag(i)}");
+                App.LogInfo($" ProcessorInfo.Parked: {ProcessorInfo.CpuSetParked(i)}");
+                App.LogInfo($" ProcessorInfo.Allocated: {ProcessorInfo.CpuSetAllocated(i)}");
+                App.LogInfo($" ProcessorInfo.Disabled: {ProcessorInfo.Disabled(i)}");
+                App.LogInfo($" ProcessorInfo.Excluded: {ProcessorInfo.Excluded(i)}");
+            }
+
         }
 
         public bool ZenInit(bool docheck = false)
@@ -3744,7 +3761,9 @@ namespace CPUDoc
             try
             {
                 SSHStatus = _status == true ? $"Enabled" : "Disabled";
-                if (_status == true) SSHStatus = App.thrSysRunning && App.pactive.SysSetHack ? $"{SSHStatus} {ThreadBooster.CountBits(App.lastSysCpuSetMask)}/{ThreadBooster.CountBits(ThreadBooster.defFullBitMask)}" : $"{SSHStatus} (Inactive)";
+                int _totallogicals = ThreadBooster.CountBits(ThreadBooster.defFullBitMask);
+                int _activelogicals = ThreadBooster.CountBits(App.lastSysCpuSetMask) == 0 ? _totallogicals : ThreadBooster.CountBits(App.lastSysCpuSetMask);
+                if (_status == true) SSHStatus = App.thrSysRunning && App.pactive.SysSetHack ? $"{SSHStatus} {_activelogicals}/{_totallogicals}" : $"{SSHStatus} (Inactive)";
                 SSHStatus = App.thrThreadBoosterRunning ? SSHStatus : $"<Inactive> {SSHStatus}";
             }
             catch { }

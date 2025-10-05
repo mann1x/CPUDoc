@@ -704,7 +704,7 @@
                                     NumaZero
                                 </CheckBox>
 
-                                <TextBlock Grid.Column="1" Grid.Row="21" HorizontalAlignment="Right" VerticalAlignment="Center">Type:</TextBlock>
+                                <TextBlock Grid.Column="0" Grid.Row="21" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Center">Select NumaZero type, Auto will select based on the number of cores or clusters:</TextBlock>
                                 <ComboBox Grid.Column="2" Grid.Row="21" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroType_Select" x:Name="listNumaZeroType">
 
                                     <ComboBoxItem Tag="0">Auto</ComboBoxItem>
@@ -720,7 +720,7 @@
                                     <ComboBoxItem Tag="10">First 2 Cores</ComboBoxItem>
                                 </ComboBox>
 
-                                <TextBlock Grid.Column="0" Grid.Row="22" HorizontalAlignment="Right" VerticalAlignment="Center" Grid.ColumnSpan="2">Define up to how many Intel clusters or AMD CCDs to select in Auto mode:</TextBlock>
+                                <TextBlock Grid.Column="0" Grid.Row="22" HorizontalAlignment="Right" VerticalAlignment="Center" Grid.ColumnSpan="2">Define up to how many Intel Clusters or AMD CCDs to select with NumaZero:</TextBlock>
                                 <ComboBox Grid.Column="2" Grid.Row="22" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroAutoType_Select" x:Name="listNumaZeroAutoType">
 
                                     <ComboBoxItem Tag="0">Auto</ComboBoxItem>
@@ -734,7 +734,7 @@
                                     <ComboBoxItem Tag="8">First 8 Clusters</ComboBoxItem>
                                 </ComboBox>
 
-                                <TextBlock Grid.Column="0" Grid.Row="23" HorizontalAlignment="Right" VerticalAlignment="Center" Grid.ColumnSpan="2">Define which type of cores to exclude from NumaZero selection:</TextBlock>
+                                <TextBlock Grid.Column="0" Grid.Row="23" HorizontalAlignment="Right" VerticalAlignment="Center" Grid.ColumnSpan="2">Define which type of cores to exclude with NumaZero selection:</TextBlock>
                                 <ComboBox Grid.Column="2" Grid.Row="23" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroExcludeType_Select" x:Name="listNumaZeroExcludeType">
 
                                     <ComboBoxItem Tag="0">None</ComboBoxItem>

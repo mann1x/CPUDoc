@@ -1,4 +1,5 @@
 ﻿using Microsoft.Win32.SafeHandles;
+using net.r_eg.Conari.Mangling;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,8 +10,12 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security.Permissions;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Controls;
+using Vanara;
+using Windows.UI.Text;
+using static CPUDoc.ProcessorInfo;
 
 namespace CPUDoc
 {
@@ -23,13 +28,47 @@ namespace CPUDoc
         private static int LoadLowThreshold = 20;
         private static int LoadHighThreshold = 95;
         private static PerformanceCounter TotalLoadCounter;
+        private static bool? IsHybridCache = null;
+        private static int? HybridLevelCache = null;
+        private static int InterlockCpuSet = 0;
+        public static int InterlockCpuLoadUpdate = 0;
+        public static int Clusters { get; private set; }
 
         public static bool CpuLoadPerfCounter = true;
         public static CpuLoad _cpuLoad = new CpuLoad();
         public static double cpuTotalLoad { get; set; }
         public static double threadsTotalLoad { get; set; }
-        public static int Clusters { get; private set; }
+        public static double TotalEnabledLoad { get; set; }
+        public static double TotalEnabledLoadNorm { get; set; }
+        public static int SSH_needcores { get; private set; }
+        public static int SSH_usedcores { get; private set; }
 
+        /// <summary>
+        /// Selection types enum
+        /// </summary>
+        public enum SelectionType
+        {
+            None = 0,
+            T0 = 1,
+            T1 = 2,
+            PCores = 4,
+            ECores = 8,
+            LCores = 16,
+            ClusterNumber = 32,
+            NumaNode = 64,
+            LLCIndex = 128,
+            All = 256,
+        }
+        /// <summary>
+        /// Tiered priority selection types enum
+        /// </summary>
+        public enum TieredType
+        {
+            None = 0,
+            ECoresLast = 1,
+            ECoresAsPCores = 2,
+            Clusters = 4,
+        }
         /// <summary>
         /// Hardware core
         /// </summary>
@@ -47,6 +86,15 @@ namespace CPUDoc
             /// Physical cores count
             /// </summary>
             int PhysicalCoresCount { get; }
+            /// <summary>
+            /// High usag threshold, logicals count
+            /// </summary>
+            int SSH_needcores { get; }
+            /// <summary>
+            /// Used, medium threshold, logicals count
+            /// </summary>
+            int SSH_usedcores { get; }
+
         }
 
         /// <summary>
@@ -167,6 +215,22 @@ namespace CPUDoc
             /// </summary>
             DateTime ForcedWhen { get; set; }
             /// <summary>
+            /// Disabled by SSH
+            /// </summary>
+            bool Disabled { get; set; }
+            /// <summary>
+            /// Forced enable
+            /// </summary>
+            bool Excluded { get; set; }
+            /// <summary>
+            /// Tiered Priority (follows SchedulingClass)
+            /// </summary>
+            int TieredPriority { get; set; }
+            /// <summary>
+            /// THread Number (T0, T1, ...)
+            /// </summary>
+            int ThreadNumber { get; set; }
+            /// <summary>
             /// CPU Load Counter
             /// </summary>
             PerformanceCounter LoadCounter { get; set; }
@@ -237,60 +301,6 @@ namespace CPUDoc
                     .Select(x => new HardwareCpuSet(x))
                     .OrderBy(x => x.LogicalProcessorIndex)
                     .ToArray<IHardwareCpuSet>();
-
-                int _cluster = 1;
-                int _llcindex = 0;
-
-                for (int i = 0; i < cpuset.Length; i++)
-                {
-
-                    if (_llcindex != cpuset[i].LastLevelCacheIndex)
-                    {
-                        _cluster++;
-                        _llcindex = cpuset[i].LastLevelCacheIndex;
-                    }
-                    cpuset[i].Cluster = _cluster;
-                }
-
-                if (_cluster == 1 && cpuset.Length > 6) {
-                    bool _intelcluster = false;
-
-                    for (int i = 0; i < cpuset.Length; i+=6)
-                    {
-                        if (cpuset[i].EfficiencyClass == 1 && cpuset[i + 1].EfficiencyClass == 1 &&
-                            cpuset[i + 2].EfficiencyClass == 0 && cpuset[i + 3].EfficiencyClass == 0 && cpuset[i + 4].EfficiencyClass == 0 &&
-                            cpuset[i + 5].EfficiencyClass == 0)
-                        {
-                            _intelcluster = true;
-                        }
-                        else if (cpuset[i].EfficiencyClass == 0 && cpuset[i + 1].EfficiencyClass == 0 && cpuset[i + 2].EfficiencyClass == 0 &&
-                                 cpuset[i + 3].EfficiencyClass == 0 && cpuset[i + 4].EfficiencyClass == 1 && cpuset[i + 5].EfficiencyClass == 1)
-                        {
-                            _intelcluster = true;
-                        }
-                        else
-                        {
-                            _intelcluster = false;
-                            break;
-                        }
-                    }
-
-                    if (_intelcluster)
-                    {
-                        _cluster = 1;
-                        for (int i = 0; i < cpuset.Length; i += 6)
-                        {
-                            for (int j = 0; j <= 5; j++)
-                            {
-                                cpuset[i+j].Cluster = _cluster;
-                            }
-                            _cluster++;
-                        }
-                    }
-                }
-
-                ProcessorInfo.Clusters = _cluster;
-
                 return cpuset;
             }
         }
@@ -298,7 +308,6 @@ namespace CPUDoc
         /// <summary>
         /// Update CpuLoad
         /// </summary>
-
         /*
         public static void CpuLoadUpdate()
         {
@@ -326,12 +335,91 @@ namespace CPUDoc
             App.systemInfo.UpdateLoadThreads();
         }
         */
+        //
+        /// <summary>
+        /// Init extra info for Clusters and Thread numbers
+        /// </summary>
+        public static void InitExtra()
+        {
+            var cpuset = HardwareCpuSets.ToArray();
+            
+            int _cluster = 1;
+            int _llcindex = 0;
+
+            for (int i = 0; i < cpuset.Length; i++)
+            {
+
+                if (_llcindex != cpuset[i].LastLevelCacheIndex)
+                {
+                    _cluster++;
+                    _llcindex = cpuset[i].LastLevelCacheIndex;
+                }
+                cpuset[i].Cluster = _cluster;
+                cpuset[i].ThreadNumber = GetThreadNumber(cpuset[i].LogicalProcessorIndex);
+            }
+
+            if (_cluster == 1 && cpuset.Length > 6)
+            {
+                bool _intelcluster = false;
+
+                for (int i = 0; i < cpuset.Length; i += 6)
+                {
+                    if (cpuset[i].EfficiencyClass == 1 && cpuset[i + 1].EfficiencyClass == 1 &&
+                        cpuset[i + 2].EfficiencyClass == 0 && cpuset[i + 3].EfficiencyClass == 0 && cpuset[i + 4].EfficiencyClass == 0 &&
+                        cpuset[i + 5].EfficiencyClass == 0)
+                    {
+                        _intelcluster = true;
+                    }
+                    else if (cpuset[i].EfficiencyClass == 0 && cpuset[i + 1].EfficiencyClass == 0 && cpuset[i + 2].EfficiencyClass == 0 &&
+                             cpuset[i + 3].EfficiencyClass == 0 && cpuset[i + 4].EfficiencyClass == 1 && cpuset[i + 5].EfficiencyClass == 1)
+                    {
+                        _intelcluster = true;
+                    }
+                    else
+                    {
+                        _intelcluster = false;
+                        break;
+                    }
+                }
+
+                if (_intelcluster)
+                {
+                    _cluster = 1;
+                    for (int i = 0; i < cpuset.Length; i += 6)
+                    {
+                        for (int j = 0; j <= 5; j++)
+                        {
+                            cpuset[i + j].Cluster = _cluster;
+                        }
+                        _cluster++;
+                    }
+                }
+            }
+
+            ProcessorInfo.Clusters = _cluster;
+
+        }
+
+        /// <summary>
+        /// Update CpuLoad
+        /// </summary>
         public static void CpuLoadUpdate()
         {
-            threadsTotalLoad = 0;
+            while (Interlocked.CompareExchange(ref InterlockCpuLoadUpdate, 1, 0) != 0)
+                continue;
 
-            for (var i = 0; i < LogicalCoresCount; ++i)
+            threadsTotalLoad = 0;
+            TotalEnabledLoad = 0;
+            SSH_needcores = 0;
+            SSH_usedcores = 0;
+
+            int basecores = 0;
+            TimeSpan _deltaStamp = TimeSpan.Zero;
+
+            for (var i = 0; i < HardwareCpuSets.Length; ++i)
             {
+                App.systemInfo.UpdateParkedStateCore(ProcessorInfo.PhysicalCore(HardwareCpuSets[i].LogicalProcessorIndex), HardwareCpuSets[i].Parked);
+                
                 float _Load = CpuLoadPerfCounter ? HardwareCpuSets[i].LoadCounter.NextValue() : _cpuLoad.GetCpuLoad(i);
                 HardwareCpuSets[i].Load = _Load;
 
@@ -354,10 +442,57 @@ namespace CPUDoc
                 App.systemInfo.UpdateLoadThread(i, (int)_Load);
                 threadsTotalLoad += (int)_Load;
 
-                App.systemInfo.UpdateParkedStateCore(ProcessorInfo.PhysicalCore(HardwareCpuSets[i].LogicalProcessorIndex), HardwareCpuSets[i].Parked);
+                if (HardwareCpuSets[i].Disabled == false && HardwareCpuSets[i].Excluded == false)
+                {
+                    if (HardwareCpuSets[i].LoadHigh > ThreadBooster.LoadHighThresholdCount)
+                        SSH_needcores++;
+                    if (HardwareCpuSets[i].LoadMedium > ThreadBooster.LoadMediumThresholdCount)
+                        SSH_usedcores++;
+
+                    //App.LogDebug($"CpuLoadUpdate Enabled Logical={i} SSH_needcores {SSH_needcores} SSH_usedcores={SSH_usedcores}");
+                    
+                    basecores++;
+                    TotalEnabledLoad += HardwareCpuSets[i].Load;
+                }
+
+                if (HardwareCpuSets[i].Disabled == true && HardwareCpuSets[i].Excluded == false)
+                {
+                    if (HardwareCpuSets[i].LoadZero > ThreadBooster.LoadZeroThresholdCount)
+                    {
+                        _deltaStamp = DateTime.Now - HardwareCpuSets[i].ForcedWhen;
+                        if (_deltaStamp.TotalSeconds > ThreadBooster.ClearForceThreshold)
+                            ClearForceEnabled(i);
+                        //App.LogDebug($"CpuLoadUpdate ClearForceEnabled Logical={i} SSH_needcores {SSH_needcores} SSH_usedcores={SSH_usedcores}");
+                    } 
+                    else
+                    {
+                        if (HardwareCpuSets[i].LoadHigh > ThreadBooster.LoadHighThresholdCount)
+                        {
+                            //App.LogDebug($"CpuLoadUpdate ForceEnabled HIGH Logical={i} SSH_needcores {SSH_needcores} SSH_usedcores={SSH_usedcores}");
+                            SetForceEnabled(i);
+                            SSH_needcores++;
+                        }
+
+                        if (HardwareCpuSets[i].LoadMedium > ThreadBooster.LoadMediumThresholdCount)
+                        {
+                            //App.LogDebug($"CpuLoadUpdate ForceEnabled Logical={i} SSH_needcores {SSH_needcores} SSH_usedcores={SSH_usedcores}");
+                            SetForceEnabled(i);
+                            SSH_usedcores++;
+                        }
+                    }
+                    if (HardwareCpuSets[i].ForcedEnable)
+                    {
+                        basecores++;
+                        TotalEnabledLoad += HardwareCpuSets[i].Load;
+                    }
+                    //App.LogDebug($"RTBSSH Disabled Logical={i} SSH_needcores {SSH_needcores} SSH_usedcores={SSH_usedcores}");
+                }
+
             }
 
             App.systemInfo.UpdateLoadThreads();
+            TotalEnabledLoadNorm = TotalEnabledLoad / basecores;
+            InterlockCpuLoadUpdate = 0;
         }
 
         /// <summary>
@@ -365,7 +500,7 @@ namespace CPUDoc
         /// </summary>
         public static void ResetLoadThreads()
         {
-            for (var i = 0; i < LogicalCoresCount; ++i)
+            for (var i = 0; i < HardwareCpuSets.Length; ++i)
             {
                 HardwareCpuSets[i].LoadHigh = 0;
                 HardwareCpuSets[i].LoadMedium = 0;
@@ -393,33 +528,733 @@ namespace CPUDoc
         }
 
         /// <summary>
+        /// Create default BitMask (all enabled and not excluded)   
+        /// </summary>
+        public static ulong CreateSSHBitMask(ulong defBitMask, int morecores = 0)
+        {
+            var cpuset = HardwareCpuSets.Where(x => x.Disabled == true && x.Excluded == false).OrderByDescending(x => x.TieredPriority).ToArray();
+            int addedcores = 0;
+            for (var i = 0; i < cpuset.Length; ++i)
+            {
+                if (cpuset[i].ForcedEnable == true)
+                {
+                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} ForcedEnable={cpuset[i].LogicalProcessorIndex}");
+                    defBitMask |= (uint)1 << (cpuset[i].LogicalProcessorIndex);
+                }
+                else if (addedcores < morecores)
+                {
+                    defBitMask |= (uint)1 << (cpuset[i].LogicalProcessorIndex);
+                    addedcores++;
+                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Adding={cpuset[i].LogicalProcessorIndex}");
+                }
+                //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Logical={cpuset[i].LogicalProcessorIndex} Logical={cpuset[i].TieredPriority} morecores={morecores} addedcores={addedcores} defBitMask=0x{defBitMask:X16}");
+            }
+
+            return defBitMask;
+        }
+
+        /// <summary>
+        /// Create default BitMask (all enabled and not excluded)   
+        /// </summary>
+        public static ulong CreateCustomBitMask(ulong defBitMask, int addcores = 0)
+        {
+
+            var cpuset = HardwareCpuSets.Where(x => x.Disabled == true && x.Excluded == false).OrderBy(x => x.TieredPriority).ToArray();
+            int addedcores = 0;
+            for (var i = 0; i < cpuset.Length; ++i)
+            {
+                if (cpuset[i].ForcedEnable == true)
+                {
+                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} ForcedEnable={cpuset[i].LogicalProcessorIndex}");
+                    defBitMask |= (uint)1 << (cpuset[i].LogicalProcessorIndex);
+                }
+                else if (addedcores < addcores)
+                {
+                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Adding={cpuset[i].LogicalProcessorIndex}");
+                    defBitMask |= (uint)1 << (cpuset[i].LogicalProcessorIndex);
+                    addedcores++;
+                }
+                //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} {cpuset[i].LogicalProcessorIndex} defBitMask=0x{defBitMask:X16}");
+            }
+
+            return defBitMask;
+        }
+        /// <summary>
+        /// Create default BitMask (all enabled and not excluded)   
+        /// </summary>
+        public static ulong CreateDefaultBitMask()
+        {
+            ulong _bitMask = 0;
+
+            var cpuset = HardwareCpuSets.Where(x => x.Disabled == false && x.Excluded == false).OrderBy(x => x.LogicalProcessorIndex).ToArray();
+
+            //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} CSLen={cpuset.Length}");
+
+            for (var i = 0; i < cpuset.Length; ++i)
+            {
+                //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} D={cpuset[i].Disabled} E={cpuset[i].Excluded} Adding={cpuset[i].LogicalProcessorIndex}");
+                _bitMask |= (uint)1 << (cpuset[i].LogicalProcessorIndex);
+            }
+
+            return _bitMask;
+        }
+
+        /// <summary>
+        /// Create full BitMask (including disabled but not those excluded)
+        /// </summary>
+        public static ulong CreateFullBitMask()
+        {
+            ulong _bitMask = 0;
+
+            var cpuset = HardwareCpuSets.Where(x => x.Excluded == false).OrderBy(x => x.LogicalProcessorIndex).ToArray();
+
+            //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} CSLen={cpuset.Length}");
+
+            for (var i = 0; i < cpuset.Length; ++i)
+            {
+                //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} D={cpuset[i].Disabled} E={cpuset[i].Excluded} Adding={cpuset[i].LogicalProcessorIndex}");
+                _bitMask |= (uint)1 << (cpuset[i].LogicalProcessorIndex);
+            }
+
+            return _bitMask;
+        }
+
+        /// <summary>
+        /// Create a complete BitMask (including disabled and excluded)
+        /// </summary>
+        public static ulong CreateAllBitMask()
+        {
+            ulong _bitMask = 0;
+
+            var cpuset = HardwareCpuSets.OrderBy(x => x.LogicalProcessorIndex).ToArray();
+
+            for (var i = 0; i < cpuset.Length; ++i)
+            {
+                _bitMask |= (uint)1 << (cpuset[i].LogicalProcessorIndex);
+            }
+
+            return _bitMask;
+        }
+
+        /// <summary>
+        /// Get ForceEnabled, return true if at least one core is forced enabled
+        /// </summary>
+        public static bool IsForceEnableAny()
+        {
+            try
+            {
+                var cpuset = HardwareCpuSets
+                    .Where(x => x.ForcedEnable == true).FirstOrDefault();
+
+                if (cpuset == default) return false;
+                if (cpuset.ForcedEnable == true) return true;
+                return false;
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Set ForceEnabled
         /// </summary>
-        public static void SetForceEnabled(int cpu)
+        public static void SetForceEnabled(int logical)
         {
-            HardwareCpuSets[cpu].ForcedEnable = true;
-            HardwareCpuSets[cpu].ForcedWhen = DateTime.Now;
+            try
+            {
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                HardwareCpuSets[logical].ForcedEnable = true;
+                HardwareCpuSets[logical].ForcedWhen = DateTime.Now;
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally
+            {
+                InterlockCpuSet = 0;
+            }
         }
 
         /// <summary>
         /// Clear ForceEnabled
         /// </summary>
-        public static void ClearForceEnabled(int cpu)
+        public static void ClearForceEnabled(int logical)
         {
-            HardwareCpuSets[cpu].ForcedEnable = false;
-            HardwareCpuSets[cpu].ForcedWhen = DateTime.MinValue;
+            try
+            {
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                HardwareCpuSets[logical].ForcedEnable = false;
+                HardwareCpuSets[logical].ForcedWhen = DateTime.MinValue;
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally
+            {
+                InterlockCpuSet = 0;
+            }
+        }
+        /// <summary>
+        /// Clear ForceEnabled
+        /// </summary>
+        public static void ClearForceEnabled()
+        {
+            try
+            {
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                for (int logical = 0; logical < HardwareCpuSets.Count(); logical++)
+                {
+                    if (HardwareCpuSets[logical].Disabled == false) continue;
+                    HardwareCpuSets[logical].ForcedEnable = false;
+                    HardwareCpuSets[logical].ForcedWhen = DateTime.MinValue;
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally
+            {
+                InterlockCpuSet = 0;
+            }
         }
         /// <summary>
         /// Clear ForceEnabled in logicals list
         /// </summary>
         public static void ClearForceEnabled(List<int> logicals)
         {
-            for (int logical = 0; logical < logicals.Count; logical++)
+            try
             {
-                HardwareCpuSets[logicals[logical]].ForcedEnable = false;
-                HardwareCpuSets[logicals[logical]].ForcedWhen = DateTime.MinValue;
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                for (int logical = 0; logical < logicals.Count; logical++)
+                {
+                    HardwareCpuSets[logicals[logical]].ForcedEnable = false;
+                    HardwareCpuSets[logicals[logical]].ForcedWhen = DateTime.MinValue;
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally
+            {
+                InterlockCpuSet = 0;
             }
         }
+
+        /// <summary>
+        /// Set Disabled
+        /// </summary>
+        public static void SetDisabled(int logical)
+        {
+            HardwareCpuSets[logical].Disabled = true;
+        }
+
+        /// <summary>
+        /// Set Disabled in logicals list
+        /// </summary>
+        public static void SetDisabled(List<int> logicals)
+        {
+            try
+            {
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                for (int logical = 0; logical < logicals.Count; logical++)
+                {
+                    HardwareCpuSets[logicals[logical]].Disabled = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally
+            {
+                InterlockCpuSet = 0;
+            }
+        }
+
+        /// <summary>
+        /// Set Disabled by selection type and optional cluster
+        /// </summary>
+        public static void SetDisabled(SelectionType selectionType, int clustermax = 0)
+        {
+            try
+            {
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                for (int logical = 0; logical < HardwareCpuSets.Length; logical++)
+                {
+                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Logical={logical}");
+
+                    bool _selected = false;
+
+                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} thiscore={thiscore} prevcore={prevcore} corecount={corecount}");
+
+                    if (logical != 0)
+                    {
+                        //if (selectionType.HasFlag(SelectionType.All)) _selected = true;
+                        if (selectionType.HasFlag(SelectionType.T1))
+                        {
+                            if (GetThreadNumber(logical) > 0) _selected = true;
+                            //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} T1 Logical={logical} Sel={_selected}");
+                        }
+                        if (selectionType.HasFlag(SelectionType.ECores))
+                        {
+                            if (HardwareCpuSets[logical].EfficiencyClass == 0 && IsHybrid) _selected = true;
+                            //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Ecores Logical={logical} Sel={_selected}");
+                        }
+                        if (selectionType.HasFlag(SelectionType.LCores))
+                        {
+                            if (HardwareCpuSets[logical].EfficiencyClass == 2 && IsHybrid) _selected = true;
+                            //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Lcores Logical={logical} Sel={_selected}");
+                        }
+                        if (selectionType.HasFlag(SelectionType.ClusterNumber) && clustermax > 0)
+                        {
+                            if (HardwareCpuSets[logical].Cluster > clustermax) _selected = true;
+                            //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Cluster Logical={logical} Sel={_selected}");
+                        }
+                    }
+                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Logical={logical} Sel={_selected}");
+                    HardwareCpuSets[logical].Disabled = _selected;
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally
+            {
+                InterlockCpuSet = 0;
+            }
+        }
+
+        /// <summary>
+        /// Clear Disabled
+        /// </summary>
+        public static void ClearDisabled(int logical)
+        {
+            try
+            {
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                HardwareCpuSets[logical].Disabled = false;
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally
+            {
+                InterlockCpuSet = 0;
+            }
+        }
+
+        /// <summary>
+        /// Clear all Disabled
+        /// </summary>
+        public static void ClearDisabled()
+        {
+            try
+            {
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                for (int logical = 0; logical < HardwareCpuSets.Length; logical++)
+                {
+                    HardwareCpuSets[logical].Disabled = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally
+            {
+                InterlockCpuSet = 0;
+            }
+        }
+
+        /// <summary>
+        /// Clear Disabled in logicals list
+        /// </summary>
+        public static void ClearDisabled(List<int> logicals)
+        {
+            try
+            {
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                for (int logical = 0; logical < logicals.Count; logical++)
+                {
+                    HardwareCpuSets[logicals[logical]].Disabled = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally
+            {
+                InterlockCpuSet = 0;
+            }
+        }
+
+        /// <summary>
+        /// Set Excluded
+        /// </summary>
+        public static void SetExcluded(int logical)
+        {
+            try
+            {
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                if (PhysicalCore(logical) != 0) HardwareCpuSets[logical].Excluded = true;
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally
+            {
+                InterlockCpuSet = 0;
+            }
+        }
+
+        /// <summary>
+        /// Set Excluded in logicals list
+        /// </summary>
+        public static void SetExcluded(List<int> logicals)
+        {
+            try
+            {
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                for (int logical = 0; logical < logicals.Count; logical++)
+                {
+                    bool _selection = false;
+                    _selection = PhysicalCore(logical) == 0 ? false : true;
+                    HardwareCpuSets[logicals[logical]].Excluded = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally
+            {
+                InterlockCpuSet = 0;
+            }
+        }
+
+        /// <summary>
+        /// Set Excluded by selection
+        /// </summary>
+        public static void SetExcluded(SelectionType selectionType = SelectionType.None, int clustermin = 1, int clustermax = int.MaxValue, int limitcores = 0, int numanode = 1, int llcindex = -1)
+        {
+            try
+            {
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                int corecount = 1;
+                int thiscore = 0;
+                int prevcore = 0;
+
+                //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} clustermin={clustermin} clustermax={clustermax} limitcores={limitcores} ishybrid={IsHybrid}");
+
+                for (int logical = 0; logical < HardwareCpuSets.Length; logical++)
+                {
+                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Logical={logical}");
+
+                    bool _selected = false;
+                    thiscore = PhysicalCore(logical);
+                    if (thiscore != prevcore)
+                    {
+                        prevcore = thiscore; 
+                        corecount++;
+                    }
+
+                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} thiscore={thiscore} prevcore={prevcore} corecount={corecount}");
+
+                    if (logical != 0)
+                    {
+                        if (selectionType.HasFlag(SelectionType.All)) _selected = true;
+                        if (selectionType.HasFlag(SelectionType.T0))
+                        {
+                            if (GetThreadNumber(logical) == 0) _selected = true;
+                            //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} T0 Logical={logical} Sel={_selected}");
+                        }
+                        if (selectionType.HasFlag(SelectionType.T1))
+                        {
+                            if (GetThreadNumber(logical) > 0) _selected = true;
+                            //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} T1 Logical={logical} Sel={_selected}");
+                        }
+                        if (selectionType.HasFlag(SelectionType.ECores))
+                        {
+                            if (HardwareCpuSets[logical].EfficiencyClass == 0 && IsHybrid) _selected = true;
+                            //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Ecores Logical={logical} Sel={_selected}");
+                        }
+                        if (selectionType.HasFlag(SelectionType.PCores))
+                        {
+                            if (HardwareCpuSets[logical].EfficiencyClass == 1 && IsHybrid) _selected = true;
+                            //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Pcores Logical={logical} Sel={_selected}");
+                        }
+                        if (selectionType.HasFlag(SelectionType.LCores))
+                        {
+                            if (HardwareCpuSets[logical].EfficiencyClass == 2 && IsHybrid) _selected = true;
+                            //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Lcores Logical={logical} Sel={_selected}");
+                        }
+                        if (selectionType.HasFlag(SelectionType.ClusterNumber))
+                        {
+                            if (HardwareCpuSets[logical].Cluster < clustermin || HardwareCpuSets[logical].Cluster > clustermax) _selected = true;
+                            //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Cluster Logical={logical} Sel={_selected}");
+                        }
+                        if (selectionType.HasFlag(SelectionType.NumaNode))
+                        {
+                            if (HardwareCpuSets[logical].NumaNodeIndex == numanode) _selected = true;
+                        }
+                        if (selectionType.HasFlag(SelectionType.LLCIndex))
+                        {
+                            if (HardwareCpuSets[logical].LastLevelCacheIndex == llcindex) _selected = true;
+                        }
+                        if (limitcores > 0 && corecount > limitcores )
+                        {
+                            _selected = true;
+                            //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Limitcores Logical={logical} Sel={_selected}");
+                        }
+                    }
+                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Logical={logical} Sel={_selected}");
+                    HardwareCpuSets[logical].Excluded = _selected;
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally 
+            {
+                InterlockCpuSet = 0;
+            }
+        }
+
+        /// <summary>
+        /// Clear Excluded
+        /// </summary>
+        public static void ClearExcluded(int logical)
+        {
+            try
+            {
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                HardwareCpuSets[logical].Excluded = false;
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally
+            {
+                InterlockCpuSet = 0;
+            }
+        }
+
+        /// <summary>
+        /// Clear all Excluded
+        /// </summary>
+        public static void ClearExcluded()
+        {
+            try
+            {
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                for (int logical = 0; logical < HardwareCpuSets.Length; logical++)
+                {
+                    HardwareCpuSets[logical].Excluded = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally
+            {
+                InterlockCpuSet = 0;
+            }
+        }
+
+        /// <summary>
+        /// Clear Excluded in logicals list
+        /// </summary>
+        public static void ClearExcluded(List<int> logicals)
+        {
+            try
+            {
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                for (int logical = 0; logical < logicals.Count; logical++)
+                {
+                    HardwareCpuSets[logicals[logical]].Excluded = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally
+            {
+                InterlockCpuSet = 0;
+            }
+        }
+
+        /// <summary>
+        /// Set Tiered Priority
+        /// 
+        /// TieredType:
+        /// None = 0,
+        /// ECoresLast = 1,
+        /// ECoresAsPCores = 2,
+        /// Clusters = 4,
+        /// 
+        /// </summary>
+        public static void SetTieredPriority(TieredType tieredType = TieredType.None, int clusters = 0)
+        {
+            try
+            {
+                while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
+                    continue;
+
+                int _priority = HardwareCpuSets.Length;
+                int _clusters = clusters > 0 ? clusters : Clusters;
+
+                if (!IsHybrid)
+                {
+                    if (tieredType.HasFlag(TieredType.Clusters))
+                    {
+                        for (int c = 1; c <= _clusters; c++)
+                        {
+                            var cpuset = HardwareCpuSets
+                                .Where(x => x.ThreadNumber == 0 && x.Cluster == c).OrderByDescending(x => x.SchedulingClass);
+                            foreach (var logical in cpuset)
+                            {
+                                logical.TieredPriority = _priority;
+                                _priority--;
+                            }
+
+                            cpuset = HardwareCpuSets
+                                .Where(x => x.ThreadNumber > 0 && x.Cluster == c).OrderBy(x => x.SchedulingClass);
+
+                            foreach (var logical in cpuset)
+                            {
+                                logical.TieredPriority = _priority;
+                                _priority--;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        var cpuset = HardwareCpuSets
+                            .Where(x => x.ThreadNumber == 0).OrderByDescending(x => x.SchedulingClass);
+
+                        foreach (var logical in cpuset)
+                        {
+                            logical.TieredPriority = _priority;
+                            _priority--;
+                        }
+
+                        cpuset = HardwareCpuSets
+                            .Where(x => x.ThreadNumber > 0).OrderBy(x => x.SchedulingClass);
+
+                        foreach (var logical in cpuset)
+                        {
+                            logical.TieredPriority = _priority;
+                            _priority--;
+                        }
+                    }
+                }
+                else // Hybrid Architecture
+                {
+                    if (tieredType.HasFlag(TieredType.Clusters))
+                    {
+                        for (int c = 1; c <= _clusters; c++)
+                        {
+                            var cpusetNormal = HardwareCpuSets
+                                .Where(x => x.ThreadNumber == 0 && x.Cluster == c).OrderByDescending(x => x.SchedulingClass);
+                            var cpusetHybrid = HardwareCpuSets
+                                .Where(x => x.ThreadNumber == 0 && x.Cluster == c && x.EfficiencyClass == 1).OrderByDescending(x => x.SchedulingClass);
+
+                            var cpuset = cpusetHybrid;
+                            var together = (cpusetNormal ?? Enumerable.Empty<IHardwareCpuSet>()).Concat(cpusetHybrid ?? Enumerable.Empty<IHardwareCpuSet>());
+
+                            foreach (var logical in cpuset)
+                            {
+                                logical.TieredPriority = _priority;
+                                _priority--;
+                            }
+                            
+                            cpuset = HardwareCpuSets
+                                .Where(x => x.ThreadNumber > 0 && x.Cluster == c).OrderBy(x => x.SchedulingClass);
+
+                            foreach (var logical in cpuset)
+                            {
+                                logical.TieredPriority = _priority;
+                                _priority--;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        var cpuset = HardwareCpuSets
+                            .Where(x => x.ThreadNumber == 0 && x.EfficiencyClass == 1).OrderByDescending(x => x.SchedulingClass);
+
+                        foreach (var logical in cpuset)
+                        {
+                            logical.TieredPriority = _priority;
+                            _priority--;
+                        }
+
+                        cpuset = HardwareCpuSets
+                            .Where(x => x.ThreadNumber > 0).OrderBy(x => x.SchedulingClass);
+
+                        foreach (var logical in cpuset)
+                        {
+                            logical.TieredPriority = _priority;
+                            _priority--;
+                        }
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                App.LogExInfo($"Exception {System.Reflection.MethodBase.GetCurrentMethod().Name}:", ex);
+            }
+            finally
+            {
+                InterlockCpuSet = 0;
+            }
+        }
+
         /// <summary>
         /// All logical core IDs
         /// </summary>
@@ -457,6 +1292,38 @@ namespace CPUDoc
         }
 
         /// <summary>
+        /// Is Hybrid Architecture
+        /// </summary>
+        public static bool IsHybrid
+        {
+            get
+            {
+                if (IsHybridCache.HasValue) return IsHybridCache.Value;
+                var effclass = HardwareCpuSets
+                    .OrderByDescending(x => x.EfficiencyClass).Select(x => x.EfficiencyClass).First()
+                    ;
+                IsHybridCache = effclass > 0 ? true : false;
+                return IsHybridCache.Value;
+            }
+        }
+
+        /// <summary>
+        /// Hybrid Architecture Level
+        /// </summary>
+        public static int HybridLevel
+        {
+            get
+            {
+                if (HybridLevelCache.HasValue) return HybridLevelCache.Value;
+                var _HybridLevel = HardwareCpuSets
+                    .OrderByDescending(x => x.EfficiencyClass).Select(x => x.Id).First()
+                    ;
+                HybridLevelCache = _HybridLevel;
+                return HybridLevelCache.Value;
+            }
+        }
+
+        /// <summary>
         /// Return CPUSets Id
         /// </summary>
         public static int Id
@@ -481,10 +1348,11 @@ namespace CPUDoc
             return 0;
         }
         /// <summary>
-        /// Get Thread ID from Logical
+        /// Get Thread Level from Logical
         /// </summary>
-        public static int ThreadID(int logicalCore)
+        public static int GetThreadNumber(int logicalCore)
         {
+            
             for (var i = 0; i < HardwareCores.Length; ++i)
             {
                 if (HardwareCores[i].LogicalCores.Contains(logicalCore))
@@ -666,6 +1534,25 @@ namespace CPUDoc
             }
             return coresbyindex;
         }
+
+        /// <summary>
+        /// Return Thread Level of a logical
+        /// </summary>
+        public static int LogicalThreadLevel(int logical)
+        {
+            for (int i = 0; i < HardwareCores.Length; i++)
+            {
+                for (int j = 0; j < HardwareCores[i].LogicalCores.Length; j++)
+                {
+                    var cpuset = HardwareCpuSets.Where(x => x.LogicalProcessorIndex == HardwareCores[i].LogicalCores[j]).First();
+                    //App.LogDebug($"LogicalThreadLevel logical={logical} Thread={j}");
+                    return j;
+                }
+            }
+            //App.LogDebug($"LogicalThreadLevel logical={logical} not found");
+            return 0;
+        }
+
         /// <summary>
         /// Get Logicals by selection NumaZero
         /// Outputs first List<int> with logicals T0 in selection, second List<int> with logicals T0 not in selection
@@ -684,46 +1571,46 @@ namespace CPUDoc
             var logicalsT1in = new List<int>();
             var logicalsT1out = new List<int>();
 
-            App.LogDebug($"LogicalsBySelection cluster={cluster} excludeType={excludeType} limitCores={limitCores} numa={numa}");
+            //App.LogDebug($"LogicalsBySelection cluster={cluster} excludeType={excludeType} limitCores={limitCores} numa={numa}");
             
             for (int i = 0; i < HardwareCores.Length; i++)
             {
-                App.LogDebug($"LogicalsBySelection core={i}");
+                //App.LogDebug($"LogicalsBySelection core={i}");
                 
                 for (int j = 0; j < HardwareCores[i].LogicalCores.Length; j++)
                 {
-                    bool selected = true;
+                    bool _selected = true;
                     var logical = HardwareCpuSets.Where(x => x.LogicalProcessorIndex == HardwareCores[i].LogicalCores[j]).First();
-                    App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} Cluster={logical.Cluster} EfficiencyClass={logical.EfficiencyClass} NumaNodeIndex={logical.NumaNodeIndex}");
+                    //App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} Cluster={logical.Cluster} EfficiencyClass={logical.EfficiencyClass} NumaNodeIndex={logical.NumaNodeIndex}");
                     if (logical != null)
                     {
-                        if (cluster < logical.Cluster ) selected = false;
-                        App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} thread={j} Cluster selected={selected}");
-                        if (numa >= 0 && logical.NumaNodeIndex > numa) selected = false;
-                        App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} thread={j} Numa selected={selected}");
-                        if ((excludeType == 2 || excludeType == 3) && (logical.EfficiencyClass == 0 && App.systemInfo.IntelHybrid)) selected = false;
-                        App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} thread={j} Ecore selected={selected}");
-                        if (j == 1 && (excludeType == 1 || excludeType == 3)) selected = false;
-                        App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} thread={j} T1 selected={selected}");
+                        if (cluster < logical.Cluster ) _selected = false;
+                        //App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} thread={j} Cluster _selected={_selected}");
+                        if (numa >= 0 && logical.NumaNodeIndex > numa) _selected = false;
+                        //App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} thread={j} Numa _selected={_selected}");
+                        if ((excludeType == 2 || excludeType == 3) && (logical.EfficiencyClass == 0 && App.systemInfo.IntelHybrid)) _selected = false;
+                        //App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} thread={j} Ecore _selected={_selected}");
+                        if (j == 1 && (excludeType == 1 || excludeType == 3)) _selected = false;
+                        //App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} thread={j} T1 _selected={_selected}");
                     }
-                    if (i > limitCores - 1 && limitCores > 0) selected = false;
-                    if (selected && j == 0)
+                    if (i > limitCores - 1 && limitCores > 0) _selected = false;
+                    if (_selected && j == 0)
                     {
                         logicalsT0in.Add(logical.LogicalProcessorIndex);
                     }
-                    else if (!selected && j == 0)
+                    else if (!_selected && j == 0)
                     {
                         logicalsT0out.Add(logical.LogicalProcessorIndex);
                     }
-                    else if (selected && j > 0)
+                    else if (_selected && j > 0)
                     {
                         logicalsT1in.Add(logical.LogicalProcessorIndex);
                     }
-                    else if (!selected && j > 0)
+                    else if (!_selected && j > 0)
                     {
                         logicalsT1out.Add(logical.LogicalProcessorIndex);
                     }
-                    App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} thread={j} selected={selected}");
+                    //App.LogDebug($"LogicalsBySelection core={i} logical={logical.LogicalProcessorIndex} Disabled={logical.Disabled} Excluded={logical.Excluded} thread={j} _selected={_selected}");
                 }
             }
 
@@ -788,6 +1675,8 @@ namespace CPUDoc
             public int[] LogicalCores { get; private set; }
             public int LogicalCoresCount { get; private set; }
             public int PhysicalCoresCount { get; private set; }
+            public int SSH_needcores { get; private set; }
+            public int SSH_usedcores { get; private set; }
         }
 
         /// <summary>
@@ -904,6 +1793,38 @@ namespace CPUDoc
             return HardwareCpuSets[logical].AllocatedToTargetProcess;
         }
         /// <summary>
+        /// Get Tiered Priority for Logical
+        /// </summary>
+        public static int? TieredPriority(int logical)
+        {
+            if (logical < 0 || logical > HardwareCpuSets.Count()) return null;
+            return HardwareCpuSets[logical].TieredPriority;
+        }
+        /// <summary>
+        /// Get ThreadNumber for Logical
+        /// </summary>
+        public static int? ThreadNumber(int logical)
+        {
+            if (logical < 0 || logical > HardwareCpuSets.Count()) return null;
+            return HardwareCpuSets[logical].ThreadNumber;
+        }
+        /// <summary>
+        /// Get Escluded for Logical
+        /// </summary>
+        public static bool? Excluded(int logical)
+        {
+            if (logical < 0 || logical > HardwareCpuSets.Count()) return null;
+            return HardwareCpuSets[logical].Excluded;
+        }
+        /// <summary>
+        /// Get Disabled for Logical
+        /// </summary>
+        public static bool? Disabled(int logical)
+        {
+            if (logical < 0 || logical > HardwareCpuSets.Count()) return null;
+            return HardwareCpuSets[logical].Disabled;
+        }
+        /// <summary>
         /// CpuSet Cluster for Logical
         /// </summary>
         public static int? CpuSetCluster(int logical)
@@ -927,6 +1848,8 @@ namespace CPUDoc
                 SchedulingClass = (int)x.CpuSetUnion.CpuSet.CpuSetSchedulingClass.SchedulingClass;
                 AllocationTag = (int)x.CpuSetUnion.CpuSet.AllocationTag;
                 AllFlagsStruct = x.CpuSetUnion.CpuSet.AllFlagsStruct.AllFlagsStruct;
+                TieredPriority = (int)x.CpuSetUnion.CpuSet.CpuSetSchedulingClass.SchedulingClass;
+                ThreadNumber = 0;
                 Cluster = 1;
                 Load = 0;
                 LoadZero = 0;
@@ -935,6 +1858,9 @@ namespace CPUDoc
                 LoadLow = 0;
                 ForcedEnable = false;
                 ForcedWhen = DateTime.MinValue;
+                Disabled = false;
+                Excluded = false;
+                
                 LoadCounter = CpuLoadPerfCounter ? new PerformanceCounter(
                 "Processor",
                 "% Processor Time",
@@ -960,9 +1886,13 @@ namespace CPUDoc
             public int LoadLow { get; set; }
             public int LoadMedium { get; set; }
             public int LoadHigh { get; set; }
+            public int TieredPriority { get; set; }
+            public int ThreadNumber { get; set; }
             public bool ForcedEnable { get; set; }
             public DateTime ForcedWhen { get; set; }
-            
+            public bool Disabled { get; set; }
+            public bool Excluded { get; set; }
+
             public PerformanceCounter LoadCounter { get; set; }
         }
         enum SE_OBJECT_TYPE
@@ -1205,7 +2135,6 @@ namespace CPUDoc
             public uint EnergyPerformancePreferenceRegister;
             public uint ReferencePerformance;
         }
-
         #region Exports
         private const ulong PROCESS_SET_INFORMATION = 0x0200;
         private const ulong PROCESS_SET_LIMITED_INFORMATION = 0x2000;
