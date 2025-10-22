@@ -1579,14 +1579,14 @@ namespace CPUDoc
 
                     App.LogInfo($" CPU Logical Processor: {j}");
 
-                    LibreHardwareMonitor.Hardware.CPU.CpuId _cpuid = LibreHardwareMonitor.Hardware.CPU.CpuId.Get(0, j);
+                    LibreHardwareMonitor.Hardware.Cpu.CpuId _cpuid = LibreHardwareMonitor.Hardware.Cpu.CpuId.Get(0, j);
                     App.LogInfo($" CPUID_0 {_cpuid.Data[0, 0]:X}");
                     App.LogInfo($" CPUID_EXT {_cpuid.ExtData[0, 0]:X}");
 
-                    uint offset = LibreHardwareMonitor.Hardware.CPU.CpuId.CPUID_0;
-                    uint offsetext = LibreHardwareMonitor.Hardware.CPU.CpuId.CPUID_EXT;
+                    uint offset = LibreHardwareMonitor.Hardware.Cpu.CpuId.CPUID_0;
+                    uint offsetext = LibreHardwareMonitor.Hardware.Cpu.CpuId.CPUID_EXT;
 
-                    if (_cpuid.Vendor == LibreHardwareMonitor.Hardware.CPU.Vendor.Intel)
+                    if (_cpuid.Vendor == LibreHardwareMonitor.Hardware.Cpu.Vendor.Intel)
                     {
                         try
                         {
@@ -1686,7 +1686,7 @@ namespace CPUDoc
                         }
                         App.LogInfo($" Hybrid: [{hybridstr}] CoreType: [{coretypestr}] AVX-512: [{avx512str}] SHA: [{shastr}] VAES: [{vaesstr}]");
                     }
-                    if (_cpuid.Vendor == LibreHardwareMonitor.Hardware.CPU.Vendor.AMD)
+                    if (_cpuid.Vendor == LibreHardwareMonitor.Hardware.Cpu.Vendor.AMD)
                     {
                         try
                         {

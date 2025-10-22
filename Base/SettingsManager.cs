@@ -739,7 +739,7 @@ namespace CPUDoc
                 config.ActiveModeBias = config.ActiveModeBias < -1 ? -1 : config.ActiveModeBias;
                 config.ActiveModeBias = config.ActiveModeBias > 2 ? 2 : config.ActiveModeBias;
                 config.Personality = config.Personality < 0 ? 0 : config.Personality;
-                config.Personality = config.Personality > 2 ? 2 : config.Personality;
+                config.Personality = config.Personality > 3 ? 0 : config.Personality;
                 config.SelectedPersonality = config.SelectedPersonality > 2 ? 2 : config.SelectedPersonality;
                 config.SelectedPersonality = config.SelectedPersonality < 1 ? 1 : config.SelectedPersonality;
                 config.PSALightSleepSeconds = config.PSALightSleepSeconds < 0 ? 0 : config.PSALightSleepSeconds;

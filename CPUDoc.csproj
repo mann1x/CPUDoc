@@ -10,7 +10,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>CPUDoc.ico</ApplicationIcon>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <Version>1.2.19</Version>
+    <Version>1.2.20</Version>
     <FileVersion>$(PackageVersion)</FileVersion>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
     <Nullable>disable</Nullable>
@@ -69,10 +69,10 @@
     <PackageReference Include="H.NotifyIcon.Wpf" Version="2.3.1" />
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
     <PackageReference Include="ImpromptuInterface" Version="8.0.6" />
-    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.1" />
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.4" />
     <PackageReference Include="Microsoft.Diagnostics.Runtime" Version="3.1.512801" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="6.0.0" />
-    <PackageReference Include="Microsoft.Win32.Registry.AccessControl" Version="7.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.10" />
+    <PackageReference Include="Microsoft.Win32.Registry.AccessControl" Version="9.0.10" />
     <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.217">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -81,17 +81,15 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="NLog" Version="6.0.5" />
     <PackageReference Include="OSVersionExt" Version="3.0.0" />
-    <PackageReference Include="PInvoke.Shell32" Version="0.7.124" />
-    <PackageReference Include="PInvoke.User32" Version="0.7.124" />
     <PackageReference Include="PowerManagerAPI-new101" Version="1.0.0" />
     <PackageReference Include="regXwild" Version="1.4.0" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
     <PackageReference Include="System.IO.Pipes.AccessControl" Version="5.0.0" />
-    <PackageReference Include="System.Management" Version="6.0.0" />
+    <PackageReference Include="System.Management" Version="9.0.10" />
     <PackageReference Include="System.ObjectModel" Version="4.3.0" />
     <PackageReference Include="System.Security.AccessControl" Version="6.0.1" />
-    <PackageReference Include="System.ServiceProcess.ServiceController" Version="6.0.0" />
-    <PackageReference Include="System.Threading.AccessControl" Version="6.0.0" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="9.0.10" />
+    <PackageReference Include="System.Threading.AccessControl" Version="9.0.10" />
     <PackageReference Include="TaskScheduler" Version="2.12.2" />
     <PackageReference Include="Vanara.PInvoke.Avrt" Version="4.2.1" />
     <PackageReference Include="Vanara.PInvoke.DwmApi" Version="4.2.1" />

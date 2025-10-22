@@ -26,7 +26,6 @@ using NLog.Config;
 using NLog.Targets;
 using NLog.Targets.Wrappers;
 using OSVersionExtension;
-using PInvoke;
 using PowerManagerAPI;
 using System;
 using System.Collections.Concurrent;

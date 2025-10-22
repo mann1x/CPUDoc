@@ -9,6 +9,9 @@
 
 ## Changelog:
 
+- v1.2.20 Beta
+    - New: Updated Nuget packages for Microsoft and LibreHWM
+    - Fix: Solved HiPerf personality reverting to Ultimate at boot
 - v1.2.19 Beta
     - Fix: Expanders in UI which made difficult toggling the associated function
 - v1.2.18 Beta
