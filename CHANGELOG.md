@@ -9,6 +9,8 @@
 
 ## Changelog:
 
+- v1.2.19 Beta
+    - Fix: Expanders in UI which made difficult toggling the associated function
 - v1.2.18 Beta
     - New: Created a Discord community server for CPUDoc and other tools
     - New: Added "High Performance" Power Plan personality option in PSA (no Auto selection for now), ideal for Intel 15th and Core Ultra

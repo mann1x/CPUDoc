@@ -378,7 +378,7 @@
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
-                                    <CheckBox Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Top" Click="PSA_Click" x:Name="cbPSA">
+                                    <CheckBox Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Top" Click="PSA_Click" x:Name="cbPSA" Panel.ZIndex="1">
                                         PowerSaverActive
                                     </CheckBox>
 
@@ -700,7 +700,7 @@
 
                                     </Grid.RowDefinitions>
 
-                                    <CheckBox Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Top" Click="ZC_Click" x:Name="cbZC">
+                                    <CheckBox Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Top" Click="ZC_Click" x:Name="cbZC" Panel.ZIndex="1">
                                         ZenControl
                                     </CheckBox>
 
@@ -821,7 +821,7 @@
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
-                                    <CheckBox Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Top" Click="NumaZero_Click" x:Name="cbNumaZero">
+                                    <CheckBox Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Top" Click="NumaZero_Click" x:Name="cbNumaZero" Panel.ZIndex="1">
                                         NumaZero
                                     </CheckBox>
 
