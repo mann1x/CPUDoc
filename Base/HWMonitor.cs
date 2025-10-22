@@ -1332,7 +1332,7 @@ namespace CPUDoc
                     if (App.pactive.SysSetHack || App.pactive.PowerSaverActive || App.pactive.ZenControl || App.MainWindowOpen)
                     {
                         if (!ProcessorInfo.CpuLoadPerfCounter) ProcessorInfo._cpuLoad.Update();
-                        ProcessorInfo.CpuLoadUpdate();
+                        ProcessorInfo.CpuLoadUpdate(App.pactive.SysSetHack);
                         ProcessorInfo.CpuTotalLoadUpdate();
                         App.cpuTotalLoad.Push(ProcessorInfo.cpuTotalLoad);
                         App.cpuTotalLoadLong.Push(ProcessorInfo.cpuTotalLoad);

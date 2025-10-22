@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -57,12 +58,26 @@ namespace CPUDoc
             get { return (string)GetValue(WinTitleProperty); }
             set { SetValue(WinTitleProperty, value); }
         }
+        
+        private readonly List<Expander> _expandersList = new List<Expander>();
 
         public static readonly DependencyProperty WinTitleProperty =
             DependencyProperty.Register("WinTitle", typeof(string), typeof(MainWindow), new UIPropertyMetadata($"CPUDoc-{App.version}", WinTitleChanged));
         public MainWindow()
         {
             InitializeComponent();
+
+            /*
+            _expandersList.AddRange(new[]
+            {
+                ExpanderPSA, ExpanderZenControl, ExpanderNumaZero,
+            });
+
+            foreach (var expander in _expandersList)
+            {
+                expander.IsExpanded = false; // collapse all expanders
+            }
+            */
         }
         private void TextBox_KeyEnterUpdate(object sender, KeyEventArgs e)
         {
@@ -229,6 +244,7 @@ namespace CPUDoc
             Persona_Auto.IsChecked = (pcurrent.Personality) == 0;
             Persona_Bala.IsChecked = (pcurrent.Personality) == 1;
             Persona_Ulti.IsChecked = (pcurrent.Personality) == 2;
+            Persona_HiPe.IsChecked = (pcurrent.Personality) == 3;
             AMBias_Auto.IsChecked = pcurrent.ActiveModeBias == -1 ? true : false;
             AMBias_Economizer.IsChecked = pcurrent.ActiveModeBias == 0 ? true : false;
             AMBias_Standard.IsChecked = pcurrent.ActiveModeBias == 1 ? true : false;
@@ -491,11 +507,11 @@ namespace CPUDoc
 
                 int pcore = 0;
                 string lcore = "C";
-                Brush starcore = Brushes.White;
+                //Brush starcore = Brushes.White;
 
                 for (int c = 0; c < threads; ++c)
                 {
-                    starcore = ProcessorInfo.CoresByGoldenCheck(c) ? Brushes.Yellow : Brushes.White;
+                    //starcore = ProcessorInfo.LogicalGoldenCheck(c) ? Brushes.Yellow : Brushes.White;
 
                     len = 0;
                     if (t1 != ProcessorInfo.HardwareCpuSets[c].LogicalProcessorIndex || (c == threads && len == 1))
@@ -519,10 +535,10 @@ namespace CPUDoc
                         {
                             lcore = ProcessorInfo.HardwareCpuSets[c].EfficiencyClass == 1 ? "P" : "E";
                         }
-                        Button btnCore = new Button { Width = 32, VerticalAlignment = VerticalAlignment.Center, Tag = $"C{pcore}", Content = $"{lcore}{pcore}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar, Foreground = starcore };
-                        Button btnT0 = new Button { Width = 16, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Content = $"T0", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        Button btnCore = new Button { Width = 32, VerticalAlignment = VerticalAlignment.Center, Tag = $"C{pcore}", Content = $"{lcore}{pcore}", Padding = curcpupad, IsEnabled = false, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar, Foreground = System.Windows.Media.Brushes.White };
+                        Button btnT0 = new Button { Width = 16, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Content = $"T0", Padding = curcpupad, IsEnabled = true, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
                         ProgressBar loadT0 = new ProgressBar { Name = "tload", Maximum = 100, VerticalAlignment = VerticalAlignment.Center, Tag = $"{t0}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
-                        Button btnT1 = new Button { Width = 16, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed, Tag = $"{t1}", Content = $"T1", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        Button btnT1 = new Button { Width = 16, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed, Tag = $"{t1}", Content = $"T1", Padding = curcpupad, IsEnabled = true, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
                         ProgressBar loadT1 = new ProgressBar { Name = "tload", Maximum = 100, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed, Tag = $"{t1}", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
 
                         loadT0.Width = 16;
@@ -534,7 +550,7 @@ namespace CPUDoc
                         loadT0.IsIndeterminate = false;
                         loadT1.IsIndeterminate = false;
 
-                        Button btnSpace = new Button { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Content = $"TX", Padding = curcpupad, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
+                        Button btnSpace = new Button { VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Hidden, Content = $"TX", Padding = curcpupad, IsEnabled = false, HorizontalAlignment = HorizontalAlignment.Right, Margin = curcpumar };
                         App.LogDebug($"{lcore}{pcore} {t0} {t1} {_col} {_row} {threads}");
                         _gridblock.Children.Add(btnCore);
                         Grid.SetColumn(btnCore, _col);
@@ -562,7 +578,7 @@ namespace CPUDoc
                             Binding bindLiveParking = new Binding($"CpuCparked[{pcore}]");
                             bindLiveParking.Mode = BindingMode.OneWay;
                             bindLiveParking.Source = App.systemInfo;
-                            BindingOperations.SetBinding(btnCore, BackgroundProperty, bindLiveParking);
+                            BindingOperations.SetBinding(btnCore, BorderBrushProperty, bindLiveParking);
 
                             Binding bindLiveStateFG = new Binding($"CpuTstateFG[{t0}]");
                             bindLiveStateFG.Mode = BindingMode.OneWay;
@@ -745,6 +761,25 @@ namespace CPUDoc
                 //App.LogInfo($"Apply CPUdisplay state WinLoad 0x{App.SysCpuSetMask:X8}");
                 for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
                 {
+                    if (ProcessorInfo.HardwareCpuSets[i].Excluded == true)
+                    {
+                        App.systemInfo.UpdateStateThread(i, 1);
+                    }
+                    else if (ProcessorInfo.HardwareCpuSets[i].Disabled == true && ProcessorInfo.HardwareCpuSets[i].ForcedEnable == false)
+                    {
+                        App.systemInfo.UpdateStateThread(i, 2);
+                    }
+                    else if (ProcessorInfo.HardwareCpuSets[i].Disabled == true && (ProcessorInfo.HardwareCpuSets[i].OnDemand == true || ProcessorInfo.HardwareCpuSets[i].ForcedEnable == true))
+                    {
+                        //App.LogDebug($"SetSysCpuSet UpdateStateThread Logical={i} [Disabled]");
+                        App.systemInfo.UpdateStateThread(i, 3);
+                    }
+                    else
+                    {
+                        App.systemInfo.UpdateStateThread(i, 0);
+                    }
+
+                    /*
                     //App.LogInfo($"Apply state {i}");
                     if ((((ulong)(1 << i) & App.SysCpuSetMask) != 0) || App.SysCpuSetMask == 0 || !((bool)App.pactive.ThreadBooster))
                     {
@@ -761,77 +796,78 @@ namespace CPUDoc
                         App.systemInfo.UpdateStateThread(i, 2);
                         //App.LogInfo($"Apply state RED2 {i}");
                     }
+                    */
                 }
 
-                /*
-                ulong? _lastmask = App.lastSysCpuSetMask;
-                if (forced) _lastmask = null;
-                //App.LogDebug($"UI Mask _lastmask:{_lastmask:X8} _lastmask_current:{_lastmask_current:X8} forced={forced}");
+                    /*
+                    ulong? _lastmask = App.lastSysCpuSetMask;
+                    if (forced) _lastmask = null;
+                    //App.LogDebug($"UI Mask _lastmask:{_lastmask:X8} _lastmask_current:{_lastmask_current:X8} forced={forced}");
 
-#pragma warning disable CS0252 // Possible unintended reference comparison; left hand side needs cast
-                IEnumerable<Button> elements = FindVisualChildren<Button>(this).Where(x => x.Content == "T0" || x.Content == "T1");
-#pragma warning restore CS0252 // Possible unintended reference comparison; left hand side needs cast
+    #pragma warning disable CS0252 // Possible unintended reference comparison; left hand side needs cast
+                    IEnumerable<Button> elements = FindVisualChildren<Button>(this).Where(x => x.Content == "T0" || x.Content == "T1");
+    #pragma warning restore CS0252 // Possible unintended reference comparison; left hand side needs cast
 
-                if (_lastmask != _lastmask_current || _lastmask_current == ulong.MaxValue)
-                {
-                    //App.LogDebug($"Refreshing UI Mask");
+                    if (_lastmask != _lastmask_current || _lastmask_current == ulong.MaxValue)
+                    {
+                        //App.LogDebug($"Refreshing UI Mask");
+
+                        for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
+                        {
+                            ulong? _mask = _lastmask;
+                            foreach (Button btn in elements)
+                            {
+                                if (btn.Tag.ToString() == $"{i}")
+                                {
+                                    if ((((ulong)(1 << i) & _mask) != 0) || _mask == null || _mask == 0 || !((bool)App.pactive.ThreadBooster))
+                                    {
+                                        btn.Foreground = Brushes.White;
+                                        btn.Background = Brushes.Green;
+                                    }
+                                    else if (!(((ulong)(1 << i) & _mask) != 0) && (App.n0disabledT0.Contains(i) || App.n0disabledT1.Contains(i)))
+                                    {
+                                        btn.Foreground = Brushes.DarkGray;
+                                        btn.Background = Brushes.Black;
+                                    }
+                                    else
+                                    {
+                                        btn.Foreground = Brushes.LightGray;
+                                        btn.Background = Brushes.DarkRed;
+                                    }
+                                }
+                            }
+                        }
+                        _lastmask_current = _lastmask;
+                    }
+
+    #pragma warning disable CS0252 // Possible unintended reference comparison; left hand side needs cast
+                    IEnumerable<Button> elementscore = FindVisualChildren<Button>(this).Where(x => x.Tag != null && (x.Tag.ToString().StartsWith("C") || x.Tag.ToString().StartsWith("E") || x.Tag.ToString().StartsWith("P")));
+    #pragma warning restore CS0252 // Possible unintended reference comparison; left hand side needs cast
 
                     for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
                     {
-                        ulong? _mask = _lastmask;
-                        foreach (Button btn in elements)
+                        int _core = ProcessorInfo.PhysicalCore(i);
+                        //App.LogDebug($"Refreshing Core {_core} Parking Mask");
+                        foreach (Button btn in elementscore)
                         {
-                            if (btn.Tag.ToString() == $"{i}")
+                            //App.LogDebug($"btn Tag={btn.Tag.ToString()}");
+                            if (btn.Tag.ToString() == $"C{_core}" || btn.Tag.ToString() == $"E{_core}" || btn.Tag.ToString() == $"P{_core}")
                             {
-                                if ((((ulong)(1 << i) & _mask) != 0) || _mask == null || _mask == 0 || !((bool)App.pactive.ThreadBooster))
+                                //App.LogDebug($"btn C{_core} found");
+                                if (ProcessorInfo.HardwareCpuSets[i].LogicalProcessorIndex > 3) 
+                                //if (ProcessorInfo.HardwareCpuSets[i].Parked == 1)
                                 {
-                                    btn.Foreground = Brushes.White;
-                                    btn.Background = Brushes.Green;
-                                }
-                                else if (!(((ulong)(1 << i) & _mask) != 0) && (App.n0disabledT0.Contains(i) || App.n0disabledT1.Contains(i)))
-                                {
-                                    btn.Foreground = Brushes.DarkGray;
-                                    btn.Background = Brushes.Black;
+                                    btn.Background = Brushes.Blue;
                                 }
                                 else
                                 {
-                                    btn.Foreground = Brushes.LightGray;
-                                    btn.Background = Brushes.DarkRed;
+                                    btn.Background = Brushes.Transparent;
                                 }
                             }
                         }
                     }
-                    _lastmask_current = _lastmask;
+                    */
                 }
-
-#pragma warning disable CS0252 // Possible unintended reference comparison; left hand side needs cast
-                IEnumerable<Button> elementscore = FindVisualChildren<Button>(this).Where(x => x.Tag != null && (x.Tag.ToString().StartsWith("C") || x.Tag.ToString().StartsWith("E") || x.Tag.ToString().StartsWith("P")));
-#pragma warning restore CS0252 // Possible unintended reference comparison; left hand side needs cast
-
-                for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
-                {
-                    int _core = ProcessorInfo.PhysicalCore(i);
-                    //App.LogDebug($"Refreshing Core {_core} Parking Mask");
-                    foreach (Button btn in elementscore)
-                    {
-                        //App.LogDebug($"btn Tag={btn.Tag.ToString()}");
-                        if (btn.Tag.ToString() == $"C{_core}" || btn.Tag.ToString() == $"E{_core}" || btn.Tag.ToString() == $"P{_core}")
-                        {
-                            //App.LogDebug($"btn C{_core} found");
-                            if (ProcessorInfo.HardwareCpuSets[i].LogicalProcessorIndex > 3) 
-                            //if (ProcessorInfo.HardwareCpuSets[i].Parked == 1)
-                            {
-                                btn.Background = Brushes.Blue;
-                            }
-                            else
-                            {
-                                btn.Background = Brushes.Transparent;
-                            }
-                        }
-                    }
-                }
-                */
-            }
             catch { }            
         }
 
@@ -1408,6 +1444,7 @@ namespace CPUDoc
                     if (Persona_Auto.IsChecked == true) pcurrent.Personality = 0;
                     if (Persona_Bala.IsChecked == true) pcurrent.Personality = 1;
                     if (Persona_Ulti.IsChecked == true) pcurrent.Personality = 2;
+                    if (Persona_HiPe.IsChecked == true) pcurrent.Personality = 3;
 
                     if (AMBias_Auto.IsChecked == true) pcurrent.ActiveModeBias = -1;
                     if (AMBias_Economizer.IsChecked == true) pcurrent.ActiveModeBias = 0;
@@ -1587,6 +1624,32 @@ namespace CPUDoc
         private void MainWindow_Closed(object sender, EventArgs e)
         {
             App.MainWindowOpen= false;
+        }
+
+        private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
+
+        private void SysConfig_Expander_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (!_expandersList.Contains(sender as Expander)) _expandersList.Add(sender as Expander);
+        }
+
+        private void SysConfig_Expander_AutoHide(object sender, RoutedEventArgs e)
+        {
+            var _exp = sender as Expander;
+            foreach (var expitem in _expandersList)
+            {
+                if (expitem.Name != _exp.Name)
+                {
+                    expitem.IsExpanded = false;
+                }
+                else
+                {
+                    if (!_exp.IsExpanded) _exp.IsExpanded = true;
+                }
+            }
         }
     }
     public class NumericValidationRule : ValidationRule

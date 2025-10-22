@@ -58,8 +58,11 @@ namespace CPUDoc
         public static int setcores = 0;
         public static int newsetcores = 0;
         public static int deltalesscores = 0;
+        public static int coreratio = 0;
         public static int forceCustomSysMaskDuration = 90;
+        public static double TotalEnabledLoadNorm = 0;
         public static bool forceCustomSysMask = false;
+        public static int InterlockBitMaskUpdate = 0;
         public static DateTime forceCustomSysMaskStamp = DateTime.MinValue;
         public static DateTime prevIncreaseStamp = DateTime.MinValue;
         public static DateTime prevFullcoresStamp = DateTime.MinValue;
@@ -203,7 +206,8 @@ namespace CPUDoc
                     
                     setcores = basecores;
                     HighTotalLoadThreshold = (basecores + addcores) * 100 / ProcessorInfo.LogicalCoresCount * HighTotalLoadFactor;
-                    setcores = basecores + addcores;
+                    //??
+                    //setcores = basecores + addcores;
 
                     /*
                     if (!App.pactive.SysSetHack && numazero_b)
@@ -280,7 +284,7 @@ namespace CPUDoc
                 */
                 _addcores = _addcores > addcores ? addcores : _addcores;
 
-                return ProcessorInfo.CreateSSHBitMask(defBitMask, _addcores);
+                return ProcessorInfo.CreateCustomBitMask(defBitMask, _addcores);
             }
             catch (Exception ex)
             {
@@ -305,6 +309,9 @@ namespace CPUDoc
                 tbtoken = (CancellationToken)App.tbcts.Token;
                 App.mrestb.Set();
 
+                Process.GetCurrentProcess().PriorityBoostEnabled = true;
+                Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.RealTime;
+
                 while (true) 
                 {
                     lock (App.lockApply)
@@ -313,7 +320,7 @@ namespace CPUDoc
                         {
                             App.SysCpuSetMask = defFullBitMask;
                             App.SetSysCpuSet(0, "RTB_mrestb_IsSet");
-                            App.lastSysCpuSetMask = defFullBitMask;
+                            //App.lastSysCpuSetMask = defFullBitMask;
                             App.PSAPlanDisable();
                             ZenControlDisable();
                             App.lastPSABiasCurrent = null;
@@ -349,9 +356,6 @@ namespace CPUDoc
                     }
                     tbpoolingStamp = DateTime.Now;
 
-
-                    //Process.GetCurrentProcess().PriorityBoostEnabled = true;
-
                     // if (debugtb_steps) App.LogDebug("Stop 004");
 
                     if (!bInit && App.activeconfig_b)
@@ -374,7 +378,7 @@ namespace CPUDoc
 
                         BuildDefaultMask("RTB1");
 
-                        App.lastSysCpuSetMask = 0;
+                        //App.lastSysCpuSetMask = null;
                         App.SysCpuSetMask = !App.pactive.SysSetHack && numazero_b ? defFullBitMask : defBitMask;
                         App.systemInfo.PSABias = "";
 
@@ -470,7 +474,7 @@ namespace CPUDoc
                     {
                         lock (lockApply)
                         {
-                            App.lastSysCpuSetMask = 0;
+                            //App.lastSysCpuSetMask = 0;
                             App.SysCpuSetMask = !App.pactive.SysSetHack && numazero_b ? defFullBitMask : defBitMask;
                             App.reapplyProfile = false;
                         }
@@ -576,15 +580,15 @@ namespace CPUDoc
                                         _GameMode = true;
                                         _PLEvtPerfMode = true;
 
-                                        if (PLEvtPerfMode == false)
-                                            App.LogDebug("Process Lasso Performance Mode enabled");
+                                        //if (PLEvtPerfMode == false)
+                                            //App.LogDebug("Process Lasso Performance Mode enabled");
                                     }
                                     else
                                     {
                                         if (PLEvtPerfMode == true)
                                         {
                                             _PLEvtPerfMode = false;
-                                            App.LogDebug("Process Lasso Performance Mode disabled");
+                                            //App.LogDebug("Process Lasso Performance Mode disabled");
                                         }
                                     }
                                 }
@@ -660,7 +664,7 @@ namespace CPUDoc
                     {
                         BuildDefaultMask("RTB2");
                         App.LogDebug($"Set NumaZero ThreadBooster Apply mask 0x{defFullBitMask:X16}");
-                        App.lastSysCpuSetMask = 0;
+                        //App.lastSysCpuSetMask = 0;
                         App.SysCpuSetMask = defFullBitMask;
                     }
 
@@ -707,43 +711,62 @@ namespace CPUDoc
                         }
                         else
                         {
+                            //App.LogDebug($"_cpuTotalLoad {_cpuTotalLoad} > _computedhlt {_computedhlt}");
                             PoolingInterval = PoolingIntervalDefault;
                             //App.LogDebug($"CpuLoad: {ProcessorInfo.cpuTotalLoad:0}");
                             //App.LogDebug($"\tLoad-0-T0={ProcessorInfo.HardwareCpuSets[0].Load:0} \tLoad-0-T1={ProcessorInfo.HardwareCpuSets[1].Load:0}");
 
-                            if (App.pactive.SysSetHack)
+                            if (App.pactive.SysSetHack && InterlockBitMaskUpdate == 0)
                             {
                                 // if (debugtb_steps) App.LogDebug("Stop 014b");
-                                int sshstep = 0;
-                                needcores = usedcores = newsetcores = morecores = 0;
+                                //needcores = usedcores = newsetcores = morecores = 0;
 
-                                while (Interlocked.CompareExchange(ref ProcessorInfo.InterlockCpuLoadUpdate, 1, 0) != 0)
+                                prevMorecores = ProcessorInfo.SSH_ondemandcores + ProcessorInfo.SSH_forcedcores;
+
+                                newsetcores = morecores = 0;
+                                //newsetcores = 0;
+                                //morecores = prevMorecores;
 
                                 needcores = ProcessorInfo.SSH_needcores;
                                 usedcores = ProcessorInfo.SSH_usedcores;
-                                
-                                ProcessorInfo.InterlockCpuLoadUpdate = 0;
+                                TotalEnabledLoadNorm = ProcessorInfo.TotalEnabledLoadNorm;
 
-                                sshstep++;
-                                //App.LogDebug($"RTBSSH{sshstep} TotalEnabledLoadNorm={ProcessorInfo.TotalEnabledLoadNorm} setcores {setcores} newsetcores {newsetcores} basecores {basecores} usedcores {usedcores} needcores {needcores} morecores {morecores} addcores={addcores}");
+                                //App.LogDebug($"RTBSSH1 **** prevMorecores {prevMorecores} SSH_ondemandcores {ProcessorInfo.SSH_ondemandcores} SSH_forcedcores {ProcessorInfo.SSH_forcedcores}");
 
-                                morecores = needcores - basecores > 0 ? needcores - basecores : 0;
+                                //ProcessorInfo.InterlockCpuLoadUpdate = 0;
 
-                                if (needcores >= basecores && ProcessorInfo.TotalEnabledLoadNorm > 80)
-                                    morecores += (usedcores - needcores) / 2 >= 1 ? (usedcores - needcores) / 2 : 1;
+                                //App.LogDebug($"RTBSSH1 TotalEnabledLoadNorm={TotalEnabledLoadNorm} setcores {setcores} newsetcores {newsetcores} basecores {basecores} usedcores {usedcores} needcores {needcores} morecores {morecores} addcores={addcores}");
 
-                                sshstep++;
-                                //App.LogDebug($"RTBSSH{sshstep} setcores {setcores} newsetcores {newsetcores} basecores {basecores} usedcores {usedcores} needcores {needcores} morecores {morecores} addcores={addcores}");
+                                //morecores += needcores - basecores > 0 ? needcores - basecores : 0;
+                                morecores = usedcores - basecores > 0 ? usedcores - basecores : 0;
+
+                                /*
+                                if ((needcores >= setcores && TotalEnabledLoadNorm > 95) || (usedcores >= basecores && usedcores/needcores >= 1.7))
+                                {
+                                    coreratio = (usedcores + needcores) / setcores;
+                                    morecores += (coreratio >= 1.9) ? 3 : (coreratio >= 1.6) ? 2 : (coreratio >= 1.3) ? 1 : 0;
+                                }
+                                */
+                                //morecores += (usedcores - needcores) / 2 >= 1 ? (usedcores - needcores) / 2 : 0;
+
+                                //if ( needcores > 0 && needcores >= usedcores-1 && TotalEnabledLoadNorm > 90)
+                                if (usedcores >= basecores && needcores > 0 && needcores >= usedcores - 1)
+                                {
+                                    //morecores += (usedcores - needcores) / 2 >= 1 ? (usedcores - needcores) / 2 : 1;
+                                    morecores += (needcores >= usedcores - 1) ? 2 : 1;
+                                }
+
+                                //App.LogDebug($"RTBSSH2 setcores {setcores} newsetcores {newsetcores} basecores {basecores} usedcores {usedcores} needcores {needcores} morecores {morecores} addcores={addcores} TotalEnabledLoadNorm={TotalEnabledLoadNorm}");
 
                                 if (morecores > addcores) morecores = addcores;
 
-                                sshstep++;
-                                //App.LogDebug($"RTBSSH{sshstep} setcores {setcores} newsetcores {newsetcores} basecores {basecores} usedcores {usedcores} needcores {needcores} morecores {morecores} addcores={addcores}");
+                                //App.LogDebug($"RTBSSH3 setcores {setcores} newsetcores {newsetcores} basecores {basecores} usedcores {usedcores} needcores {needcores} morecores {morecores} addcores={addcores}");
 
                                 newsetcores = basecores + morecores;
 
-                                sshstep++;
-                                //App.LogDebug($"RTBSSH{sshstep} setcores {setcores} newsetcores {newsetcores} basecores {basecores} usedcores {usedcores} needcores {needcores} morecores {morecores} addcores={addcores}");
+                                //if (newsetcores > usedcores) newsetcores = usedcores;
+
+                                //App.LogDebug($"RTBSSH4 setcores {setcores} newsetcores {newsetcores} basecores {basecores} usedcores {usedcores} needcores {needcores} morecores {morecores} addcores={addcores}");
 
                                 _deltaStamp = DateTime.Now - prevIncreaseStamp;
 
@@ -751,52 +774,66 @@ namespace CPUDoc
 
                                 //App.LogDebug($"SetHysteresis {SetHysteresis} {_deltaStamp.TotalSeconds}");
 
-                                sshstep++;
-                                //App.LogDebug($"RTBSSH{sshstep} setcores {setcores} newsetcores {newsetcores} basecores {basecores} usedcores {usedcores} needcores {needcores} morecores {morecores} addcores={addcores}");
+                                //App.LogDebug($"RTBSSH5 setcores {setcores} newsetcores {newsetcores} basecores {basecores} usedcores {usedcores} needcores {needcores} morecores {morecores} addcores={addcores}");
 
                                 deltalesscores = newsetcores - setcores;
 
-                                sshstep++;
-                                //App.LogDebug($"RTBSSH{sshstep} setcores {setcores} newsetcores {newsetcores} basecores {basecores} usedcores {usedcores} needcores {needcores} morecores {morecores} addcores={addcores}");
+                                //App.LogDebug($"RTBSSH6 setcores {setcores} newsetcores {newsetcores} deltalesscores {deltalesscores}");
 
-                                if (deltalesscores < 0 && _deltaStamp.TotalSeconds <= IncreaseHysteresis)
+                                if (deltalesscores < 0 && _deltaStamp.TotalSeconds >= IncreaseHysteresis && !SetHysteresis)
                                 {
-                                    //App.LogDebug($"Slow decreasing");
-                                    morecores = deltalesscores > 8 ? prevMorecores - 4 : deltalesscores > 4 ? prevMorecores - 2 : prevMorecores - 1;
+                                    //App.LogDebug($"Slow decreasing PRE morecores {morecores} SetHysteresis={SetHysteresis}");
+                                    morecores = deltalesscores > 8 && morecores > 4 ? morecores - 4 : deltalesscores > 4 && morecores > 2 ? morecores - 2 : morecores - 1;
+                                    //if (morecores < prevMorecores && morecores >= 0) prevMorecores = morecores;
+                                    //App.LogDebug($"Slow decreasing POST morecores {morecores} SetHysteresis={SetHysteresis}");
                                 }
-                                else if (newsetcores >= basecores && setcores <= basecores && needcores >= basecores && ProcessorInfo.TotalEnabledLoadNorm > 98)
+                                else if (newsetcores >= basecores && needcores >= usedcores)
                                 {
-                                    morecores = addcores;
+                                    if (TotalEnabledLoadNorm >= 100)
+                                    {
+                                        morecores = addcores;
+                                    }
+                                    else if (TotalEnabledLoadNorm > 98)
+                                    {
+                                        morecores += 2;
+                                    }
+                                    else if (TotalEnabledLoadNorm > 95)
+                                    {
+                                        morecores++;
+                                    }
+                                    if (morecores > addcores) morecores = addcores;
+                                    //App.LogDebug($"Top morecores {morecores} SetHysteresis={SetHysteresis}");
                                 }
 
-                                sshstep++;
-                                //App.LogDebug($"RTBSSH{sshstep} setcores {setcores} newsetcores {newsetcores} basecores {basecores} usedcores {usedcores} needcores {needcores} morecores {morecores} addcores={addcores}");
+                                //App.LogDebug($"RTBSSH7 setcores {setcores} newsetcores {newsetcores} basecores {basecores} usedcores {usedcores} needcores {needcores} morecores {morecores} addcores={addcores}");
 
                                 newsetcores = basecores + morecores;
 
-                                sshstep++;
-                                //App.LogDebug($"RTBSSH{sshstep} setcores {setcores} newsetcores {newsetcores} basecores {basecores} prevmorecores {prevMorecores} morecores {morecores} addcores={addcores}");
+                                //App.LogDebug($"RTBSSH8 setcores {setcores} newsetcores {newsetcores} basecores {basecores} prevMorecores {prevMorecores} morecores {morecores} addcores={addcores}");
 
-                                if (prevMorecores != morecores || ProcessorInfo.IsForceEnableAny())
+                                //if (morecores > 0 || prevMorecores != morecores || ProcessorInfo.SSH_UpdateSysMask)
+                                if (setcores != newsetcores || ProcessorInfo.IsForceEnableAny() || ProcessorInfo.SSH_UpdateSysMask)
                                 {
-                                    //App.LogDebug($"RTBSSH defBitMask 0x{defBitMask:X8} defFullBitMask 0x{defFullBitMask:X8} addcores={addcores}");
+                                    //App.LogDebug($"RTBSSH defBitMask 0x{defBitMask:X16} defFullBitMask 0x{defFullBitMask:X16} addcores={addcores}");
                                     newBitMask = ProcessorInfo.CreateSSHBitMask(defBitMask, morecores);
                                     //prevNeedcores = needcores;
                                     //setcores = newsetcores;
-                                    //App.LogDebug($"RTBSSH newbitMask 0x{newBitMask:X8} prevBitMask 0x{App.SysCpuSetMask:X8} morecores={morecores}");
+                                    //App.LogDebug($"RTBSSH [{CountBits(App.SysCpuSetMask)}->{CountBits(newBitMask)}] newbitMask 0x{newBitMask:X16} prevBitMask 0x{App.SysCpuSetMask:X16} morecores={morecores}");
+
+                                    if (newBitMask != App.SysCpuSetMask && !SetHysteresis)
+                                    {
+                                        // if (debugtb_steps) App.LogDebug("Stop 014c");
+                                        //App.LogDebug($"RTBSSH set newbitMask 0x{newBitMask:X16} prevBitMask 0x{App.SysCpuSetMask:X16} {morecores}");
+                                        //App.LogDebug($"setcores {setcores} newsetcores {newsetcores} basecores {basecores} morecores {morecores}");
+                                        if (newsetcores > setcores) prevIncreaseStamp = DateTime.Now;
+                                        App.SysCpuSetMask = newBitMask;
+                                        InterlockBitMaskUpdate = 1;
+                                        setcores = newsetcores;
+                                        prevNeedcores = needcores;
+                                        prevMorecores = morecores;
+                                    }
                                 }
 
-                                if (newBitMask != App.SysCpuSetMask && !SetHysteresis)
-                                {
-                                    // if (debugtb_steps) App.LogDebug("Stop 014c");
-                                    //App.LogDebug($"set newbitMask 0x{newBitMask:X8} prevBitMask 0x{App.SysCpuSetMask:X8} {morecores}");
-                                    //App.LogDebug($"setcores {setcores} newsetcores {newsetcores} basecores {basecores} morecores {morecores}");
-                                    if (newsetcores > setcores) prevIncreaseStamp = DateTime.Now;
-                                    prevNeedcores = needcores;
-                                    prevMorecores = morecores;
-                                    setcores = newsetcores;
-                                    App.SysCpuSetMask = newBitMask;
-                                }
                                 //prevMorecores = morecores;
                                 //if (needcores > 0 || morecores > 0 || usedcores > basecores)
                                 //    App.LogDebug($"needcores {needcores} morecores {morecores} usedcores {usedcores} setcores {setcores} newsetcores {newsetcores} T0Load {TotalT0LoadNorm}");
@@ -834,7 +871,6 @@ namespace CPUDoc
             finally
             {
                 ProcessorInfo.InterlockCpuLoadUpdate = 0;
-
             }
         }
 
@@ -1917,14 +1953,17 @@ namespace CPUDoc
                 systoken = (CancellationToken)App.syscts.Token;
                 App.mressys.Set();
 
+                Process.GetCurrentProcess().PriorityBoostEnabled = true;
+                Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.RealTime;
+
                 while (true)
                 {
                     lock (App.lockApply)
                     {
                         if (!App.mressys.IsSet)
                         {
-                            SysCpuSetMask = 0;
-                            lastSysCpuSetMask = ThreadBooster.defFullBitMask;
+                            SysCpuSetMask = ThreadBooster.defFullBitMask;
+                            //lastSysCpuSetMask = ThreadBooster.defFullBitMask;
                             SetSysCpuSet(ThreadBooster.defFullBitMask, "RSCS_Mressys_IsSet");
                         }
                     }
@@ -1946,7 +1985,7 @@ namespace CPUDoc
                                 App.LogInfo($"RunSysCpuSet Action [Cores:{basecores}+{addcores}={basecores + addcores}] 0x{App.lastSysCpuSetMask:X16} -> 0x{App.SysCpuSetMask:X16} - {CountBits(App.lastSysCpuSetMask)} -> {CountBits(App.SysCpuSetMask)}");
                                 if (App.SetSysCpuSet(App.SysCpuSetMask, "RSCS_Action") == 0)
                                 {
-                                    App.lastSysCpuSetMask = App.SysCpuSetMask;
+                                    //App.lastSysCpuSetMask = App.SysCpuSetMask;
 
                                     if (App.SysCpuSetMask != 0)
                                     {
@@ -1957,10 +1996,13 @@ namespace CPUDoc
                         }
                         else if (!ThreadBooster.bInit && !pactive.SysSetHack && !pactive.NumaZero)
                         {
+                            App.SetSysCpuSet(0, "RSCS_TBInit_False");
+                            /*
                             if (App.SetSysCpuSet(0, "RSCS_TBInit_False") == 0)
                             {
                                 App.lastSysCpuSetMask = App.SysCpuSetMask;
                             }
+                            */
                         }
                     }
                     catch (Exception ex)
@@ -2062,8 +2104,9 @@ namespace CPUDoc
         {
             ProcessorInfo.ResetLoadThreads();
             setcores = basecores;
-            App.SetSysCpuSet(defBitMask, "ResetSSH");
+            //App.SetSysCpuSet(defBitMask, "ResetSSH");
             App.SysCpuSetMask = defBitMask;
+            App.lastSysCpuSetMask = 0;
         }
         public static void ForceCustomSysMask(bool enable, ulong bitmask = ulong.MaxValue, int duration = int.MaxValue)
         {
@@ -2304,8 +2347,8 @@ namespace CPUDoc
                 App.syscts.Dispose();
                 App.syscts = new CancellationTokenSource();
                 Thread.Sleep(100);
-                SysCpuSetMask = 0;
-                lastSysCpuSetMask = ThreadBooster.defFullBitMask;
+                //SysCpuSetMask = 0;
+                //lastSysCpuSetMask = ThreadBooster.defFullBitMask;
                 SetSysCpuSet(ThreadBooster.defFullBitMask, "Close SCS");
             }
         }

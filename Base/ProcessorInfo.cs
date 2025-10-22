@@ -31,6 +31,7 @@ namespace CPUDoc
         private static bool? IsHybridCache = null;
         private static int? HybridLevelCache = null;
         private static int InterlockCpuSet = 0;
+        private static bool ExtraInfo = false;
         public static int InterlockCpuLoadUpdate = 0;
         public static int Clusters { get; private set; }
 
@@ -40,9 +41,12 @@ namespace CPUDoc
         public static double threadsTotalLoad { get; set; }
         public static double TotalEnabledLoad { get; set; }
         public static double TotalEnabledLoadNorm { get; set; }
+        public static int EnabledLogicals = 0;
         public static int SSH_needcores { get; private set; }
         public static int SSH_usedcores { get; private set; }
-
+        public static int SSH_forcedcores { get; private set; }
+        public static int SSH_ondemandcores { get; private set; }
+        public static bool SSH_UpdateSysMask { get; private set; }
         /// <summary>
         /// Selection types enum
         /// </summary>
@@ -94,6 +98,18 @@ namespace CPUDoc
             /// Used, medium threshold, logicals count
             /// </summary>
             int SSH_usedcores { get; }
+            /// <summary>
+            /// Forced enable, logicals count
+            /// </summary>
+            int SSH_forcedcores { get; }
+            /// <summary>
+            /// Ondemand cores, logicals count
+            /// </summary>
+            int SSH_ondemandcores { get; }
+            /// <summary>
+            /// SSH needs a SysMask update
+            /// </summary>
+            bool SSH_UpdateSysMask { get; }
 
         }
 
@@ -207,11 +223,15 @@ namespace CPUDoc
             /// </summary>
             int LoadHigh { get; set; }
             /// <summary>
-            /// Forced enable
+            /// Enabled On Demand by SSH
+            /// </summary>
+            bool OnDemand { get; set; }
+            /// <summary>
+            /// Forced enable by Load
             /// </summary>
             bool ForcedEnable { get; set; }
             /// <summary>
-            /// Forced enable
+            /// Forced enable time stamp
             /// </summary>
             DateTime ForcedWhen { get; set; }
             /// <summary>
@@ -219,7 +239,7 @@ namespace CPUDoc
             /// </summary>
             bool Disabled { get; set; }
             /// <summary>
-            /// Forced enable
+            /// Excluded by Selection
             /// </summary>
             bool Excluded { get; set; }
             /// <summary>
@@ -227,9 +247,13 @@ namespace CPUDoc
             /// </summary>
             int TieredPriority { get; set; }
             /// <summary>
-            /// THread Number (T0, T1, ...)
+            /// Thread Number (T0, T1, ...)
             /// </summary>
             int ThreadNumber { get; set; }
+            /// <summary>
+            /// Is Golden core
+            /// </summary>
+            bool Golden { get; set; }
             /// <summary>
             /// CPU Load Counter
             /// </summary>
@@ -396,22 +420,35 @@ namespace CPUDoc
                 }
             }
 
-            ProcessorInfo.Clusters = _cluster;
+            Clusters = _cluster;
+
+            cpuset = HardwareCpuSets.OrderByDescending(x => x.SchedulingClass).ToArray();
+
+            for (int i = 0; i < 2; i++)
+            {
+
+                cpuset[i].Golden = true;
+            }
+
+            ExtraInfo = true;
 
         }
 
         /// <summary>
         /// Update CpuLoad
         /// </summary>
-        public static void CpuLoadUpdate()
+        public static void CpuLoadUpdate(bool SSH_Active)
         {
             while (Interlocked.CompareExchange(ref InterlockCpuLoadUpdate, 1, 0) != 0)
                 continue;
 
             threadsTotalLoad = 0;
             TotalEnabledLoad = 0;
-            SSH_needcores = 0;
-            SSH_usedcores = 0;
+            int _SSH_needcores = 0;
+            int _SSH_usedcores = 0;
+            int _SSH_forcedcores = 0;
+            int _SSH_ondemandcores = 0;
+            SSH_UpdateSysMask = false;
 
             int basecores = 0;
             TimeSpan _deltaStamp = TimeSpan.Zero;
@@ -431,67 +468,111 @@ namespace CPUDoc
                 _loadmedium = (_Load >= LoadMediumThreshold) ? Math.Min(40, _loadmedium + 1) : (_loadmedium <= 1) ? 0 : Math.Max(0, _loadmedium - 1);
                 HardwareCpuSets[i].LoadMedium = _loadmedium;
 
+                /*
                 int _loadlow = Math.Min(40, HardwareCpuSets[i].LoadLow);
                 _loadlow = (_Load >= LoadLowThreshold) ? Math.Min(40, _loadlow + 1) : (_loadlow <= 1) ? 0 : Math.Max(0, _loadlow - 1);
                 HardwareCpuSets[i].LoadLow = _loadlow;
+                */
 
                 int _loadzero = Math.Min(40, HardwareCpuSets[i].LoadZero);
-                _loadzero = (_Load == 0) ? Math.Min(40, _loadzero + 1) : (_loadzero <= 2) ? 0 : Math.Max(0, _loadzero - 1);
+                //_loadzero = (_Load == 0) ? Math.Min(40, _loadzero + 1) : (_loadzero <= 2) ? 0 : Math.Max(0, _loadzero - 1);
+                _loadzero = (_Load < LoadLowThreshold) ? Math.Min(40, _loadzero + 1) : (_loadzero <= 2) ? 0 : Math.Max(0, _loadzero - 1);
                 HardwareCpuSets[i].LoadZero = _loadzero;
 
                 App.systemInfo.UpdateLoadThread(i, (int)_Load);
                 threadsTotalLoad += (int)_Load;
 
-                if (HardwareCpuSets[i].Disabled == false && HardwareCpuSets[i].Excluded == false)
+                if (SSH_Active)
                 {
-                    if (HardwareCpuSets[i].LoadHigh > ThreadBooster.LoadHighThresholdCount)
-                        SSH_needcores++;
-                    if (HardwareCpuSets[i].LoadMedium > ThreadBooster.LoadMediumThresholdCount)
-                        SSH_usedcores++;
 
-                    //App.LogDebug($"CpuLoadUpdate Enabled Logical={i} SSH_needcores {SSH_needcores} SSH_usedcores={SSH_usedcores}");
-                    
-                    basecores++;
-                    TotalEnabledLoad += HardwareCpuSets[i].Load;
-                }
-
-                if (HardwareCpuSets[i].Disabled == true && HardwareCpuSets[i].Excluded == false)
-                {
-                    if (HardwareCpuSets[i].LoadZero > ThreadBooster.LoadZeroThresholdCount)
-                    {
-                        _deltaStamp = DateTime.Now - HardwareCpuSets[i].ForcedWhen;
-                        if (_deltaStamp.TotalSeconds > ThreadBooster.ClearForceThreshold)
-                            ClearForceEnabled(i);
-                        //App.LogDebug($"CpuLoadUpdate ClearForceEnabled Logical={i} SSH_needcores {SSH_needcores} SSH_usedcores={SSH_usedcores}");
-                    } 
-                    else
+                    if (HardwareCpuSets[i].Disabled == false && HardwareCpuSets[i].Excluded == false)
                     {
                         if (HardwareCpuSets[i].LoadHigh > ThreadBooster.LoadHighThresholdCount)
-                        {
-                            //App.LogDebug($"CpuLoadUpdate ForceEnabled HIGH Logical={i} SSH_needcores {SSH_needcores} SSH_usedcores={SSH_usedcores}");
-                            SetForceEnabled(i);
-                            SSH_needcores++;
-                        }
-
+                            _SSH_needcores++;
                         if (HardwareCpuSets[i].LoadMedium > ThreadBooster.LoadMediumThresholdCount)
-                        {
-                            //App.LogDebug($"CpuLoadUpdate ForceEnabled Logical={i} SSH_needcores {SSH_needcores} SSH_usedcores={SSH_usedcores}");
-                            SetForceEnabled(i);
-                            SSH_usedcores++;
-                        }
-                    }
-                    if (HardwareCpuSets[i].ForcedEnable)
-                    {
+                            _SSH_usedcores++;
+
+                        //App.LogDebug($"CpuLoadUpdate Enabled Logical={i} SSH_usedcores={SSH_usedcores} SSH_needcores {SSH_needcores}");
+
                         basecores++;
                         TotalEnabledLoad += HardwareCpuSets[i].Load;
                     }
-                    //App.LogDebug($"RTBSSH Disabled Logical={i} SSH_needcores {SSH_needcores} SSH_usedcores={SSH_usedcores}");
-                }
+                    /*
+                    if (i == 290)
+                    {
+                        App.LogDebug($"CpuLoadUpdate Logical={i} Zero={HardwareCpuSets[i].LoadZero}>{ThreadBooster.LoadZeroThresholdCount} Forced={HardwareCpuSets[i].ForcedEnable} OnDemand={HardwareCpuSets[i].OnDemand}");
+                        //App.LogDebug($"CpuLoadUpdate Logical={i} LoadLow={HardwareCpuSets[i].LoadLow} Forced={HardwareCpuSets[i].ForcedEnable} OnDemand={HardwareCpuSets[i].OnDemand}");
+                        App.LogDebug($"CpuLoadUpdate Logical={i} LoadMedium={HardwareCpuSets[i].LoadMedium}>{ThreadBooster.LoadMediumThresholdCount} Forced={HardwareCpuSets[i].ForcedEnable} OnDemand={HardwareCpuSets[i].OnDemand}");
+                        App.LogDebug($"CpuLoadUpdate Logical={i} LoadHigh={HardwareCpuSets[i].LoadHigh}>{ThreadBooster.LoadHighThresholdCount} Forced={HardwareCpuSets[i].ForcedEnable} OnDemand={HardwareCpuSets[i].OnDemand}");
+                    }
+                    */
+                    //??
+                    if (HardwareCpuSets[i].Disabled == true && HardwareCpuSets[i].Excluded == false)
+                    {
+                        //App.LogDebug($"CpuLoadUpdate ForceEnabled={HardwareCpuSets[i].ForcedEnable} Logical={i}");
+                        //App.LogDebug($"CpuLoadUpdate Disabled Logical={i} Zero={HardwareCpuSets[i].LoadZero}<{ThreadBooster.LoadZeroThresholdCount} SSH_needcores {SSH_needcores} SSH_usedcores={SSH_usedcores}");
 
+                        if (HardwareCpuSets[i].LoadZero > ThreadBooster.LoadZeroThresholdCount)
+                        {
+                            if (HardwareCpuSets[i].ForcedEnable)
+                            {
+                                _deltaStamp = DateTime.Now - HardwareCpuSets[i].ForcedWhen;
+                                if (_deltaStamp.TotalSeconds > ThreadBooster.ClearForceThreshold)
+                                    ClearForceEnabled(i);
+                            }
+                            //App.LogDebug($"CpuLoadUpdate ClearForceEnabled Logical={i} SSH_needcores {SSH_needcores} SSH_usedcores={SSH_usedcores}");
+                        }
+                        else
+                        {
+                            if (HardwareCpuSets[i].LoadHigh > ThreadBooster.LoadHighThresholdCount)
+                            {
+                                _SSH_needcores++;
+                                if (!HardwareCpuSets[i].OnDemand)
+                                {
+                                    SetForceEnabled(i);
+                                    SSH_UpdateSysMask = true;
+                                    //App.LogDebug($"CpuLoadUpdate ForceEnabled HIGH Logical={i} SSH_needcores {SSH_needcores} SSH_usedcores={SSH_usedcores}");
+                                }
+                            }
+
+                            if (HardwareCpuSets[i].LoadMedium > ThreadBooster.LoadMediumThresholdCount)
+                            {
+                                _SSH_usedcores++;
+                                if (!HardwareCpuSets[i].OnDemand)
+                                {
+                                    SetForceEnabled(i);
+                                    SSH_UpdateSysMask = true;
+                                    //App.LogDebug($"CpuLoadUpdate ForceEnabled Medium Logical={i} SSH_needcores {SSH_needcores} SSH_usedcores={SSH_usedcores}");
+                                }
+                            }
+                        }
+                        if (HardwareCpuSets[i].ForcedEnable || HardwareCpuSets[i].OnDemand)
+                        {
+                            basecores++;
+                            if (HardwareCpuSets[i].ForcedEnable)
+                            {
+                                //App.LogDebug($"CpuLoadUpdate ForceEnabled ADD Logical={i}");
+                                _SSH_forcedcores++;
+                            }
+                            if (HardwareCpuSets[i].OnDemand)
+                            {
+                                _SSH_ondemandcores++;
+                            }
+                            TotalEnabledLoad += HardwareCpuSets[i].Load;
+                            //if (HardwareCpuSets[i].OnDemand) App.LogDebug($"CpuLoadUpdate OnDemand Logical={i}");
+                        }
+                        //App.LogDebug($"RTBSSH Disabled Logical={i} SSH_needcores {SSH_needcores} SSH_usedcores={SSH_usedcores}");
+                    }
+
+                }
             }
 
             App.systemInfo.UpdateLoadThreads();
             TotalEnabledLoadNorm = TotalEnabledLoad / basecores;
+            SSH_needcores = _SSH_needcores;
+            SSH_usedcores = _SSH_usedcores;
+            SSH_forcedcores = _SSH_forcedcores;
+            SSH_ondemandcores = _SSH_ondemandcores;
             InterlockCpuLoadUpdate = 0;
         }
 
@@ -534,18 +615,26 @@ namespace CPUDoc
         {
             var cpuset = HardwareCpuSets.Where(x => x.Disabled == true && x.Excluded == false).OrderByDescending(x => x.TieredPriority).ToArray();
             int addedcores = 0;
+            
             for (var i = 0; i < cpuset.Length; ++i)
             {
                 if (cpuset[i].ForcedEnable == true)
                 {
                     //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} ForcedEnable={cpuset[i].LogicalProcessorIndex}");
                     defBitMask |= (uint)1 << (cpuset[i].LogicalProcessorIndex);
+                    cpuset[i].OnDemand = false;
+                    //addedcores++;
                 }
                 else if (addedcores < morecores)
                 {
+                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Adding={cpuset[i].LogicalProcessorIndex}");
+                    cpuset[i].OnDemand = true;
                     defBitMask |= (uint)1 << (cpuset[i].LogicalProcessorIndex);
                     addedcores++;
-                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Adding={cpuset[i].LogicalProcessorIndex}");
+                }
+                else
+                {
+                    cpuset[i].OnDemand = false;
                 }
                 //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Logical={cpuset[i].LogicalProcessorIndex} Logical={cpuset[i].TieredPriority} morecores={morecores} addedcores={addedcores} defBitMask=0x{defBitMask:X16}");
             }
@@ -554,7 +643,7 @@ namespace CPUDoc
         }
 
         /// <summary>
-        /// Create default BitMask (all enabled and not excluded)   
+        /// Create custom BitMask (all enabled and not excluded)   
         /// </summary>
         public static ulong CreateCustomBitMask(ulong defBitMask, int addcores = 0)
         {
@@ -571,6 +660,7 @@ namespace CPUDoc
                 else if (addedcores < addcores)
                 {
                     //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Adding={cpuset[i].LogicalProcessorIndex}");
+                    SetForceEnabled(i);
                     defBitMask |= (uint)1 << (cpuset[i].LogicalProcessorIndex);
                     addedcores++;
                 }
@@ -1396,7 +1486,7 @@ namespace CPUDoc
         /// <summary>
         /// Check if a LogicalCore is a Golden Core (first best by default)
         /// </summary>
-        public static bool CoresByGoldenCheck(int logicalcore, int goldenlimit = 2)
+        public static bool LogicalGoldenCheck(int logicalcore, int goldenlimit = 2)
         {
             var coresbysched = new int[HardwareCores.Length][];
             var cpusetsbysched = HardwareCpuSets.OrderByDescending(x => x.SchedulingClass);
@@ -1677,6 +1767,9 @@ namespace CPUDoc
             public int PhysicalCoresCount { get; private set; }
             public int SSH_needcores { get; private set; }
             public int SSH_usedcores { get; private set; }
+            public int SSH_forcedcores { get; private set; }
+            public int SSH_ondemandcores { get; private set; }
+            public bool SSH_UpdateSysMask { get; private set; }
         }
 
         /// <summary>
@@ -1809,6 +1902,22 @@ namespace CPUDoc
             return HardwareCpuSets[logical].ThreadNumber;
         }
         /// <summary>
+        /// Get Golden state for Logical
+        /// </summary>
+        public static bool Golden(int logical)
+        {
+            if (logical < 0 || logical > HardwareCpuSets.Count()) return false;
+            return HardwareCpuSets[logical].Golden;
+        }
+        /// <summary>
+        /// Get OnDemand state for Logical
+        /// </summary>
+        public static bool OnDemand(int logical)
+        {
+            if (logical < 0 || logical > HardwareCpuSets.Count()) return false;
+            return HardwareCpuSets[logical].OnDemand;
+        }
+        /// <summary>
         /// Get Escluded for Logical
         /// </summary>
         public static bool? Excluded(int logical)
@@ -1850,6 +1959,8 @@ namespace CPUDoc
                 AllFlagsStruct = x.CpuSetUnion.CpuSet.AllFlagsStruct.AllFlagsStruct;
                 TieredPriority = (int)x.CpuSetUnion.CpuSet.CpuSetSchedulingClass.SchedulingClass;
                 ThreadNumber = 0;
+                Golden = false;
+                OnDemand = false;
                 Cluster = 1;
                 Load = 0;
                 LoadZero = 0;
@@ -1888,6 +1999,8 @@ namespace CPUDoc
             public int LoadHigh { get; set; }
             public int TieredPriority { get; set; }
             public int ThreadNumber { get; set; }
+            public bool Golden { get; set; }
+            public bool OnDemand { get; set; }
             public bool ForcedEnable { get; set; }
             public DateTime ForcedWhen { get; set; }
             public bool Disabled { get; set; }

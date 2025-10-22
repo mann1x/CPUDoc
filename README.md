@@ -17,6 +17,8 @@ CPUDoc is a little utility that comes with some exclusive features:
 
 The ThreadBooster is the main engine director and most dynamic functions are depending on it.
 
+Join the Discord community here: https://discord.gg/ZHNNkHV98d
+
 ---
 
 ## Usage

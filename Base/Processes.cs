@@ -41,6 +41,9 @@ namespace CPUDoc
             listProcesses.Add(new ListProcessesItem("RTSS", true, false, true, false, true, false, false, true));
             listProcesses.Add(new ListProcessesItem("RTSSHooksLoader64", true, false, true, false, true, false, false, true));
             listProcesses.Add(new ListProcessesItem("CapFrameX", true, false, true, false, true, false, false, true));
+            listProcesses.Add(new ListProcessesItem("PresentMon_x64", true, false, true, false, true, false, false, true));
+            listProcesses.Add(new ListProcessesItem("PresentMon-2.3.1-x64", true, false, true, false, true, false, false, true));
+            listProcesses.Add(new ListProcessesItem("CapFrameX", true, false, true, false, true, false, false, true));
             listProcesses.Add(new ListProcessesItem("nvcontainer", true, false, true, false, true, false, false, true));
             listProcesses.Add(new ListProcessesItem("NVIDIA Share", true, false, true, false, true, false, false, true));
             listProcesses.Add(new ListProcessesItem("obs64", true, false, false, false, true, false, false, true));
@@ -256,6 +259,33 @@ namespace CPUDoc
             catch (Exception ex)
             {
                 App.LogExError($"MaskParse exception: {ex.Message}", ex);
+            }
+        }
+        public static void UnMaskAllParse()
+        {
+            if (!pInit) return;
+
+            try
+            {
+                void DoUnParse(CurrentProcessesItem p)
+                {
+                    ThreadBooster.ProcSetAffinityMask(p.processName, true, true);
+                }
+
+                if (currentProcesses != null)
+                {
+                    lock (lockCurrent)
+                    {
+                        foreach (CurrentProcessesItem p in currentProcesses)
+                        {
+                            if (p != null) DoUnParse(p);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                App.LogExError($"UnMaskAllParse exception: {ex.Message}", ex);
             }
         }
         public static bool PParseIn(string processname, int pid)

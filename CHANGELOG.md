@@ -9,6 +9,15 @@
 
 ## Changelog:
 
+- v1.2.18 Beta
+    - New: Created a Discord community server for CPUDoc and other tools
+    - New: Added "High Performance" Power Plan personality option in PSA (no Auto selection for now), ideal for Intel 15th and Core Ultra
+    - New: PresentMon optimization for better FPS detection with CapframeX
+    - New: Better layout of the Configs tab with Expanders to support limited window height
+    - Fix: SSH cores scaling fixed
+    - Fix: resetting mask of optimized processes at App exit
+    - Fix: Display of core states in real-time graph
+    - Fix: Changed Golden and Parked cores display colors for better visibility
 - v1.2.17 Beta
     - New: Partial re-factoring of the engine to lower CPU usage, now an average of 0,02% CPU load with SSH and PSA enabled
     - Fix: NumaZero now should work properly

@@ -1,16 +1,17 @@
-﻿using System;
-using System.Linq;
-using System.Diagnostics;
-using System.Management;
-using System.Collections.Generic;
-using System.Text;
-using System.Runtime.InteropServices;
+﻿using CPUDoc.Properties;
 using Microsoft.Win32;
-using System.ServiceProcess;
 using PowerManagerAPI;
-using static Vanara.PInvoke.PowrProf;
-using Vanara.PInvoke;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Management;
+using System.Runtime.InteropServices;
 using System.Security.RightsManagement;
+using System.ServiceProcess;
+using System.Text;
+using Vanara.PInvoke;
+using static Vanara.PInvoke.PowrProf;
 
 namespace CPUDoc
 {
@@ -216,8 +217,17 @@ namespace CPUDoc
         }
         public string GetActivePlanFriendlyName()
         {
-            var activePlanGuid = PowerManager.GetActivePlan();
-            return PowerManager.GetPlanName(activePlanGuid);
+            try 
+            {
+                var activePlanGuid = PowerManager.GetActivePlan();
+                //App.LogDebug($"Active Plan Guid {activePlanGuid}");
+                return PowerManager.GetPlanName(activePlanGuid);
+            }
+            catch (Exception ex)
+            {
+                App.LogDebug($"GetActivePlanFriendlyName Exception: {ex.Message}");
+                return "Error retrieving active Power Plan name";
+            }
         }
 
         public bool DeletePlan(Guid plan)

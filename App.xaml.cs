@@ -1,4 +1,5 @@
-﻿using AdonisUI;
+﻿//using ABI.System;
+using AdonisUI;
 using AdonisUI.Extensions;
 using AutoUpdaterDotNET;
 using Castle.Components.DictionaryAdapter.Xml;
@@ -197,10 +198,14 @@ namespace CPUDoc
         public static string PPNameV2B11 = "CPUDocDynamicW11_v2_Balanced.pow";
         public static string PPGuidV2U11 = "FBB9C3D1-AF6E-46CF-B02B-C411928D2CE2";
         public static string PPNameV2U11 = "CPUDocDynamicW11_v2_Ultimate.pow";
+        public static string PPGuidV2H11 = "FBB9C3D1-AF6E-46CF-B02B-C411928D2CE5";
+        public static string PPNameV2H11 = "CPUDocDynamicW11_v2_HiPerf.pow";
         public static string PPGuidV2B10 = "FBB9C3D1-AF6E-46CF-B02B-C411928D2CE3";
         public static string PPNameV2B10 = "CPUDocDynamicW10_v2_Balanced.pow";
         public static string PPGuidV2U10 = "FBB9C3D1-AF6E-46CF-B02B-C411928D2CE4";
         public static string PPNameV2U10 = "CPUDocDynamicW10_v2_Ultimate.pow";
+        public static string PPGuidV2H10 = "FBB9C3D1-AF6E-46CF-B02B-C411928D2CE6";
+        public static string PPNameV2H10 = "CPUDocDynamicW10_v2_HiPerf.pow";
 
         public static string boot_ppname;
         public static Guid? boot_ppguid = null;
@@ -924,9 +929,38 @@ namespace CPUDoc
             /*
             _ret = SetSystemCpuSet(_BitMask);
             */
-
+            if (_ret == 0)
+            {
+                App.lastSysCpuSetMask = BitMask;
+                ThreadBooster.InterlockBitMaskUpdate = 0;
+            }
             App.LogDebug($"SetSysCpuSet Apply mask 0x{_BitMask:X16} [{whoami}]");
 
+            ProcessorInfo.EnabledLogicals = ThreadBooster.CountBits(_BitMask);
+
+            for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
+            {
+                if (ProcessorInfo.HardwareCpuSets[i].Excluded == true)
+                {
+                    App.systemInfo.UpdateStateThread(i, 1);
+                }
+                else if (ProcessorInfo.HardwareCpuSets[i].Disabled == true && ProcessorInfo.HardwareCpuSets[i].ForcedEnable == false && ProcessorInfo.HardwareCpuSets[i].OnDemand == false)
+                {
+                    //App.LogDebug($"SetSysCpuSet UpdateStateThread Logical={i} [Disabled]");
+                    App.systemInfo.UpdateStateThread(i, 2);
+                }
+                else if (ProcessorInfo.HardwareCpuSets[i].Disabled == true && (ProcessorInfo.HardwareCpuSets[i].OnDemand == true || ProcessorInfo.HardwareCpuSets[i].ForcedEnable == true))
+                {
+                    //App.LogDebug($"SetSysCpuSet UpdateStateThread Logical={i} [Disabled]");
+                    App.systemInfo.UpdateStateThread(i, 3);
+                }
+                else
+                {
+                    //App.LogDebug($"SetSysCpuSet UpdateStateThread Logical={i} [Enabled]");
+                    App.systemInfo.UpdateStateThread(i, 0);
+                }
+            }
+            /*
             for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
             {
                 //App.LogInfo($"Apply state {i}");
@@ -945,8 +979,9 @@ namespace CPUDoc
                     systemInfo.UpdateStateThread(i, 2);
                     //App.LogInfo($"Apply state {i} 2");
                 }
+                
             }
-
+            */
             return _ret;
         }
         public static int ProcSetCpuSet(int pid, ulong BitMask = 0)
@@ -2596,6 +2631,8 @@ namespace CPUDoc
                 if (pcfgexe.Length == 0)
                     pcfgexe = Pcfgpathname;
 
+                if (!File.Exists(PPpathname)) throw new System.Exception("Power Plan file does not exist!");
+
                 var cmd = new Process { StartInfo = { FileName = pcfgexe } };
                 using (cmd)
                 {
@@ -2760,7 +2797,12 @@ namespace CPUDoc
                         _personality = _activepersonality;
                     }
 
-                    if (_personality == 2)
+                    if (_personality == 3)
+                    {
+                        PPGuid = Win11 ? new Guid(PPGuidV2H11) : new Guid(PPGuidV2H10);
+                        planName = Win11 ? PPNameV2H11 : PPNameV2H10;
+                    }
+                    else if (_personality == 2)
                     {
                         PPGuid = Win11 ? new Guid(PPGuidV2U11) : new Guid(PPGuidV2U10);
                         planName = Win11 ? PPNameV2U11 : PPNameV2U10;
@@ -2946,7 +2988,7 @@ namespace CPUDoc
                     if (powerManager.GetActiveGuid() != PPGuid)
                     {
                         bool _import = true;
-                        if (!powerManager.PlanExists(PPGuid)) _import = ImportPowerPlan(planName);
+                        _import = ImportPowerPlan(planName);
 
                         if (powerManager.PlanExists(PPGuid)) isactive = powerManager.SetActiveGuid(PPGuid);
 
@@ -3768,6 +3810,8 @@ namespace CPUDoc
                 ThreadBooster.CloseSysMask();
                 ThreadBooster.Close();
 
+                Processes.UnMaskAllParse();
+
                 if (hwmcts != null) hwmcts?.Dispose();
                 if (tbcts != null) tbcts?.Dispose();
                 if (syscts != null) syscts?.Dispose();
@@ -4031,7 +4075,7 @@ namespace CPUDoc
                 }
 
                 lastSysCpuSetMask = ulong.MaxValue;
-                SetSysCpuSet(0, "SetActiveConfig Start");
+                //SetSysCpuSet(0, "SetActiveConfig Start");
             }
 
             /*

@@ -1843,6 +1843,7 @@ namespace CPUDoc
                 App.LogInfo($"");
 
                 ProcessorInfo.InitExtra();
+
                 CPUClusters = ProcessorInfo.Clusters;
 
                 App.LogInfo($"CoresByScheduling:");
@@ -3587,10 +3588,9 @@ namespace CPUDoc
         
         public void UpdateParkedStateCore(int _core, int _value)
         {
-            if (!App.MainWindowOpen) return;
             try
             {
-                cpuCparked[_core] = _value == 0 ? System.Windows.Media.Brushes.Transparent : System.Windows.Media.Brushes.Blue;
+                cpuCparked[_core] = _value == 0 ? ProcessorInfo.Golden(_core) == true ? System.Windows.Media.Brushes.Yellow : System.Windows.Media.Brushes.Black : System.Windows.Media.Brushes.Blue;
                 //App.LogInfo($"{_value}");
                 OnChange("cpuCparked");
             }
@@ -3598,10 +3598,11 @@ namespace CPUDoc
         }
         public void UpdateStateThread(int _thread, int _value)
         {
+            if (!App.MainWindowOpen) return;
             try
             {
-                cpuTstateFG[_thread] = _value == 0 ? System.Windows.Media.Brushes.White : _value == 1 ? System.Windows.Media.Brushes.DarkGray : System.Windows.Media.Brushes.LightGray;
-                cpuTstateBG[_thread] = _value == 0 ? System.Windows.Media.Brushes.Green : _value == 1 ? System.Windows.Media.Brushes.Black : System.Windows.Media.Brushes.DarkRed;
+                cpuTstateFG[_thread] = _value == 0 ? System.Windows.Media.Brushes.White : _value == 1 ? System.Windows.Media.Brushes.DarkGray : _value == 2 ? System.Windows.Media.Brushes.LightGray : System.Windows.Media.Brushes.White;
+                cpuTstateBG[_thread] = _value == 0 ? System.Windows.Media.Brushes.Green : _value == 1 ? System.Windows.Media.Brushes.Black : _value == 2 ? System.Windows.Media.Brushes.DarkRed : System.Windows.Media.Brushes.DarkGreen;
                 //App.LogInfo($"{_value}");
                 OnChange("cpuTstateFG");
                 OnChange("cpuTstateBG");
@@ -3762,8 +3763,9 @@ namespace CPUDoc
             {
                 SSHStatus = _status == true ? $"Enabled" : "Disabled";
                 int _totallogicals = ThreadBooster.CountBits(ThreadBooster.defFullBitMask);
-                int _activelogicals = ThreadBooster.CountBits(App.lastSysCpuSetMask) == 0 ? _totallogicals : ThreadBooster.CountBits(App.lastSysCpuSetMask);
-                if (_status == true) SSHStatus = App.thrSysRunning && App.pactive.SysSetHack ? $"{SSHStatus} {_activelogicals}/{_totallogicals}" : $"{SSHStatus} (Inactive)";
+                //int _activelogicals = ThreadBooster.CountBits(App.SysCpuSetMask) == 0 ? _totallogicals : ThreadBooster.CountBits(App.SysCpuSetMask);
+                //if (_status == true) SSHStatus = App.thrSysRunning && App.pactive.SysSetHack ? $"{SSHStatus} {_activelogicals}/{_totallogicals}" : $"{SSHStatus} (Inactive)";
+                if (_status == true) SSHStatus = App.thrSysRunning && App.pactive.SysSetHack ? $"{SSHStatus} {ProcessorInfo.EnabledLogicals}/{_totallogicals}" : $"{SSHStatus} (Inactive)";
                 SSHStatus = App.thrThreadBoosterRunning ? SSHStatus : $"<Inactive> {SSHStatus}";
             }
             catch { }
