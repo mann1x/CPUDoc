@@ -9,6 +9,11 @@
 
 ## Changelog:
 
+- v1.2.21 Beta
+    - New: Moved Windows Performance counters initialization to ThreadBooster thread for faster App startup
+    - New: testing full bitmask for system processes below PID 1024
+    - Fix: Refresh of CPU display in the UI, first time window opened was not updated
+    - Fix: Check for updates should now trigger an update request even if a remind me later was previously selected
 - v1.2.20 Beta
     - New: Updated Nuget packages for Microsoft and LibreHWM
     - Fix: Solved HiPerf personality reverting to Ultimate at boot

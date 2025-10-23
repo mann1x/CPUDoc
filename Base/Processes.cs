@@ -290,7 +290,15 @@ namespace CPUDoc
         }
         public static bool PParseIn(string processname, int pid)
         {
-            if (!pInit || pid <= 1024) return false;
+            if (!pInit || pid <= 1024)
+            {
+                if (pid > 0)
+                {
+                    App.LogDebug($"System Process set mask full: [{pid}] {processname}");
+                    ThreadBooster.ProcMask(processname, true, true, true, true, true);
+                }
+                return false;
+            }
 
             bool parsed = false;
 

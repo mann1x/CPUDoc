@@ -67,17 +67,6 @@ namespace CPUDoc
         {
             InitializeComponent();
 
-            /*
-            _expandersList.AddRange(new[]
-            {
-                ExpanderPSA, ExpanderZenControl, ExpanderNumaZero,
-            });
-
-            foreach (var expander in _expandersList)
-            {
-                expander.IsExpanded = false; // collapse all expanders
-            }
-            */
         }
         private void TextBox_KeyEnterUpdate(object sender, KeyEventArgs e)
         {
@@ -163,18 +152,21 @@ namespace CPUDoc
                 }
 
 #if DEBUG
+                cbTBAutoStart.Visibility = Visibility.Visible;
 #else
                 cbTBAutoStart.Height = 0;
                 cbTBAutoStart.Visibility = Visibility.Collapsed;
 #endif
-                InitWindowUI();
 
                 //pcurrent = new appConfigs();
                 //appConfigs.Init();
 
                 Create_CpuDisplay();
-
+                
+                App.RefreshThreadsStatus();
                 Update_CpuDisplay();
+
+                InitWindowUI();
 
                 /*
                 uint eax = 0;
@@ -442,6 +434,8 @@ namespace CPUDoc
 
             //InitUI = true;
 
+            Update_CpuDisplay();
+
             //??
             uitimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             uitimer.Start();
@@ -460,14 +454,20 @@ namespace CPUDoc
                 App.systemInfo.SetN0Status(App.pactive.NumaZero);
                 App.systemInfo.SetSleepsAllowed();
 
-                if (PoolingTick == 3) App.systemInfo.RefreshLabels();
+                if (PoolingTick == 3)
+                {
+                    App.systemInfo.RefreshLabels();
+                    if (WinLoaded)
+                    {
+                        Update_CpuDisplay();
+                    }
+                }
 
                 PoolingTick++;
                 PoolingTick = PoolingTick > 3 ? 0 : PoolingTick;
 
                 if (App.systemInfo.ZenCOb && App.systemInfo.CPUArch == "AMD64") App.systemInfo.ZenRefreshCO();
                 if (App.systemInfo.ZenStates && App.systemInfo.CPUArch == "AMD64") App.systemInfo.ZenRefreshStatic(false);
-                //if (WinLoaded) currentcpu_update();
 
             };
 
@@ -1013,6 +1013,7 @@ namespace CPUDoc
        
         private void ButtonCheckUpdate(object sender, RoutedEventArgs e)
         {
+            AutoUpdater.Mandatory = true;
             AutoUpdater.Start(App.AutoUpdaterUrl);
         }
 

@@ -2148,9 +2148,12 @@ namespace CPUDoc
                 cpuTotalLoadLong = new MovingAverage(16);
                 TBPoolingAverage = new MovingAverage(64);
 
+                //??
+                /*
                 LogInfo($"CPULoad going to init Performance Counters: if you get a reboot or crash please download CoreCycler and run enable_performance_counter.bat in tools dir with admin privileges!");
                 bool cpuloadperfcount = ProcessorInfo.CpuLoadInit();
                 LogInfo($"CPULoad using Performance Counters: {cpuloadperfcount}");
+                */
 
                 HRESULT enableMCSS = DwmApi.DwmEnableMMCSS(true);
                 if (enableMCSS == HRESULT.S_OK)
