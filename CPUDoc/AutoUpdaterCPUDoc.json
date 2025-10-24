@@ -4,7 +4,7 @@
   "changelog": "https://github.com/mann1x/CPUDoc/releases/v1.2.22",
   "mandatory": {
     "value": false,
-    "minVersion": "1.2.13",
+    "minVersion": "1.2.21",
     "mode": 1
   },
   "checksum": {
