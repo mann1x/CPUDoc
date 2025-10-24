@@ -1,39 +1,41 @@
-﻿using System;
+﻿using AdonisUI;
+using AutoUpdaterDotNET;
+using CPUDoc.Windows;
+using Hardcodet.Wpf.TaskbarNotification.Interop;
+using LibreHardwareMonitor.Hardware;
+using net.r_eg.Conari.Extension;
+using net.r_eg.Conari.Types;
+using Newtonsoft.Json.Linq;
+using OSVersionExtension;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.Eventing.Reader;
+using System.Drawing;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Management;
-using System.Text;
-using System.Threading;
-using System.Diagnostics.Eventing.Reader;
-using System.IO;
-using ZenStates.Core;
-using System.Xml.Linq;
-using System.ComponentModel;
-using System.Text.RegularExpressions;
-using System.Windows.Data;
-using LibreHardwareMonitor.Hardware;
-using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Security.Permissions;
-using OSVersionExtension;
-using AutoUpdaterDotNET;
-using Hardcodet.Wpf.TaskbarNotification.Interop;
-using static CPUDoc.ProcessorInfo;
-using static CPUDoc.MemoryConfig;
-using System.Windows.Markup;
-using CPUDoc.Windows;
-using System.Windows.Shapes;
-using static ZenStates.Core.Cpu;
-using net.r_eg.Conari.Types;
-using Windows.Devices.HumanInterfaceDevice;
-using System.Windows.Threading;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
-using net.r_eg.Conari.Extension;
+using System.Windows.Data;
+using System.Windows.Markup;
 using System.Windows.Media.Imaging;
-using System.Drawing;
-using AdonisUI;
+using System.Windows.Shapes;
+using System.Windows.Threading;
+using System.Xml.Linq;
+using Windows.ApplicationModel.Activation;
+using Windows.Devices.HumanInterfaceDevice;
+using ZenStates.Core;
+using static CPUDoc.MemoryConfig;
+using static CPUDoc.ProcessorInfo;
+using static Vanara.PInvoke.Kernel32;
+using static ZenStates.Core.Cpu;
 
 namespace CPUDoc
 {
@@ -220,8 +222,12 @@ namespace CPUDoc
         public string LiveFinished { get; set; }
         public string LiveCpuLoad { get; set; }
 
+        public bool IntelTurboModeAvailable { get; set; }
+        public bool IntelTurboMode { get; set; }
+        public bool IntelTurboModeProgrammable { get; set; }
+        public bool IntelTDCTDPProgrammable { get; set; }
 
-        private int EmptyTags()
+private int EmptyTags()
         {
             int _remaining = CPUCores;
             for (int i = 0; i <= CPUCores - 1; i++)
@@ -402,6 +408,9 @@ namespace CPUDoc
             LiveCPUClock = "N/A";
             LiveCPUPower = "N/A";
             LiveCPUAdditional = "N/A";
+            IntelTurboMode = false;
+            IntelTurboModeProgrammable = false;
+            IntelTDCTDPProgrammable = false;
 
             WinMaxSize = 600;
 
@@ -578,11 +587,25 @@ namespace CPUDoc
             }
             return (int)count;
         }
+        
         static uint BitSlice(uint arg, int start, int end)
         {
             uint mask = (2U << end - start) - 1U;
             return arg >> start & mask;
         }
+
+        public static uint ClearBit(uint number, int bitIndex)
+        {
+            uint mask = ~(1u << bitIndex);
+            return number & mask;
+        }
+
+        public static uint SetBit(uint number, int bitIndex)
+        {
+            uint mask = 1u << bitIndex;
+            return number | mask;
+        }
+
         public bool ZenRefreshStatic(bool refresh)
         {
             if (!ZenStates || App.ZenBlockRefresh || Zen == null || CPUArch != "AMD64") return false;
@@ -1062,6 +1085,13 @@ namespace CPUDoc
                 if (_MemoryLabel3.Length > 0) MemoryLabel += $"{_MemoryLabel3}";
 
                 if (MemoryLabel.Length == 0) MemoryLabel = "N/A";
+                
+                if (IntelTurboModeAvailable)
+                {
+                    string _CPULabel = "Turbo Mode: ";
+                    _CPULabel += IntelTurboMode ? "Enabled" : "Disabled";
+                    CPULabel += $"\n{_CPULabel}";
+                }
 
                 if (App.inpoutdlldisable == false && CPUArch == "AMD64")
                     {                    
@@ -1563,8 +1593,10 @@ namespace CPUDoc
                 uint avx512reg = 0x0;
                 uint shaflag = 0x0;
                 uint vaesflag = 0x0;
+                uint itbflag = 0x0;
                 string shastr = "";
                 string vaesstr = "";
+                string itbstr = "";
                 string avx512str = "No";
                 string cpumanufacturer = HWMonitor.computer.SMBios.Processors[0].ManufacturerName;
 
@@ -1590,6 +1622,10 @@ namespace CPUDoc
                     {
                         try
                         {
+                            if (_cpuid.Data.GetLength(0) >= 0x6)
+                            {
+                                itbflag = BitSlice(_cpuid.Data[0x6, 0], 1, 1);
+                            }
                             if (_cpuid.Data.GetLength(0) >= 0x7)
                             {
                                 hybridreg = _cpuid.Data[0x7, 3];
@@ -1684,7 +1720,20 @@ namespace CPUDoc
                                 vaesstr = "Unknown";
                                 break;
                         }
-                        App.LogInfo($" Hybrid: [{hybridstr}] CoreType: [{coretypestr}] AVX-512: [{avx512str}] SHA: [{shastr}] VAES: [{vaesstr}]");
+                        switch (itbflag)
+                        {
+                            case 0:
+                                itbstr = "No";
+                                break;
+                            case 1:
+                                IntelTurboModeAvailable = true;
+                                itbstr = "Yes";
+                                break;
+                            default:
+                                itbstr = "Unknown";
+                                break;
+                        }
+                        App.LogInfo($" Hybrid: [{hybridstr}] CoreType: [{coretypestr}] AVX-512: [{avx512str}] SHA: [{shastr}] VAES: [{vaesstr}] TurboBoost: [{itbstr}]");
                     }
                     if (_cpuid.Vendor == LibreHardwareMonitor.Hardware.Cpu.Vendor.AMD)
                     {
@@ -1958,6 +2007,165 @@ namespace CPUDoc
 
                 }
 
+                if (!App.inpoutdlldisable) Ring0.Open();
+
+                //AMD
+                //
+                /* AMD Collaborative Processor Performance Control MSRs */
+                //#define MSR_AMD_CPPC_CAP1		0xc00102b0
+                //#define MSR_AMD_CPPC_ENABLE		0xc00102b1
+                //#define MSR_AMD_CPPC_CAP2		0xc00102b2
+                //#define MSR_AMD_CPPC_REQ		0xc00102b3
+                //#define MSR_AMD_CPPC_STATUS		0xc00102b4
+                /* Masks for use with MSR_AMD_CPPC_CAP1 */
+                //#define AMD_CPPC_LOWEST_PERF_MASK	GENMASK(7, 0)
+                //#define AMD_CPPC_LOWNONLIN_PERF_MASK	GENMASK(15, 8)
+                //#define AMD_CPPC_NOMINAL_PERF_MASK	GENMASK(23, 16)
+                //#define AMD_CPPC_HIGHEST_PERF_MASK	GENMASK(31, 24)
+                /* Masks for use with MSR_AMD_CPPC_REQ */
+                //#define AMD_CPPC_MAX_PERF_MASK		GENMASK(7, 0)
+                //#define AMD_CPPC_MIN_PERF_MASK		GENMASK(15, 8)
+                //#define AMD_CPPC_DES_PERF_MASK		GENMASK(23, 16)
+                //#define AMD_CPPC_EPP_PERF_MASK		GENMASK(31, 24)
+                //
+                if (CPUName.Contains("AMD") && Ring0.IsOpen)
+                {
+                    uint eax = 0;
+                    uint edx = 0;
+                    App.LogDebug($"MSR AMD");
+                    if (App.ReadMsrTx(0xc001029a, ref eax, ref edx, 0))
+                        App.LogInfo($"AMD TX CORE ENERGY={eax:X8} {edx:X8}");
+                    eax = 0;
+                    edx = 0;
+                    if (App.ReadMsr(0xc001029a, ref eax, ref edx))
+                        App.LogInfo($"AMD CORE ENERGY={eax:X8} {edx:X8}");
+                    eax = 0;
+                    edx = 0;
+                    if (App.ReadMsr(0xc00102b1, ref eax, ref edx))
+                        App.LogInfo($"CPPC ENABLE STATUS={eax:X8} {edx:X8}");
+                    eax = 1;
+                    edx = 0;
+                    if (App.WriteMsrAll(0xc00102b1, eax, edx))
+                        App.LogInfo($"CPPC ENABLE");
+                    eax = 0;
+                    edx = 0;
+                    if (App.ReadMsr(0xc00102b1, ref eax, ref edx))
+                        App.LogInfo($"CPPC ENABLE STATUS={eax:X8} {edx:X8}");
+                    eax = 0;
+                    edx = 0;
+                    if (App.ReadMsrTx(0xc00102b0, ref eax, ref edx, 0))
+                        App.LogInfo($"CPPC CAP1 STATUS={eax:X8} {edx:X8}");
+                    eax = 0;
+                    edx = 0;
+                    if (App.ReadMsr(0xc00102b3, ref eax, ref edx))
+                        App.LogInfo($"CPPC REQ STATUS={eax:X8} {edx:X8}");
+                }
+
+                if (!Ring0.IsOpen)
+                {
+                    App.LogInfo($"Ring0 MSR not available");
+                    IntelTurboModeAvailable = false;
+                }
+                else if (CPUName.Contains("Intel") && IntelTurboModeAvailable)
+                {
+                    uint eax = 0;
+                    uint edx = 0;
+
+                    bool? _IntelTurboMode = IntelTurboBoostCheck();
+
+                    if (_IntelTurboMode != null)
+                    {
+                        IntelTurboMode = (bool)_IntelTurboMode;
+                    }
+                    else
+                    {
+                        App.LogInfo($"Intel Turbo Mode Check failed, disabled");
+                        IntelTurboModeAvailable = false;
+                    }
+                    App.LogInfo($"Intel PRE Turbo Mode: {(IntelTurboMode ? "Enabled" : "Disabled")}");
+
+                    bool _tbmode = IntelTurboMode;
+                    bool? _checkmode = IntelTurboBoostEnable(_tbmode ? false : true);
+                    App.LogInfo($"Intel Test Turbo Mode switch from {_tbmode} to {(_tbmode ? false : true)}");
+
+                    if (_checkmode != null)
+                    {
+                        _checkmode = IntelTurboBoostCheck();
+                        App.LogInfo($"Intel POST Turbo Mode: {(_checkmode == true ? "Enabled" : "Disabled")}");
+
+                        if (_checkmode == _tbmode)
+                        {
+                            App.LogInfo($"Intel Turbo Mode Flip check failed");
+                            IntelTurboModeAvailable = false;
+                        }
+                        else
+                        {
+                            App.LogInfo($"Intel Turbo Mode Flip check successful!");
+                            //Go back to original and flip to back
+                            IntelTurboBoostEnable(_checkmode == true ? false : true);
+                        }
+                    }
+                    else
+                    {
+                        App.LogInfo($"Intel Turbo Mode Check mode flip failed, disabled");
+                        IntelTurboModeAvailable = false;
+                    }
+
+                    eax = 0;
+                    edx = 0;
+
+                    if (App.ReadMsr(0xce, ref eax, ref edx))
+                    {
+                        IntelTurboModeProgrammable = BitSlice(eax, 28, 28) == 1 ? true : false;
+                        IntelTDCTDPProgrammable = BitSlice(eax, 29, 29) == 1 ? true : false;
+                    }
+
+                    App.LogInfo($"Intel Turbo Mode Programmable: {(IntelTurboModeProgrammable ? "Yes" : "No")}");
+                    App.LogInfo($"Intel TDC/TDP Programmable: {(IntelTDCTDPProgrammable ? "Yes" : "No")}");
+
+                    eax = 0;
+                    edx = 0;
+                    uint _tdplimit = 0x0;
+                    uint _tdclimit = 0x0;
+                    bool _tdpoverride = false;
+                    bool _tdcoverride = false;
+
+                    if (App.ReadMsr(0x1ac, ref eax, ref edx))
+                    {
+                        _tdpoverride = BitSlice(eax, 15, 15) == 1 ? true : false;
+                        _tdcoverride = BitSlice(eax, 31, 31) == 1 ? true : false;
+                        _tdplimit = BitSlice(eax, 0, 14);
+                        _tdclimit = BitSlice(eax, 16, 30);
+                        App.LogInfo($"Intel TDP Limit: {_tdplimit * 8}W {_tdplimit:X8} {(_tdpoverride ? "Enabled" : "Disabled")}");
+                        App.LogInfo($"Intel TDC Limit: {_tdclimit * 8}A {_tdclimit:X8} {(_tdcoverride ? "Enabled" : "Disabled")}");
+                    }
+                    else
+                    {
+                        App.LogInfo($"Intel TDP/TDC limits failed to Read");
+                    }
+
+                    eax = 0;
+                    edx = 0;
+
+                    if (App.ReadMsr(0x1ad, ref eax, ref edx))
+                    {
+                        App.LogInfo($"Intel Turbo Mode 1C Clock: {(Convert.ToDecimal(BitSlice(eax, 0, 7)) / 10)} GHz");
+                        App.LogInfo($"Intel Turbo Mode 2C Clock: {(Convert.ToDecimal(BitSlice(eax, 8, 15)) / 10)} GHz");
+                        App.LogInfo($"Intel Turbo Mode 3C Clock: {(Convert.ToDecimal(BitSlice(eax, 16, 23)) / 10)} GHz");
+                        App.LogInfo($"Intel Turbo Mode 4C Clock: {(Convert.ToDecimal(BitSlice(eax, 24, 31)) / 10)} GHz");
+                        App.LogInfo($"Intel Turbo Mode 5C Clock: {(Convert.ToDecimal(BitSlice(eax, 32, 39)) / 10)} GHz");
+                        App.LogInfo($"Intel Turbo Mode 6C Clock: {(Convert.ToDecimal(BitSlice(eax, 40, 47)) / 10)} GHz");
+                        App.LogInfo($"Intel Turbo Mode 7C Clock: {(Convert.ToDecimal(BitSlice(eax, 48, 55)) / 10)} GHz");
+                        App.LogInfo($"Intel Turbo Mode 8C Clock: {(Convert.ToDecimal(BitSlice(eax, 56, 63)) / 10)} GHz");
+                    }
+                    else
+                    {
+                        App.LogInfo($"Intel Turbo Mode Failed to Read ratio limits 1ad");
+                    }
+                }
+
+                App.LogInfo("");
+
                 //if (App.cmdargs.LogTrace > 0) 
                 CpuSetInfo();
 
@@ -1995,6 +2203,83 @@ namespace CPUDoc
 
         }
 
+        public bool? IntelTurboBoostCheck()
+        {
+            try
+            {
+                uint eax = 0;
+                uint edx = 0;
+
+                if (App.ReadMsr(0x1a0, ref eax, ref edx))
+                {
+                    bool _ret = BitSlice(edx, 6, 6) == 0 ? true : false;
+                    return _ret;
+                }
+                else
+                {
+                    return null;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                App.LogExError($"IntelTurboBoostCheck Exception: {ex.Message}", ex);
+                return null;
+            }
+        }
+        public bool? IntelTurboBoostDisable()
+        {
+            return IntelTurboBoostEnable(false);   
+        }
+        public bool? IntelTurboBoostEnable(bool enable = true)
+        {
+            try 
+            {
+                bool _newmode = false;
+                bool _startmode = false;
+                uint eax = 0;
+                uint edx = 0;
+
+                eax = 0;
+                edx = 0;
+
+                App.ReadMsr(0x1a0, ref eax, ref edx);
+                _startmode = BitSlice(edx, 6, 6) == 0 ? true : false;
+
+                eax = 0;
+                edx = 0;
+                
+                App.ReadMsr(0x1a0, ref eax, ref edx);
+                //App.LogInfo($"IntelTurboBoostEnable read eax {eax:X8} edx {edx:X8}");
+                edx = enable ? (uint)0x0 : (uint)0x40;
+                //App.LogInfo($"IntelTurboBoostEnable set eax {eax:X8} edx {edx:X8}");
+
+                if (!App.WriteMsrAll(0x1a0, eax, edx))
+                {
+                    App.LogInfo($"IntelTurboBoostEnable failed MSR to set mode {enable}");
+                    IntelTurboMode = false;
+                    return null;
+                }
+
+                eax = 0;
+                edx = 0;
+
+                App.ReadMsr(0x1a0, ref eax, ref edx);
+                _newmode = BitSlice(edx, 6, 6) == 0 ? true : false;
+                IntelTurboMode = _newmode;
+
+                App.LogInfo($"IntelTurboBoostEnable Requested {enable}: Starting {_startmode} Ending {_newmode}");
+                App.LogInfo($"IntelTurboBoostEnable End eax {eax:X8} edx {edx:X8}");
+
+                return _newmode != enable ? false : true;
+
+            }
+            catch (Exception ex)
+            {
+                App.LogExError($"IntelTurboBoostEnable Requested {enable} Exception: {ex.Message}", ex);
+                return null;
+            }
+        }
         public bool ZenInit(bool docheck = false)
         {
             try

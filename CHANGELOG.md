@@ -9,6 +9,8 @@
 
 ## Changelog:
 
+- v1.2.22 Beta
+    - New: Intel CoreControl, Turbo Boost mode can be limited only to user activity or GameMode
 - v1.2.21 Beta
     - New: Moved Windows Performance counters initialization to ThreadBooster thread for faster App startup
     - New: testing full bitmask for system processes below PID 1024

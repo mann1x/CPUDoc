@@ -4421,6 +4421,15 @@ namespace CPUDoc
         {
             bool res = true;
 
+            res = Ring0.Wrmsr(msr, eax, edx);
+
+            return res;
+        }
+
+        public static bool WriteMsrAll(uint msr, uint eax, uint edx)
+        {
+            bool res = true;
+
             for (var i = 0; i < ProcessorInfo.LogicalCoresCount; i++)
             {
                 res = Ring0.WrmsrTx(msr, eax, edx, GroupAffinity.Single(0, i));
@@ -4428,6 +4437,7 @@ namespace CPUDoc
 
             return res;
         }
+
         public static bool WriteMsrTx(uint msr, uint eax, uint edx, uint index)
         {
             bool res = true;

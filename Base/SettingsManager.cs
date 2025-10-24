@@ -682,6 +682,11 @@ namespace CPUDoc
         [Option(Alias = "PSA.PLPerfMode", DefaultValue = true)]
         bool PLPerfMode { get; set; }
 
+        [Option(Alias = "CPUDoc.CoreControl", DefaultValue = false)]
+        bool CoreControl { get; set; }
+
+        [Option(Alias = "CoreControl.TurboBoostMode", DefaultValue = 0)]
+        int TurboBoostMode { get; set; }
     }
 
     public class appProfiles

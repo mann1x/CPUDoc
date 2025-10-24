@@ -86,8 +86,8 @@ If for some reason you don't want or can't use PSA, check one of my Custom Power
   - inpoutx64.dll
   - WinIo32.dll
   - WinIo32.sys
-  - WinRing0x64.dll
   - WinRing0x64.sys
+  - ZenStates-Core.dll
 
 ## Known issues
 
@@ -120,7 +120,6 @@ More a list to remember what to work on in the future :)
 - App detection for automatic switching profiles
 - Keyboard HotKeys; change profiles, toggle features, send HotKeys (eg. to switch AfterBurner profile)
 - MSR for CPU load detection on AMD/Intel
-- CoreControl; change Intel specific settings via MSR
 - ZenControl WHEASuppressor, disable FCLK instability errors via MSR MCA control
 - ZenControl MCADoctor; granular control of all MCA bits, detect and decode errors
 

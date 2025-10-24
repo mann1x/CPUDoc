@@ -14,7 +14,7 @@ namespace CPUDoc
     /// <summary>
     /// This structure describes a group-specific affinity.
     /// </summary>
-    internal struct GroupAffinity
+    public struct GroupAffinity
     {
 
         public static GroupAffinity Undefined =

@@ -218,6 +218,7 @@ namespace CPUDoc
             cbNumaZero.IsChecked = pcurrent.NumaZero ? true : false;
             cbPSA.IsChecked = pcurrent.PowerSaverActive ? true : false;
             cbZC.IsChecked = pcurrent.ZenControl ? true : false;
+            cbCC.IsChecked = pcurrent.CoreControl ? true : false;
             cbSysSetHack.IsChecked = pcurrent.SysSetHack ? true : false;
             cbTraceLog.IsChecked = App.AppSettings.LogTrace ? true : false;
             cbTopmostUI.IsChecked = App.AppSettings.TopmostUI ? true : false;
@@ -262,6 +263,7 @@ namespace CPUDoc
             GMUserNotification.IsChecked = pcurrent.UserNotification ? true : false;
             GMFGSecondary.IsChecked = pcurrent.SecondaryMonitor ? true : false;
             cbPLPerfMode.IsChecked = pcurrent.PLPerfMode ? true : false;
+            listTurbBoostMode.SelectedIndex = pcurrent.TurboBoostMode;
 
             SSHStatus.Text = App.pactive.SysSetHack ? "Enabled" : "Disabled";
             PSAStatus.Text = App.pactive.PowerSaverActive ? "Enabled" : "Disabled";
@@ -1252,6 +1254,19 @@ namespace CPUDoc
                 pcurrent.ZenControl = false;
             }
         }
+        private void CC_Click(object sender, RoutedEventArgs e)
+        {
+            CheckBox cb = sender as CheckBox;
+
+            if (cb.IsChecked == true)
+            {
+                pcurrent.CoreControl = true;
+            }
+            else
+            {
+                pcurrent.CoreControl = false;
+            }
+        }
         private void ZCPPT_Click(object sender, RoutedEventArgs e)
         {
             CheckBox cb = sender as CheckBox;
@@ -1338,6 +1353,11 @@ namespace CPUDoc
             //App.LogDebug($"NumaZeroType {pcurrent.NumaZeroType} {pcurrent.NumaZeroType.GetType()}");
             if (pcurrent != null) pcurrent.NumaZeroType = cb.SelectedIndex;
         }
+        private void TurbBoostMode_Select(object sender, SelectionChangedEventArgs e)
+        {
+            ComboBox cb = sender as ComboBox;
+            if (pcurrent != null) pcurrent.TurboBoostMode = cb.SelectedIndex;
+        }
         private void NumaZeroAutoType_Select(object sender, SelectionChangedEventArgs e)
         {
             ComboBox cb = sender as ComboBox;
@@ -1421,6 +1441,7 @@ namespace CPUDoc
                     pcurrent.NumaZero = cbNumaZero.IsChecked == true ? true : false;
                     pcurrent.PowerSaverActive = cbPSA.IsChecked == true ? true : false;
                     pcurrent.ZenControl = cbZC.IsChecked == true ? true : false;
+                    pcurrent.CoreControl = cbCC.IsChecked == true ? true : false;
                     pcurrent.SysSetHack = cbSysSetHack.IsChecked == true ? true : false;
                     pcurrent.NumaZeroType = listNumaZeroType.SelectedIndex;
                     pcurrent.NumaZeroAutoType = listNumaZeroAutoType.SelectedIndex;
@@ -1437,6 +1458,7 @@ namespace CPUDoc
                     pcurrent.PSAAudioBlocksDeepSleep = cbPSAAudioBlocksDeepSleep.IsChecked == true ? true : false;
                     pcurrent.ZenControlCPUTempTrayIcon = cbZCCPUTemp.IsChecked == true ? true : false;
                     pcurrent.PLPerfMode = cbPLPerfMode.IsChecked == true ? true : false;
+                    pcurrent.TurboBoostMode = listTurbBoostMode.SelectedIndex;
 
                     if (PowerTweak_LowPo.IsChecked == true) pcurrent.PowerTweak = 0;
                     if (PowerTweak_AutoPo.IsChecked == true) pcurrent.PowerTweak = 1;

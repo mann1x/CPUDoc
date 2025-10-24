@@ -281,6 +281,8 @@
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="*"/>
                                     <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="*"/>
                                     <RowDefinition Height="48"/>
                                 </Grid.RowDefinitions>
                                 <TextBlock Grid.Column="0" Grid.Row="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,0,0" Grid.ColumnSpan="2">These are the startup settings of the App, toggling via the system tray icon is transient</TextBlock>
@@ -293,35 +295,6 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
                                         <RowDefinition Height="*"/>
                                         <RowDefinition Height="*"/>
                                         <RowDefinition Height="*"/>
@@ -375,6 +348,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
@@ -697,7 +671,7 @@
                                     </Grid.ColumnDefinitions>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="*"/>
-
+                                        <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
                                     <CheckBox Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Top" Click="ZC_Click" x:Name="cbZC" Panel.ZIndex="1">
@@ -714,33 +688,6 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <Grid.RowDefinitions>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
                                                 <RowDefinition Height="*"/>
                                                 <RowDefinition Height="*"/>
                                                 <RowDefinition Height="*"/>
@@ -772,7 +719,7 @@
                                             <TextBox Grid.Column="2" Grid.Row="3" Width="64" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="EDChpx" PreviewTextInput="pbolimit_PreviewTextInput">
                                             </TextBox>
 
-                                            <CheckBox Grid.Column="1" Grid.Row="10" Grid.ColumnSpan="3" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="cbZCCPUTemp" IsChecked="False">
+                                            <CheckBox Grid.Column="1" Grid.Row="4" Grid.ColumnSpan="3" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Center" x:Name="cbZCCPUTemp" IsChecked="False">
                                                 Show CPU Temperature, if available, on the system tray icon
                                             </CheckBox>
 
@@ -782,41 +729,52 @@
 
                                 </Grid>
 
-                                <Grid Grid.Row="5" Margin="8,8,0,0" x:Name="NumaZeroGrid">
+                                <Grid Grid.Row="5" Margin="8,8,0,0" x:Name="CoreControlGrid">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="*"/>
                                         <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <CheckBox Grid.Column="0" Grid.Row="1" Width="Auto" Margin="{adonisUi:Space}" HorizontalAlignment="Left" VerticalAlignment="Top" Click="CC_Click" x:Name="cbCC" Panel.ZIndex="1">
+                                        CoreControl
+                                    </CheckBox>
+
+                                    <Expander Grid.Column="0" Grid.Row="1" x:Name="ExpanderCoreControl" HeaderStringFormat="" Margin="{adonisUi:Space}" HorizontalAlignment="Stretch" ExpandDirection="Down" FlowDirection="RightToLeft" Header="Show configuration options" Loaded="SysConfig_Expander_Loaded" Expanded="SysConfig_Expander_AutoHide">
+
+                                        <Grid Grid.Row="0" Grid.Column="3" Grid.ColumnSpan="4" Grid.RowSpan="10" Margin = "{adonisUi:Space}" x:Name="CCGrid" FlowDirection="LeftToRight">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="25px"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock Grid.Column="1" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center" Grid.ColumnSpan="2" Margin="{adonisUi:Space}">Define if you want to limit Intel Turbo Boost mode to GameMode or User activity:</TextBlock>
+                                            <ComboBox Grid.Column="3" Grid.Row="1" Width="Auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="TurbBoostMode_Select" x:Name="listTurbBoostMode">
+
+                                                <ComboBoxItem Tag="0" IsSelected="true">BIOS default</ComboBoxItem>
+                                                <ComboBoxItem Tag="1">GameMode</ComboBoxItem>
+                                                <ComboBoxItem Tag="2">User activity</ComboBoxItem>
+                                            </ComboBox>
+
+                                        </Grid>
+
+                                    </Expander>
+
+                                </Grid>
+
+                                <Grid Grid.Row="6" Margin="8,8,0,0" x:Name="NumaZeroGrid">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
                                         <RowDefinition Height="*"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
@@ -839,38 +797,10 @@
                                                 <RowDefinition Height="*"/>
                                                 <RowDefinition Height="*"/>
                                                 <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="*"/>
                                             </Grid.RowDefinitions>
 
-                                            <TextBlock Grid.Column="1" Grid.Row="21" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="{adonisUi:Space}">Select NumaZero type, Auto will select based on the number of cores or clusters:</TextBlock>
-                                            <ComboBox Grid.Column="3" Grid.Row="21" Width="Auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroType_Select" x:Name="listNumaZeroType">
+                                            <TextBlock Grid.Column="1" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="{adonisUi:Space}">Select NumaZero type, Auto will select based on the number of cores or clusters:</TextBlock>
+                                            <ComboBox Grid.Column="3" Grid.Row="1" Width="Auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroType_Select" x:Name="listNumaZeroType">
 
                                                 <ComboBoxItem Tag="0" IsSelected="true">Auto</ComboBoxItem>
                                                 <ComboBoxItem Tag="1">First 20 Cores</ComboBoxItem>
@@ -885,8 +815,8 @@
                                                 <ComboBoxItem Tag="10">First 2 Cores</ComboBoxItem>
                                             </ComboBox>
 
-                                            <TextBlock Grid.Column="1" Grid.Row="22" HorizontalAlignment="Right" VerticalAlignment="Center" Grid.ColumnSpan="2" Margin="{adonisUi:Space}">Define up to how many Intel Clusters or AMD CCDs to select with NumaZero:</TextBlock>
-                                            <ComboBox Grid.Column="3" Grid.Row="22" Width="Auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroAutoType_Select" x:Name="listNumaZeroAutoType">
+                                            <TextBlock Grid.Column="1" Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Center" Grid.ColumnSpan="2" Margin="{adonisUi:Space}">Define up to how many Intel Clusters or AMD CCDs to select with NumaZero:</TextBlock>
+                                            <ComboBox Grid.Column="3" Grid.Row="2" Width="Auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroAutoType_Select" x:Name="listNumaZeroAutoType">
 
                                                 <ComboBoxItem Tag="0" IsSelected="true">Auto</ComboBoxItem>
                                                 <ComboBoxItem Tag="1">First Cluster</ComboBoxItem>
@@ -899,8 +829,8 @@
                                                 <ComboBoxItem Tag="8">First 8 Clusters</ComboBoxItem>
                                             </ComboBox>
 
-                                            <TextBlock Grid.Column="1" Grid.Row="23" HorizontalAlignment="Right" VerticalAlignment="Center" Grid.ColumnSpan="2" Margin="{adonisUi:Space}">Define which type of cores to exclude with NumaZero selection:</TextBlock>
-                                            <ComboBox Grid.Column="3" Grid.Row="23" Width="Auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroExcludeType_Select" x:Name="listNumaZeroExcludeType">
+                                            <TextBlock Grid.Column="1" Grid.Row="3" HorizontalAlignment="Right" VerticalAlignment="Center" Grid.ColumnSpan="2" Margin="{adonisUi:Space}">Define which type of cores to exclude with NumaZero selection:</TextBlock>
+                                            <ComboBox Grid.Column="3" Grid.Row="3" Width="Auto" HorizontalAlignment="Left" VerticalAlignment="Center" SelectionChanged="NumaZeroExcludeType_Select" x:Name="listNumaZeroExcludeType">
 
                                                 <ComboBoxItem Tag="0" IsSelected="true">None</ComboBoxItem>
                                                 <ComboBoxItem Tag="1">T1 threads</ComboBoxItem>
@@ -914,7 +844,7 @@
 
                                 </Grid>
 
-                                <Button Grid.Column="0" Grid.Row="26" Name="SaveConfig" Click="SaveConfig_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Left" Margin="10,0,0,0" Grid.ColumnSpan="2">
+                                <Button Grid.Column="0" Grid.Row="8" Name="SaveConfig" Click="SaveConfig_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Left" Margin="10,0,0,0" Grid.ColumnSpan="2">
                                     <TextBlock Margin="{adonisUi:Space}" Text="Apply and Save config">
                                     </TextBlock>
                                 </Button>

@@ -622,7 +622,22 @@ namespace CPUDoc
                                     PLEvtPerfMode = _PLEvtPerfMode;
                                 }
                         }
-
+                        
+                        if (pactive.CoreControl && pactive.TurboBoostMode != 0 && systemInfo.IntelTurboModeAvailable)
+                        {
+                            if (pactive.TurboBoostMode == 1 && GameMode && !systemInfo.IntelTurboMode)
+                            {
+                                systemInfo.IntelTurboBoostEnable();
+                            }
+                            else if (pactive.TurboBoostMode == 2 && ActiveMode && !systemInfo.IntelTurboMode)
+                            {
+                                systemInfo.IntelTurboBoostEnable();
+                            }
+                            else if (systemInfo.IntelTurboMode)
+                            {
+                                systemInfo.IntelTurboBoostDisable();
+                            }
+                        }
                     }
 
                     // if (debugtb_steps) App.LogDebug("Stop 009");
