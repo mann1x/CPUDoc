@@ -11,7 +11,7 @@
 
 - v1.2.23 Beta
     - New: Button in settings to reboot the App
-    - New: Reset settings, enable Logtrace, diable Inpoutx64 from settings now asks for App restart
+    - New: Reset settings, enable Logtrace, disable Inpoutx64 from settings now asks for App restart
     - Fix: Improved power plan import process
     - Fix: Improved windows UI layout
     - Fix: Inefficiencies with SSH and wrong display of CPU status
