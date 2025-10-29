@@ -1,5 +1,7 @@
-﻿using AutoUpdaterDotNET;
+﻿using AdonisUI.Controls;
+using AutoUpdaterDotNET;
 using Config.Net;
+using CPUDoc.Windows;
 using Hardcodet.Wpf.TaskbarNotification;
 using Microsoft.Win32.TaskScheduler;
 using net.r_eg.Conari;
@@ -23,6 +25,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 using System.Windows;
+//using System.Windows.Forms;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
@@ -43,6 +46,14 @@ namespace CPUDoc
     using WindowSettings = Properties.Settings;
     public partial class MainWindow
     {
+        // By creating a RoutedCommand, we conveniently enable every child control of this view to invoke the command.
+        // Based on the CommandParameter, this view will decide which dialog or dialog content to load.
+        public static RoutedCommand ShowDialogCommand { get; } = new RoutedCommand("ShowDialogCommand", typeof(MainWindow));
+
+        // Map dialog IDs to a view model class type
+        private Dictionary<DialogId, Type> DialogIdToViewModelMap { get; }
+        public static MainViewModel mainViewModel { get; set; }
+
         //static bool InitUI = true;
         static bool WinLoaded = false;
         static DispatcherTimer uitimer;
@@ -67,6 +78,47 @@ namespace CPUDoc
         {
             InitializeComponent();
 
+            mainViewModel = new MainViewModel();
+
+            this.DataContext = new MainViewModel();
+
+            this.DialogIdToViewModelMap = new Dictionary<DialogId, Type>()
+            {
+                { DialogId.RebootAppDialog, typeof(RebootAppViewModel) },
+            };
+
+            // Register the routed command
+            var showDialogCommandBinding = new CommandBinding(
+              MainWindow.ShowDialogCommand,
+              ExecuteShowDialogCommand,
+              CanExecuteShowDialogCommand);
+            _ = CommandBindings.Add(showDialogCommandBinding);
+
+        }
+        private void CanExecuteShowDialogCommand(object sender, CanExecuteRoutedEventArgs e)
+            => e.CanExecute = e.Parameter is DialogId;
+
+        private void ExecuteShowDialogCommand(object sender, ExecutedRoutedEventArgs e)
+          => ShowDialog((DialogId)e.Parameter);
+
+        private void ShowDialog(DialogId parameter)
+        {
+            if (!this.DialogIdToViewModelMap.TryGetValue(parameter, out Type viewModelType)
+              || !mainViewModel.TryGetViewModel(viewModelType, out object viewModel))
+            {
+                return;
+            }
+
+            var dialog = new OkDialog(viewModel);
+            bool isDialogClosedSuccessfully = dialog.ShowDialog().GetValueOrDefault();
+            if (isDialogClosedSuccessfully && viewModel is IOkDialogViewModel okDialogViewModel)
+            {
+                // Because of data bindng the collected data is already inside the view model.
+                // We can now notify it that the dialog has closed and the data is ready to process.
+                // Implementing IOkDialogViewModel is optional. At this point the view model could have already handled
+                // the collected data via the PropertyChanged notification or property setter.
+                okDialogViewModel.ExecuteOkCommand();
+            }
         }
         private void TextBox_KeyEnterUpdate(object sender, KeyEventArgs e)
         {
@@ -760,116 +812,8 @@ namespace CPUDoc
         {
             try 
             {
-                //App.LogInfo($"Apply CPUdisplay state WinLoad 0x{App.SysCpuSetMask:X8}");
-                for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
-                {
-                    if (ProcessorInfo.HardwareCpuSets[i].Excluded == true)
-                    {
-                        App.systemInfo.UpdateStateThread(i, 1);
-                    }
-                    else if (ProcessorInfo.HardwareCpuSets[i].Disabled == true && ProcessorInfo.HardwareCpuSets[i].ForcedEnable == false)
-                    {
-                        App.systemInfo.UpdateStateThread(i, 2);
-                    }
-                    else if (ProcessorInfo.HardwareCpuSets[i].Disabled == true && (ProcessorInfo.HardwareCpuSets[i].OnDemand == true || ProcessorInfo.HardwareCpuSets[i].ForcedEnable == true))
-                    {
-                        //App.LogDebug($"SetSysCpuSet UpdateStateThread Logical={i} [Disabled]");
-                        App.systemInfo.UpdateStateThread(i, 3);
-                    }
-                    else
-                    {
-                        App.systemInfo.UpdateStateThread(i, 0);
-                    }
-
-                    /*
-                    //App.LogInfo($"Apply state {i}");
-                    if ((((ulong)(1 << i) & App.SysCpuSetMask) != 0) || App.SysCpuSetMask == 0 || !((bool)App.pactive.ThreadBooster))
-                    {
-                        App.systemInfo.UpdateStateThread(i, 0);
-                        //App.LogInfo($"Apply state GREEN0 {i}");
-                    }
-                    else if (!(((ulong)(1 << i) & App.SysCpuSetMask) != 0) && (App.n0disabledT0.Contains(i) || App.n0disabledT1.Contains(i)))
-                    {
-                        App.systemInfo.UpdateStateThread(i, 1);
-                        //App.LogInfo($"Apply state BLACK1 {i}");
-                    }
-                    else
-                    {
-                        App.systemInfo.UpdateStateThread(i, 2);
-                        //App.LogInfo($"Apply state RED2 {i}");
-                    }
-                    */
-                }
-
-                    /*
-                    ulong? _lastmask = App.lastSysCpuSetMask;
-                    if (forced) _lastmask = null;
-                    //App.LogDebug($"UI Mask _lastmask:{_lastmask:X8} _lastmask_current:{_lastmask_current:X8} forced={forced}");
-
-    #pragma warning disable CS0252 // Possible unintended reference comparison; left hand side needs cast
-                    IEnumerable<Button> elements = FindVisualChildren<Button>(this).Where(x => x.Content == "T0" || x.Content == "T1");
-    #pragma warning restore CS0252 // Possible unintended reference comparison; left hand side needs cast
-
-                    if (_lastmask != _lastmask_current || _lastmask_current == ulong.MaxValue)
-                    {
-                        //App.LogDebug($"Refreshing UI Mask");
-
-                        for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
-                        {
-                            ulong? _mask = _lastmask;
-                            foreach (Button btn in elements)
-                            {
-                                if (btn.Tag.ToString() == $"{i}")
-                                {
-                                    if ((((ulong)(1 << i) & _mask) != 0) || _mask == null || _mask == 0 || !((bool)App.pactive.ThreadBooster))
-                                    {
-                                        btn.Foreground = Brushes.White;
-                                        btn.Background = Brushes.Green;
-                                    }
-                                    else if (!(((ulong)(1 << i) & _mask) != 0) && (App.n0disabledT0.Contains(i) || App.n0disabledT1.Contains(i)))
-                                    {
-                                        btn.Foreground = Brushes.DarkGray;
-                                        btn.Background = Brushes.Black;
-                                    }
-                                    else
-                                    {
-                                        btn.Foreground = Brushes.LightGray;
-                                        btn.Background = Brushes.DarkRed;
-                                    }
-                                }
-                            }
-                        }
-                        _lastmask_current = _lastmask;
-                    }
-
-    #pragma warning disable CS0252 // Possible unintended reference comparison; left hand side needs cast
-                    IEnumerable<Button> elementscore = FindVisualChildren<Button>(this).Where(x => x.Tag != null && (x.Tag.ToString().StartsWith("C") || x.Tag.ToString().StartsWith("E") || x.Tag.ToString().StartsWith("P")));
-    #pragma warning restore CS0252 // Possible unintended reference comparison; left hand side needs cast
-
-                    for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
-                    {
-                        int _core = ProcessorInfo.PhysicalCore(i);
-                        //App.LogDebug($"Refreshing Core {_core} Parking Mask");
-                        foreach (Button btn in elementscore)
-                        {
-                            //App.LogDebug($"btn Tag={btn.Tag.ToString()}");
-                            if (btn.Tag.ToString() == $"C{_core}" || btn.Tag.ToString() == $"E{_core}" || btn.Tag.ToString() == $"P{_core}")
-                            {
-                                //App.LogDebug($"btn C{_core} found");
-                                if (ProcessorInfo.HardwareCpuSets[i].LogicalProcessorIndex > 3) 
-                                //if (ProcessorInfo.HardwareCpuSets[i].Parked == 1)
-                                {
-                                    btn.Background = Brushes.Blue;
-                                }
-                                else
-                                {
-                                    btn.Background = Brushes.Transparent;
-                                }
-                            }
-                        }
-                    }
-                    */
-                }
+                ProcessorInfo.UpdateThreadsStatus();
+            }
             catch { }            
         }
 
@@ -1181,6 +1125,17 @@ namespace CPUDoc
 
             App.LogInfo($"Set diagnostic logging: {App.AppSettings.LogTrace}");
             App.TraceLogging(App.AppSettings.LogTrace);
+
+            AdonisUI.Controls.MessageBoxResult result = AppRebootMessageBox("For this option to take effect the App must be restarted. Do you want to reboot Application?");
+            switch (result)
+            {
+                case AdonisUI.Controls.MessageBoxResult.OK:
+                    App.AppReboot("Reboot user manually requested from Settings menu, LogTrace enable");
+                    break;
+                case AdonisUI.Controls.MessageBoxResult.Cancel:
+                    App.LogDebug("Reboot user manually requested from Settings menu, LogTrace enable, cancelled");
+                    break;
+            }
         }
         private void TopmostUI_Click(object sender, RoutedEventArgs e)
         {
@@ -1212,8 +1167,18 @@ namespace CPUDoc
             {
                 App.AppSettings.inpoutdlldisable = false;
             }
-
             App.LogInfo($"Set inpoutx64.dll disable: {App.AppSettings.inpoutdlldisable}");
+
+            AdonisUI.Controls.MessageBoxResult result = AppRebootMessageBox("For this option to take effect the App must be restarted. Do you want to reboot Application?");
+            switch (result)
+            {
+                case AdonisUI.Controls.MessageBoxResult.OK:
+                    App.AppReboot("Reboot user manually requested from Settings menu, inpitoutx64.dll disable");
+                    break;
+                case AdonisUI.Controls.MessageBoxResult.Cancel:
+                    App.LogDebug("Reboot user manually requested from Settings menu, inpitoutx64.dll disable, cancelled");
+                    break;
+            }
         }
         private void SysSetHack_Click(object sender, RoutedEventArgs e)
         {
@@ -1317,7 +1282,7 @@ namespace CPUDoc
             Regex regex = new Regex("[^0-9]+");
             if (regex.IsMatch(e.Text))
             {
-                MessageBox.Show("Only positive numbers allowed for PBO Limits!");
+                AdonisUI.Controls.MessageBox.Show("Only positive numbers allowed for PBO Limits!");
             }
         }
         
@@ -1405,7 +1370,7 @@ namespace CPUDoc
             if (_valid) {
                 if (Int32.Parse(_textbox.Text) < 1) _valid = false;
             }
-            if (!_valid) MessageBox.Show($"Only positive numbers allowed for {_itemdesc}!");
+            if (!_valid) AdonisUI.Controls.MessageBox.Show($"Only positive numbers allowed for {_itemdesc}!");
             return true;
         }
 
@@ -1525,21 +1490,47 @@ namespace CPUDoc
                 App.LogExInfo("SaveConfig_Click exception:", ex);
             }
         }
+        
+        private AdonisUI.Controls.MessageBoxResult AppRebootMessageBox(string message = "Do you want to reboot the Application?")
+        {
+            var messageBox = new MessageBoxModel
+            {
+                Text = message,
+                Caption = "Reboot Application Warning",
+                Icon = AdonisUI.Controls.MessageBoxImage.Exclamation,
+                Buttons = AdonisUI.Controls.MessageBoxButtons.OkCancel(),
+            };
+
+            AdonisUI.Controls.MessageBox.Show(messageBox);
+            return messageBox.Result;
+        }
+        
         private void ResetSettings_Click(object sender, RoutedEventArgs e)
         {
-            //App.LogInfo($"NumaZeroType Index={cb.SelectedIndex} {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
-            //App.LogInfo($"NumaZeroType {App.pactive.NumaZeroType} P0={App.AppConfigs[0].NumaZeroType}");
-            //App.AppConfigs[pcurrent.id] = pcurrent;
-            /*
-            SettingsManager.ResetSettings();
-            if (!SettingsManager.ReadSettings()) SettingsManager.ReadSettings();
-            App.SetActiveConfig(0);
-            if (!SettingsManager.WriteSettings()) SettingsManager.WriteSettings();
-            ThreadBooster.bInit = false;
-            InitWindowUI();
-            */
             App.resetSettings = true;
-            App.QuitApplication();
+            AdonisUI.Controls.MessageBoxResult result = AppRebootMessageBox("Do you really want to reset the settings and reboot the Application?");
+            switch (result)
+            {
+                case AdonisUI.Controls.MessageBoxResult.OK:
+                    App.AppReboot("Reboot user manually requested from Settings menu, reset settings");
+                    break;
+                case AdonisUI.Controls.MessageBoxResult.Cancel:
+                    App.LogDebug("Reboot user manually requested from Settings menu, reset settings, cancelled");
+                    break;
+            }
+        }
+        private void RebootApp_Click(object sender, RoutedEventArgs e)
+        {
+            AdonisUI.Controls.MessageBoxResult result = AppRebootMessageBox();
+            switch (result)
+            {
+                case AdonisUI.Controls.MessageBoxResult.OK:
+                    App.AppReboot("Reboot user manually requested from Settings menu");
+                    break;
+                case AdonisUI.Controls.MessageBoxResult.Cancel:
+                    App.LogDebug("Reboot user manually requested from Settings menu cancelled");
+                    break;
+            }
         }
         private void PopulateSettings_Click(object sender, RoutedEventArgs e)
         {

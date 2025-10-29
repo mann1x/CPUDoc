@@ -7,6 +7,9 @@
              Exit="Application_Exit">
     <Application.Resources>
         <ResourceDictionary>
+            <DataTemplate DataType="{x:Type local:RebootAppViewModel}">
+                <TextBox Margin="{adonisUi:Space}" Text="{Binding GiveReason}" />
+            </DataTemplate>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="pack://application:,,,/AdonisUI;component/ColorSchemes/Dark.xaml"/>
                 <ResourceDictionary Source="pack://application:,,,/AdonisUI.ClassicTheme;component/Resources.xaml"/>
@@ -14,5 +17,4 @@
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
-
 </Application>

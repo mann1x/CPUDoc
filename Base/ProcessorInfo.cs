@@ -609,6 +609,40 @@ namespace CPUDoc
         }
 
         /// <summary>
+        /// Update Threads Status for UI
+        /// </summary>
+        public static void UpdateThreadsStatus() 
+        {
+            var cpuset = HardwareCpuSets;
+
+            for (var i = 0; i < cpuset.Length; ++i)
+            {
+                if (ProcessorInfo.HardwareCpuSets[i].Excluded == true)
+                {
+                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} UpdateStateThread Logical={HardwareCpuSets[i].LogicalProcessorIndex} [Excluded]");
+                    App.systemInfo.UpdateStateThread(HardwareCpuSets[i].LogicalProcessorIndex, 1);
+                }
+                else if (ProcessorInfo.HardwareCpuSets[i].Disabled == true && (ProcessorInfo.HardwareCpuSets[i].OnDemand == true || ProcessorInfo.HardwareCpuSets[i].ForcedEnable == true))
+                {
+                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} UpdateStateThread Logical={HardwareCpuSets[i].LogicalProcessorIndex} [Ondemand/Enabled]");
+                    App.systemInfo.UpdateStateThread(HardwareCpuSets[i].LogicalProcessorIndex, 3);
+                }
+                else if (ProcessorInfo.HardwareCpuSets[i].Disabled == true && ProcessorInfo.HardwareCpuSets[i].ForcedEnable == false && ProcessorInfo.HardwareCpuSets[i].OnDemand == false)
+                {
+                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} UpdateStateThread Logical={HardwareCpuSets[i].LogicalProcessorIndex} [Ondemand/Disabled]");
+                    App.systemInfo.UpdateStateThread(HardwareCpuSets[i].LogicalProcessorIndex, 2);
+                }
+                else
+                {
+                    //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} UpdateStateThread Logical={HardwareCpuSets[i].LogicalProcessorIndex} [Enabled]");
+                    App.systemInfo.UpdateStateThread(HardwareCpuSets[i].LogicalProcessorIndex, 0);
+                }
+                //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} Logical={cpuset[i].LogicalProcessorIndex} Logical={cpuset[i].TieredPriority}");
+            }
+            App.systemInfo.UpdateStateThreadSubmit();
+        }
+
+        /// <summary>
         /// Create default BitMask (all enabled and not excluded)   
         /// </summary>
         public static ulong CreateSSHBitMask(ulong defBitMask, int morecores = 0)
@@ -622,7 +656,6 @@ namespace CPUDoc
                 {
                     //App.LogDebug($"{System.Reflection.MethodBase.GetCurrentMethod().Name} ForcedEnable={cpuset[i].LogicalProcessorIndex}");
                     defBitMask |= (uint)1 << (cpuset[i].LogicalProcessorIndex);
-                    cpuset[i].OnDemand = false;
                     //addedcores++;
                 }
                 else if (addedcores < morecores)
@@ -754,11 +787,14 @@ namespace CPUDoc
         {
             try
             {
+                if (HardwareCpuSets[logical].OnDemand) return;
+                
                 while (Interlocked.CompareExchange(ref InterlockCpuSet, 1, 0) != 0)
                     continue;
 
                 HardwareCpuSets[logical].ForcedEnable = true;
                 HardwareCpuSets[logical].ForcedWhen = DateTime.Now;
+                App.systemInfo.UpdateStateThread(logical, 3);
             }
             catch (Exception ex)
             {
@@ -1636,7 +1672,7 @@ namespace CPUDoc
                 {
                     var cpuset = HardwareCpuSets.Where(x => x.LogicalProcessorIndex == HardwareCores[i].LogicalCores[j]).First();
                     //App.LogDebug($"LogicalThreadLevel logical={logical} Thread={j}");
-                    return j;
+                    if (cpuset != null) return j;
                 }
             }
             //App.LogDebug($"LogicalThreadLevel logical={logical} not found");

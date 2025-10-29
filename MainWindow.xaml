@@ -59,8 +59,8 @@
                         </TabItem.Header>
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="119*" adonisExtensions:LayerExtension.Layer="1"/>
-                                <ColumnDefinition Width="107*" adonisExtensions:LayerExtension.Layer="1"/>
+                                <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
+                                <ColumnDefinition Width="Auto" adonisExtensions:LayerExtension.Layer="1"/>
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*"/>
@@ -956,9 +956,10 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <Button Grid.Column="1" Grid.Row="0" Name="BtnLogsFolder" Click="ButtonLogsFolder" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4">
+                                    <Button Grid.Column="1" Grid.Row="0" Grid.ColumnSpan="2" Name="BtnLogsFolder" Click="ButtonLogsFolder" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4">
                                         <TextBlock Margin="{adonisUi:Space}" Text="Open Logs folder">
                                         </TextBlock>
                                     </Button>
@@ -966,7 +967,11 @@
                                         <TextBlock Margin="{adonisUi:Space}" Text="Populate settings">
                                         </TextBlock>
                                     </Button>
-                                    <Button Grid.Column="1" Grid.Row="2" Name="BtnResetSettings" Click="ResetSettings_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4">
+                                    <Button Grid.Column="1" Grid.Row="2" Name="BtnRebootApp" Click="RebootApp_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4" >
+                                        <TextBlock Margin="{adonisUi:Space}" Text="Reboot App">
+                                        </TextBlock>
+                                    </Button>
+                                    <Button Grid.Column="2" Grid.Row="2" Name="BtnResetSettings" Click="ResetSettings_Click" VerticalAlignment="Center" Padding="3 0 3 0" HorizontalAlignment="Center" Margin="10 4 10 4">
                                         <TextBlock Margin="{adonisUi:Space}" Text="Reset settings">
                                         </TextBlock>
                                     </Button>
@@ -1005,61 +1010,63 @@
                                 <TextBlock Text="About" FontSize="15" Style="{StaticResource HeaderTextBlockStyle}"/>
                             </StackPanel>
                         </TabItem.Header>
-                        <TextBlock Margin="4 4 4 4" Grid.Row="12" Height="Auto">
-                            Join the Discord community here: <Hyperlink 
-                                Foreground="LightSkyBlue"
-                            NavigateUri="https://discord.gg/ZHNNkHV98d"
-                            RequestNavigate="Hyperlink_RequestNavigate">
-                            ManniX's tech corner</Hyperlink>
-                            <LineBreak/><LineBreak/>
-                            GPL-3.0 License - Free Open Source software by ManniX - <Hyperlink 
-                                Foreground="LightSkyBlue"
-                            NavigateUri="https://www.overclock.net/members/mannix-ita.538195/"
-                            RequestNavigate="Hyperlink_RequestNavigate">
-                            OCN: ManniX-ITA</Hyperlink>
-                        <LineBreak/>
-                        GitHub Project: <Hyperlink 
-                                Foreground="LightSkyBlue"
-                                NavigateUri="https://github.com/mann1x/CPUDoc"
+                        <StackPanel>
+                            <TextBlock Margin="4 4 4 4" Grid.Row="12" Height="Auto">
+                                Join the Discord community here: <Hyperlink 
+                                    Foreground="LightSkyBlue"
+                                NavigateUri="https://discord.gg/ZHNNkHV98d"
                                 RequestNavigate="Hyperlink_RequestNavigate">
-                                github.com/mann1x/CPUDoc</Hyperlink>
-                        <LineBreak/>
-                        Thanks for testing, colors and advice - <Hyperlink 
-                                Foreground="LightSkyBlue"
-                                NavigateUri="https://www.overclock.net/members/veii.609138/"
+                                ManniX's tech corner</Hyperlink>
+                                <LineBreak/><LineBreak/>
+                                GPL-3.0 License - Free Open Source software by ManniX - <Hyperlink 
+                                    Foreground="LightSkyBlue"
+                                NavigateUri="https://www.overclock.net/members/mannix-ita.538195/"
                                 RequestNavigate="Hyperlink_RequestNavigate">
-                                OCN: Veii</Hyperlink>
-                        <LineBreak/>
-                        Thanks to Yuri for his efforts supporting the community - <Hyperlink
-                                Foreground="LightSkyBlue"
-                                NavigateUri="https://www.patreon.com/1usmus/posts"
-                                RequestNavigate="Hyperlink_RequestNavigate">
-                                Patreon: 1usmus</Hyperlink>
-                        <LineBreak/>
-                        Credits to Irusanov's Zentimings, ZenCore
-                        GitHub Project: <Hyperlink 
-                                Foreground="LightSkyBlue"
-                                NavigateUri="https://github.com/irusanov/ZenTimings"
-                                RequestNavigate="Hyperlink_RequestNavigate">
-                                github.com/irusanov/ZenTimings</Hyperlink> - 
-                        <Hyperlink 
-                                Foreground="LightSkyBlue"
-                                NavigateUri="https://zentimings.protonrom.com/"
-                                RequestNavigate="Hyperlink_RequestNavigate">
-                                Project Home</Hyperlink>
-                        <LineBreak/>
-                        <Hyperlink 
-                                Foreground="LightSkyBlue"
-                                NavigateUri="https://www.flaticon.com/free-icons/chip"
-                                RequestNavigate="Hyperlink_RequestNavigate">
-                                Chip icons created by Freepik - Flaticon</Hyperlink>
-                        <LineBreak/>
-                        <LineBreak/>
-                        License:
-                        <LineBreak/>
-                        <TextBox x:Name="boxLicense" IsReadOnly="True" VerticalScrollBarVisibility="Auto" Height="Auto" MinWidth="550" MaxHeight="200" MaxWidth="1050"/>
-                        <LineBreak/>
-                        </TextBlock>
+                                OCN: ManniX-ITA</Hyperlink>
+                            <LineBreak/>
+                            GitHub Project: <Hyperlink 
+                                    Foreground="LightSkyBlue"
+                                    NavigateUri="https://github.com/mann1x/CPUDoc"
+                                    RequestNavigate="Hyperlink_RequestNavigate">
+                                    github.com/mann1x/CPUDoc</Hyperlink>
+                            <LineBreak/>
+                            Thanks for testing, colors and advice - <Hyperlink 
+                                    Foreground="LightSkyBlue"
+                                    NavigateUri="https://www.overclock.net/members/veii.609138/"
+                                    RequestNavigate="Hyperlink_RequestNavigate">
+                                    OCN: Veii</Hyperlink>
+                            <LineBreak/>
+                            Thanks to Yuri for his efforts supporting the community - <Hyperlink
+                                    Foreground="LightSkyBlue"
+                                    NavigateUri="https://www.patreon.com/1usmus/posts"
+                                    RequestNavigate="Hyperlink_RequestNavigate">
+                                    Patreon: 1usmus</Hyperlink>
+                            <LineBreak/>
+                            Credits to Irusanov's Zentimings, ZenCore
+                            GitHub Project: <Hyperlink 
+                                    Foreground="LightSkyBlue"
+                                    NavigateUri="https://github.com/irusanov/ZenTimings"
+                                    RequestNavigate="Hyperlink_RequestNavigate">
+                                    github.com/irusanov/ZenTimings</Hyperlink> - 
+                            <Hyperlink 
+                                    Foreground="LightSkyBlue"
+                                    NavigateUri="https://zentimings.protonrom.com/"
+                                    RequestNavigate="Hyperlink_RequestNavigate">
+                                    Project Home</Hyperlink>
+                            <LineBreak/>
+                            <Hyperlink 
+                                    Foreground="LightSkyBlue"
+                                    NavigateUri="https://www.flaticon.com/free-icons/chip"
+                                    RequestNavigate="Hyperlink_RequestNavigate">
+                                    Chip icons created by Freepik - Flaticon</Hyperlink>
+                            <LineBreak/>
+                            <LineBreak/>
+                            License:
+                            <LineBreak/>
+                            <TextBox x:Name="boxLicense" IsReadOnly="True" VerticalScrollBarVisibility="Auto" MinWidth="550" MinHeight="200" MinLines="20" MaxHeight="550"></TextBox>
+                            <LineBreak/>
+                            </TextBlock>
+                        </StackPanel>
                     </TabItem>
                 </TabControl>
             </Grid>

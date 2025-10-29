@@ -16,6 +16,9 @@ namespace CPUDoc
         
         [Option(DefaultValue = 0)]
         int inpoutdlldisable { get; set; }
+
+        [Option(DefaultValue = 0)]
+        int rebootpid { get; set; }
     }
 
     public interface IAppSettings : INotifyPropertyChanged

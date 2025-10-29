@@ -9,6 +9,12 @@
 
 ## Changelog:
 
+- v1.2.23 Beta
+    - New: Button in settings to reboot th App
+    - New: Reset settings, enable Logtrace, diable Inpoutx64 from settings now asks for App restart
+    - Fix: Improved power plan import process
+    - Fix: Improved windows UI layout
+    - Fix: Inefficiencies with SSH and wrong display of CPU status
 - v1.2.22 Beta
     - New: Intel CoreControl, Turbo Boost mode can be limited only to user activity or GameMode
 - v1.2.21 Beta

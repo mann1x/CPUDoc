@@ -2268,8 +2268,8 @@ private int EmptyTags()
                 _newmode = BitSlice(edx, 6, 6) == 0 ? true : false;
                 IntelTurboMode = _newmode;
 
-                App.LogInfo($"IntelTurboBoostEnable Requested {enable}: Starting {_startmode} Ending {_newmode}");
-                App.LogInfo($"IntelTurboBoostEnable End eax {eax:X8} edx {edx:X8}");
+                //App.LogInfo($"IntelTurboBoostEnable Requested {enable}: Starting {_startmode} Ending {_newmode}");
+                //App.LogInfo($"IntelTurboBoostEnable End eax {eax:X8} edx {edx:X8}");
 
                 return _newmode != enable ? false : true;
 
@@ -3881,7 +3881,7 @@ private int EmptyTags()
             }
             catch { }
         }
-        public void UpdateStateThread(int _thread, int _value)
+        public void UpdateStateThread(int _thread, int _value, bool deferred = true)
         {
             if (!App.MainWindowOpen) return;
             try
@@ -3889,6 +3889,19 @@ private int EmptyTags()
                 cpuTstateFG[_thread] = _value == 0 ? System.Windows.Media.Brushes.White : _value == 1 ? System.Windows.Media.Brushes.DarkGray : _value == 2 ? System.Windows.Media.Brushes.LightGray : System.Windows.Media.Brushes.White;
                 cpuTstateBG[_thread] = _value == 0 ? System.Windows.Media.Brushes.Green : _value == 1 ? System.Windows.Media.Brushes.Black : _value == 2 ? System.Windows.Media.Brushes.DarkRed : System.Windows.Media.Brushes.DarkGreen;
                 //App.LogInfo($"{_value}");
+                if (!deferred)
+                {
+                    OnChange("cpuTstateFG");
+                    OnChange("cpuTstateBG");
+                }
+            }
+            catch { }
+        }
+        public void UpdateStateThreadSubmit()
+        {
+            if (!App.MainWindowOpen) return;
+            try
+            {
                 OnChange("cpuTstateFG");
                 OnChange("cpuTstateBG");
             }

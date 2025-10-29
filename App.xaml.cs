@@ -99,7 +99,7 @@ namespace CPUDoc
         //private static string codebase = System.Reflection.Assembly.GetExecutingAssembly().CodeBase;
         //private static string basepath = new Uri(System.IO.Path.GetDirectoryName(codebase)).LocalPath;
 
-        private IKeyboardMouseEvents m_Events;
+        private static IKeyboardMouseEvents m_Events;
 
         public static DateTime UAStamp;
 
@@ -936,29 +936,8 @@ namespace CPUDoc
             App.LogDebug($"SetSysCpuSet Apply mask 0x{_BitMask:X16} [{whoami}]");
 
             ProcessorInfo.EnabledLogicals = ThreadBooster.CountBits(_BitMask);
-
-            for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
-            {
-                if (ProcessorInfo.HardwareCpuSets[i].Excluded == true)
-                {
-                    App.systemInfo.UpdateStateThread(i, 1);
-                }
-                else if (ProcessorInfo.HardwareCpuSets[i].Disabled == true && ProcessorInfo.HardwareCpuSets[i].ForcedEnable == false && ProcessorInfo.HardwareCpuSets[i].OnDemand == false)
-                {
-                    //App.LogDebug($"SetSysCpuSet UpdateStateThread Logical={i} [Disabled]");
-                    App.systemInfo.UpdateStateThread(i, 2);
-                }
-                else if (ProcessorInfo.HardwareCpuSets[i].Disabled == true && (ProcessorInfo.HardwareCpuSets[i].OnDemand == true || ProcessorInfo.HardwareCpuSets[i].ForcedEnable == true))
-                {
-                    //App.LogDebug($"SetSysCpuSet UpdateStateThread Logical={i} [Disabled]");
-                    App.systemInfo.UpdateStateThread(i, 3);
-                }
-                else
-                {
-                    //App.LogDebug($"SetSysCpuSet UpdateStateThread Logical={i} [Enabled]");
-                    App.systemInfo.UpdateStateThread(i, 0);
-                }
-            }
+            
+            ProcessorInfo.UpdateThreadsStatus();
             /*
             for (int i = 0; i < ProcessorInfo.LogicalCoresCount; ++i)
             {
@@ -1587,11 +1566,13 @@ namespace CPUDoc
                 string[] args = Environment.GetCommandLineArgs();
                 for (int i = 1; i < args.Length; i++) // args[0] is always exe path/filename
                     arguments += args[i] + " ";
+                arguments += $" rebootpid={Process.GetCurrentProcess().Id}";
                 objProcessInfo.Arguments = arguments;
                 // Restart current application, with same arguments/parameters
                 Process proc = Process.Start(objProcessInfo);
-                QuitApplication();
-                Environment.Exit(0);
+                //QuitApplication();
+                //Environment.Exit(0);
+                Application_Exit();
 
             }
             catch (Exception ex)
@@ -1882,11 +1863,6 @@ namespace CPUDoc
                     .UseIniFile(SettingsManager.fileAppConfigsINI)
                     .Build();
 
-                cmdargs = new ConfigurationBuilder<ICommandLineArgs>()
-                    .UseCommandLineArgs(
-                        new KeyValuePair<string, int>(nameof(ICommandLineArgs.LogTrace), 1))
-                    .Build();
-
                 iApp3DMark = new ConfigurationBuilder<IApp3DMark>()
                     .UseIniFile(SettingsManager.file3DMarkINI)
                     .Build();
@@ -2033,8 +2009,46 @@ namespace CPUDoc
         {
             try
             {
+                cmdargs = new ConfigurationBuilder<ICommandLineArgs>()
+                    .UseCommandLineArgs(
+                        new KeyValuePair<string, int>(nameof(ICommandLineArgs.LogTrace), 1))
+                    .Build();
+
+                if (cmdargs.rebootpid > 0)
+                {
+                    try
+                    {
+                        Process rebootedproc = Process.GetProcessById(cmdargs.rebootpid);
+                        if (rebootedproc != null)
+                        {
+                            //LogInfo($"Rebooted from PID {cmdargs.rebootpid}, waiting for exit...");
+                            while (!rebootedproc.WaitForExit(1000))
+                            {
+                                //LogInfo($"Rebooted PID {cmdargs.rebootpid} still running...");
+                            }
+                            //LogInfo($"Rebooted PID {cmdargs.rebootpid} exited.");
+                        }
+                    }
+                    catch
+                    {
+                        //LogInfo($"Rebooted PID {cmdargs.rebootpid} exception: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                string errorMessage = string.Format("CPUDoc: an exception occurred when parsing the command line arguments: {0}", ex.Message);
+                if (Task.Run(() => MessageBox.Show(errorMessage, "CPUDoc Error", MessageBoxButton.OK, MessageBoxImage.Error)).Result == MessageBoxResult.OK)
+                {
+                    QuitApplication();
+                    Current.Shutdown();
+                    Environment.Exit(1);
+                }
+            }
+            
+            try { 
                 instanceMutex = new Mutex(true, mutexName, out bMutex);
-                
+
                 if (!bMutex)
                 {
                     InteropMethods.PostMessage((IntPtr)InteropMethods.HWND_BROADCAST, InteropMethods.WM_SHOWME,
@@ -2044,7 +2058,6 @@ namespace CPUDoc
                 }
 
                 GC.KeepAlive(instanceMutex);
-
 
             }
             catch (Exception ex)
@@ -2633,7 +2646,11 @@ namespace CPUDoc
                 if (pcfgexe.Length == 0)
                     pcfgexe = Pcfgpathname;
 
+                App.LogInfo($"Selected Powercfg: {pcfgexe}");
+
                 if (!File.Exists(PPpathname)) throw new System.Exception("Power Plan file does not exist!");
+
+                PowercfgDelete(pcfgexe, PPGuid);
 
                 var cmd = new Process { StartInfo = { FileName = pcfgexe } };
                 using (cmd)
@@ -2651,7 +2668,6 @@ namespace CPUDoc
                     string output = cmd.StandardOutput.ReadToEnd();
                     string outerr = cmd.StandardError.ReadToEnd();
 
-
                     cmd.WaitForExit();
                     
                     App.LogInfo($"Powercfg output: {output}");
@@ -2662,6 +2678,8 @@ namespace CPUDoc
                             App.LogInfo($"Powercfg error output: {outerr}");
                     }
 
+                    PowercfgActivate(pcfgexe, PPGuid);
+
                     return cmd.ExitCode == 0 ? true : false;
                 }
             }
@@ -2670,8 +2688,68 @@ namespace CPUDoc
                 LogExError($"ImportPowerPlan exception: {ex.Message}", ex);
                 return false;
             }
-
         }
+
+        public static void PowercfgDelete(string pcfgexe, Guid PPGuid)
+        {
+            try
+            {
+
+                var cmd = new Process { StartInfo = { FileName = pcfgexe } };
+                using (cmd)
+                {
+
+                    cmd.StartInfo.CreateNoWindow = true;
+                    cmd.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                    cmd.StartInfo.RedirectStandardOutput = true;
+                    cmd.StartInfo.RedirectStandardError = true;
+
+                    //Import the new power plan
+                    cmd.StartInfo.Arguments = $"-delete {PPGuid}";
+                    cmd.Start();
+
+                    string output = cmd.StandardOutput.ReadToEnd();
+                    string outerr = cmd.StandardError.ReadToEnd();
+
+                    cmd.WaitForExit();
+                }
+            }
+            catch (Exception ex)
+            {
+                LogExError($"PowercfgDelete exception: {ex.Message}", ex);
+            }
+        }
+
+        public static void PowercfgActivate(string pcfgexe, Guid PPGuid)
+        {
+            try
+            {
+
+                var cmd = new Process { StartInfo = { FileName = pcfgexe } };
+                using (cmd)
+                {
+
+                    cmd.StartInfo.CreateNoWindow = true;
+                    cmd.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                    cmd.StartInfo.RedirectStandardOutput = true;
+                    cmd.StartInfo.RedirectStandardError = true;
+
+                    //Import the new power plan
+                    cmd.StartInfo.Arguments = $"-setactive {PPGuid}";
+                    cmd.Start();
+
+                    string output = cmd.StandardOutput.ReadToEnd();
+                    string outerr = cmd.StandardError.ReadToEnd();
+
+                    cmd.WaitForExit();
+                }
+            }
+            catch (Exception ex)
+            {
+                LogExError($"PowercfgActivate exception: {ex.Message}", ex);
+            }
+        }
+
         public static void PSAPlanDisable()
         {
             try
@@ -3611,7 +3689,7 @@ namespace CPUDoc
             Unsubscribe();
             Subscribe(Hook.GlobalEvents());
         }
-        private void OnKeyPressDown(object sender, System.Windows.Forms.KeyEventArgs e)
+        private static void OnKeyPressDown(object sender, System.Windows.Forms.KeyEventArgs e)
         {
             //system.windows.forms instead input
             //UAStamp = DateTime.Now;
@@ -3620,7 +3698,7 @@ namespace CPUDoc
             //App.LogInfo($"KeyDown  \t\t {e.KeyCode}");
         }
 
-        private void OnKeyPressUp(object sender, System.Windows.Forms.KeyEventArgs e)
+        private static void OnKeyPressUp(object sender, System.Windows.Forms.KeyEventArgs e)
         {
             //system.windows.forms instead input
             //UAStamp = DateTime.Now;
@@ -3636,7 +3714,7 @@ namespace CPUDoc
             //if (error > 0) Log(string.Format("Error \t\t {0}\n", error.ToString()));
             //Debug.WriteLine("Key  \t\t {e.Button}");
         }
-        private void Subscribe(IKeyboardMouseEvents events)
+        private static void Subscribe(IKeyboardMouseEvents events)
         {
 
             m_Events = events;
@@ -3653,7 +3731,7 @@ namespace CPUDoc
             m_Events.MouseMove += OnMouseMove;
             */
         }
-        private void Unsubscribe()
+        private static void Unsubscribe()
         {
             if (m_Events == null) return;
             m_Events.KeyDown -= OnKeyPressDown;
@@ -3671,7 +3749,7 @@ namespace CPUDoc
             m_Events = null;
         }
 
-        private SERVICE_STATUS DoQueryServiceStatus(IntPtr intPtrServ)
+        private static SERVICE_STATUS DoQueryServiceStatus(IntPtr intPtrServ)
         {
             SERVICE_STATUS serviceStatus = new SERVICE_STATUS();
 
@@ -3679,7 +3757,7 @@ namespace CPUDoc
 
             return serviceStatus;
         }
-        private int Stop_WinRing0()
+        private static int Stop_WinRing0()
         {
             int _exitcode = 0;
             try
@@ -3724,6 +3802,7 @@ namespace CPUDoc
 
             return _exitcode;
         }
+        
         public static void QuitApplication()
         {
             Thread.Sleep(500);
@@ -3739,11 +3818,10 @@ namespace CPUDoc
             Current.Shutdown();
         }
 
-        private void Application_Exit(object sender, ExitEventArgs e)
+        public static void Application_Exit()
         {
             Application_Cleanup();
             QuitApplication();
-            
             try
             {
                 if (trayIcon != null)
@@ -3771,7 +3849,13 @@ namespace CPUDoc
             notifyIcon?.Dispose();
             Environment.Exit(0);
         }
-        private void Application_Cleanup()
+
+        private void Application_Exit(object sender, ExitEventArgs e)
+        {
+            Application_Exit();
+        }
+
+        private static void Application_Cleanup()
         {
             try
             {
@@ -3878,7 +3962,7 @@ namespace CPUDoc
             ClearTimePeriod();
         }
 
-        private bool IsModuleLoaded(string ModuleName)
+        private static bool IsModuleLoaded(string ModuleName)
         {
             bool loaded = false;
             Process _process = Process.GetCurrentProcess();
@@ -4458,7 +4542,7 @@ namespace CPUDoc
             switch (rate)
             {
                 case 0: //Very Slow
-                    ThreadBooster.SysMaskPooling = 350;
+                    ThreadBooster.SysMaskPooling = 50;
                     ThreadBooster.PoolingInterval = 750;
                     ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
                     HWMonitor.MonitoringPooling = 500;
@@ -4467,7 +4551,7 @@ namespace CPUDoc
                     cpuTotalLoadLong = new MovingAverage(12);
                     return;
                 case 1:
-                    ThreadBooster.SysMaskPooling = 250;
+                    ThreadBooster.SysMaskPooling = 25;
                     ThreadBooster.PoolingInterval = 500;
                     ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
                     HWMonitor.MonitoringPooling = 250;
@@ -4476,7 +4560,7 @@ namespace CPUDoc
                     cpuTotalLoadLong = new MovingAverage(16);
                     return;
                 case 2:
-                    ThreadBooster.SysMaskPooling = 150;
+                    ThreadBooster.SysMaskPooling = 12;
                     ThreadBooster.PoolingInterval = 350;
                     ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
                     HWMonitor.MonitoringPooling = 250;
@@ -4485,7 +4569,7 @@ namespace CPUDoc
                     cpuTotalLoadLong = new MovingAverage(16);
                     return;
                 case 4:
-                    ThreadBooster.SysMaskPooling = 90;
+                    ThreadBooster.SysMaskPooling = 8;
                     ThreadBooster.PoolingInterval = 120;
                     ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
                     HWMonitor.MonitoringPooling = 200;
@@ -4494,7 +4578,7 @@ namespace CPUDoc
                     cpuTotalLoadLong = new MovingAverage(20);
                     return;
                 case 5:
-                    ThreadBooster.SysMaskPooling = 75;
+                    ThreadBooster.SysMaskPooling = 5;
                     ThreadBooster.PoolingInterval = 100;
                     ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
                     HWMonitor.MonitoringPooling = 150;
@@ -4503,7 +4587,7 @@ namespace CPUDoc
                     cpuTotalLoadLong = new MovingAverage(32);
                     return;
                 case 6:
-                    ThreadBooster.SysMaskPooling = 50;
+                    ThreadBooster.SysMaskPooling = 2;
                     ThreadBooster.PoolingInterval = 100;
                     ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
                     HWMonitor.MonitoringPooling = 100;
@@ -4512,7 +4596,7 @@ namespace CPUDoc
                     cpuTotalLoadLong = new MovingAverage(40);
                     return;
                 case 7: //Crazy Fast
-                    ThreadBooster.SysMaskPooling = 25;
+                    ThreadBooster.SysMaskPooling = 1;
                     ThreadBooster.PoolingInterval = 50;
                     ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
                     HWMonitor.MonitoringPooling = 50;
@@ -4522,7 +4606,7 @@ namespace CPUDoc
                     return;
                 default: 
                 case 3: //Default
-                    ThreadBooster.SysMaskPooling = 125;
+                    ThreadBooster.SysMaskPooling = 10;
                     ThreadBooster.PoolingInterval = 150;
                     ThreadBooster.PoolingIntervalDefault = ThreadBooster.PoolingInterval;
                     HWMonitor.MonitoringPooling = 250;

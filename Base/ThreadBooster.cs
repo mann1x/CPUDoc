@@ -685,6 +685,7 @@ namespace CPUDoc
                         App.LogDebug($"Set NumaZero ThreadBooster Apply mask 0x{defFullBitMask:X16}");
                         //App.lastSysCpuSetMask = 0;
                         App.SysCpuSetMask = defFullBitMask;
+                        ProcessorInfo.UpdateThreadsStatus();
                     }
 
                     // if (debugtb_steps) App.LogDebug("Stop 013a");
@@ -711,6 +712,7 @@ namespace CPUDoc
                                     App.LogDebug($"Applying SysCpuSetMask CustomSysMask 0x{CustomSysMask:X16}");
                                     setcores = CountBits(CustomSysMask);
                                     App.SysCpuSetMask = CustomSysMask;
+                                    ProcessorInfo.UpdateThreadsStatus();
                                 }
                             }
                         }
@@ -723,9 +725,11 @@ namespace CPUDoc
 
                             if (defFullBitMask != App.lastSysCpuSetMask && (App.pactive.SysSetHack))
                             {
-                                //App.LogDebug($"SysCpuSetMask defFullBitMask 0x{defFullBitMask:X16}");
+                                //App.LogDebug($"FULL LOAD SysCpuSetMask defFullBitMask 0x{defFullBitMask:X16}");
                                 setcores = basecores + addcores;
+                                ProcessorInfo.CreateSSHBitMask(defBitMask, addcores);
                                 App.SysCpuSetMask = defFullBitMask;
+                                ProcessorInfo.UpdateThreadsStatus();
                             }
                         }
                         else
@@ -802,17 +806,14 @@ namespace CPUDoc
                                 if (deltalesscores < 0 && _deltaStamp.TotalSeconds >= IncreaseHysteresis && !SetHysteresis)
                                 {
                                     //App.LogDebug($"Slow decreasing PRE morecores {morecores} SetHysteresis={SetHysteresis}");
-                                    morecores = deltalesscores > 8 && morecores > 4 ? morecores - 4 : deltalesscores > 4 && morecores > 2 ? morecores - 2 : morecores - 1;
+                                    //morecores = deltalesscores > 8 && morecores > 4 ? morecores - 4 : deltalesscores > 4 && morecores > 2 ? morecores - 2 : morecores - 1;
+                                    morecores = deltalesscores > 4 && morecores > 2 ? morecores - 2 : morecores - 1;
                                     //if (morecores < prevMorecores && morecores >= 0) prevMorecores = morecores;
                                     //App.LogDebug($"Slow decreasing POST morecores {morecores} SetHysteresis={SetHysteresis}");
                                 }
                                 else if (newsetcores >= basecores && needcores >= usedcores)
                                 {
-                                    if (TotalEnabledLoadNorm >= 100)
-                                    {
-                                        morecores = addcores;
-                                    }
-                                    else if (TotalEnabledLoadNorm > 98)
+                                    if (TotalEnabledLoadNorm > 98)
                                     {
                                         morecores += 2;
                                     }
@@ -828,18 +829,22 @@ namespace CPUDoc
 
                                 newsetcores = basecores + morecores;
 
+                                if (setcores < basecores) setcores = basecores;
+                                if (newsetcores < basecores) newsetcores = basecores;
+
                                 //App.LogDebug($"RTBSSH8 setcores {setcores} newsetcores {newsetcores} basecores {basecores} prevMorecores {prevMorecores} morecores {morecores} addcores={addcores}");
 
                                 //if (morecores > 0 || prevMorecores != morecores || ProcessorInfo.SSH_UpdateSysMask)
-                                if (setcores != newsetcores || ProcessorInfo.IsForceEnableAny() || ProcessorInfo.SSH_UpdateSysMask)
+                                if (setcores != newsetcores || prevMorecores != morecores || ProcessorInfo.IsForceEnableAny() || ProcessorInfo.SSH_UpdateSysMask)
                                 {
                                     //App.LogDebug($"RTBSSH defBitMask 0x{defBitMask:X16} defFullBitMask 0x{defFullBitMask:X16} addcores={addcores}");
                                     newBitMask = ProcessorInfo.CreateSSHBitMask(defBitMask, morecores);
                                     //prevNeedcores = needcores;
                                     //setcores = newsetcores;
                                     //App.LogDebug($"RTBSSH [{CountBits(App.SysCpuSetMask)}->{CountBits(newBitMask)}] newbitMask 0x{newBitMask:X16} prevBitMask 0x{App.SysCpuSetMask:X16} morecores={morecores}");
+                                    //App.LogDebug($"RTBSSH setcores={setcores} newsetcores={newsetcores} IsForceEnableAny()={ProcessorInfo.IsForceEnableAny()} SSH_UpdateSysMask={ProcessorInfo.SSH_UpdateSysMask}");
 
-                                    if (newBitMask != App.SysCpuSetMask && !SetHysteresis)
+                                    if ((newBitMask != App.SysCpuSetMask) && !SetHysteresis)
                                     {
                                         // if (debugtb_steps) App.LogDebug("Stop 014c");
                                         //App.LogDebug($"RTBSSH set newbitMask 0x{newBitMask:X16} prevBitMask 0x{App.SysCpuSetMask:X16} {morecores}");
