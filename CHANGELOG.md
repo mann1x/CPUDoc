@@ -10,7 +10,7 @@
 ## Changelog:
 
 - v1.2.23 Beta
-    - New: Button in settings to reboot th App
+    - New: Button in settings to reboot the App
     - New: Reset settings, enable Logtrace, diable Inpoutx64 from settings now asks for App restart
     - Fix: Improved power plan import process
     - Fix: Improved windows UI layout
