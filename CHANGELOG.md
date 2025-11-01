@@ -9,6 +9,8 @@
 
 ## Changelog:
 
+- v1.2.24 Beta
+    - Fix: Performance Counter initialization, changed category "Processor" to "Processor Information" to support latest Windows versions
 - v1.2.23 Beta
     - New: Button in settings to reboot the App
     - New: Reset settings, enable Logtrace, disable Inpoutx64 from settings now asks for App restart

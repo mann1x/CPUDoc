@@ -283,7 +283,7 @@ namespace CPUDoc
             try
             {
                 TotalLoadCounter = new PerformanceCounter(
-                "Processor",
+                "Processor Information",
                 "% Processor Time",
                 "_Total",
                 true
@@ -298,7 +298,7 @@ namespace CPUDoc
                 try
                 {
                     TotalLoadCounter = new PerformanceCounter(
-                    "Processor",
+                    "Processor Information",
                     "% Processor Time",
                     "_Total",
                     true
@@ -313,6 +313,7 @@ namespace CPUDoc
             }
             return CpuLoadPerfCounter;
         }
+
         /// <summary>
         /// Hardware CpuSets
         /// </summary>
@@ -2009,9 +2010,9 @@ namespace CPUDoc
                 Excluded = false;
                 
                 LoadCounter = CpuLoadPerfCounter ? new PerformanceCounter(
-                "Processor",
+                "Processor Information",
                 "% Processor Time",
-                $"{(int)x.CpuSetUnion.CpuSet.LogicalProcessorIndex}",
+                $"0,{(int)x.CpuSetUnion.CpuSet.LogicalProcessorIndex}",
                 true
                 ) : new PerformanceCounter();
                 LoadCounter.NextValue();

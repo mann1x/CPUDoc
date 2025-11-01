@@ -106,7 +106,7 @@ If for some reason you don't want or can't use PSA, check one of my Custom Power
 
 ## Compilation
 
-You can compile with Visual Studio 2022 and .NET Core 6.
+You can compile with Visual Studio 2022 and .NET Core 9.
 
 ---
 

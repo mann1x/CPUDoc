@@ -132,6 +132,16 @@ WARNING: This feature is experimental and if another software is conflicting cou
 
 ---
 
+## CoreControl
+
+This feature is specific to Intel CPUs.
+It will allow to set static/dynamic settings via MSR programming.
+
+Right now it works in conjunction with PSA to adjust in real-time the Turbo Boost mode.
+You can decide to enable Turbo mode only when user activity is detected or only with GameMode.
+
+---
+
 ## NumaZero  (aka N0 or NZ)
 
 This feature can be enabled with an Auto Type mode or manually selecting a fixed amount of cores to select from the first.
